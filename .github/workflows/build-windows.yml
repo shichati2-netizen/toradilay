@@ -72,6 +72,23 @@ jobs:
           path: dist-electron/ToraDelia-Kiosk-Windows.zip
           if-no-files-found: error
           retention-days: 30
+      - name: Remove legacy EXE and installer assets from the release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $assets = gh release view windows-latest --json assets --jq ".assets[].name" 2>$null
+          if ($LASTEXITCODE -eq 0) {
+            foreach ($legacy in @("ToraDelia-Kiosk-Setup.exe", "ToraDelia-Kiosk.exe")) {
+              if ($assets -contains $legacy) {
+                gh release delete-asset windows-latest $legacy --yes
+                if ($LASTEXITCODE -ne 0) { throw "Failed to remove old release asset: $legacy" }
+              }
+            }
+          } else {
+            Write-Host "No existing windows-latest release assets to clean."
+          }
       - name: Publish latest Windows release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
