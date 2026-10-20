@@ -320,7 +320,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   return (
     <FxProvider effects={effects}>
       <div
-        className={`kiosk-root ${effectClasses(effects)} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
+        className={`kiosk-root ${effectClasses(effects)} ${effects.glass && effects.glassIntensity > 0 ? "liquid-glass-motion" : ""} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
         style={{
           "--liquid-glass-intensity": effects.glassIntensity / 100,
           "--liquid-glass-duration": `${11 - effects.glassSpeed}s`,
