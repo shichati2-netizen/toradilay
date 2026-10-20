@@ -134,3 +134,74 @@
     transition: none;
   }
 }
+
+
+/* תנועה נראית לעין: פס אור מחליק לרוחב הלוחות, והשתקפות נעה בפינות. */
+.fx-glass .panel::after {
+  background:
+    linear-gradient(
+      112deg,
+      transparent 0%,
+      transparent 30%,
+      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.05)) 39%,
+      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.3)) 45%,
+      rgba(145, 190, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.24)) 50%,
+      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.08)) 54%,
+      transparent 66%,
+      transparent 100%
+    ),
+    radial-gradient(75% 55% at var(--liquid-glass-x, 8%) var(--liquid-glass-y, 0%), rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.16)), transparent 72%),
+    radial-gradient(65% 70% at 100% 100%, rgba(87, 139, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.13)), transparent 75%);
+  background-size: 260% 100%, 180% 180%, 180% 180%;
+  background-position: 180% 0%, 0% 0%, 100% 100%;
+  animation:
+    liquid-glass-sheen var(--liquid-glass-duration, 4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite,
+    liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 2.4) ease-in-out infinite alternate;
+  opacity: calc(0.22 + var(--liquid-glass-intensity, 0.88) * 0.78);
+}
+
+/* פס האור נע גם על השפה הדקה, כך שהאפקט מורגש גם בכרטיסים קטנים. */
+.fx-glass .panel:not(.beam)::before {
+  background: linear-gradient(
+    115deg,
+    rgba(255, 255, 255, 0.54) 0%,
+    rgba(255, 255, 255, 0.1) 18%,
+    transparent 38%,
+    rgba(155, 198, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.48)) 50%,
+    transparent 62%,
+    rgba(255, 255, 255, 0.18) 80%,
+    rgba(255, 255, 255, 0.48) 100%
+  );
+  background-size: 280% 280%;
+  animation: liquid-glass-edge var(--liquid-glass-duration, 4s) linear infinite;
+  opacity: calc(0.25 + var(--liquid-glass-intensity, 0.88) * 0.75);
+}
+
+/* מרקם שקוף ומשתנה גם ברצועות העליונות ובמשטחי קלט. */
+.kiosk-root.fx-glass > header > div:first-child,
+.kiosk-root.fx-glass > footer {
+  background-size: 240% 240%;
+  animation: liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 1.7) ease-in-out infinite alternate;
+}
+
+.fx-glass .panel-solid,
+.fx-glass .inset-field {
+  background-size: 220% 220%;
+  animation: liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 1.8) ease-in-out infinite alternate;
+}
+
+@keyframes liquid-glass-sheen {
+  0% { background-position: 180% 0%, 0% 0%, 100% 100%; }
+  100% { background-position: -100% 0%, 45% 65%, 65% 30%; }
+}
+
+@keyframes liquid-glass-edge {
+  0% { background-position: 100% 0%; }
+  100% { background-position: -180% 100%; }
+}
+
+@keyframes liquid-glass-flow {
+  0% { background-position: 0% 0%; }
+  50% { background-position: 60% 45%; }
+  100% { background-position: 100% 100%; }
+}
