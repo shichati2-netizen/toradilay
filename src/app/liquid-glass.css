@@ -1,0 +1,136 @@
+/*
+ * Liquid Glass — שכבת זכוכית נוזלית בסגנון iOS.
+ * נשלטת באמצעות מתג "זכוכית" בהגדרות האפקטים.
+ */
+
+/* לוחות: טשטוש עמוק, רוויית צבע והחזרי אור עדינים */
+.fx-glass .panel {
+  isolation: isolate;
+  background:
+    radial-gradient(130% 110% at 0% 0%, rgba(255, 255, 255, 0.13) 0%, transparent 48%),
+    radial-gradient(100% 120% at 100% 0%, rgba(105, 160, 255, 0.09) 0%, transparent 48%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.105) 0%, rgba(255, 255, 255, 0.035) 48%, rgba(255, 255, 255, 0.075) 100%);
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 28px 65px -34px rgba(0, 0, 0, 0.82),
+    0 8px 24px -16px rgba(135, 177, 255, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.055),
+    inset 1px 0 0 rgba(255, 255, 255, 0.06),
+    inset -1px 0 0 rgba(255, 255, 255, 0.045);
+  -webkit-backdrop-filter: blur(30px) saturate(180%) contrast(105%);
+  backdrop-filter: blur(30px) saturate(180%) contrast(105%);
+  transition:
+    border-color 240ms ease,
+    box-shadow 280ms ease,
+    background-color 240ms ease;
+}
+
+/* הילה פנימית — נשארת מתחת לתוכן ולא חוסמת לחיצות */
+.fx-glass .panel::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(75% 55% at 8% 0%, rgba(255, 255, 255, 0.12), transparent 72%),
+    radial-gradient(65% 70% at 100% 100%, rgba(87, 139, 255, 0.075), transparent 75%);
+}
+
+/* שפת זכוכית מוארת. לוחות beam שומרים על מסגרת האור הקיימת שלהם */
+.fx-glass .panel:not(.beam)::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.42) 0%,
+    rgba(255, 255, 255, 0.08) 24%,
+    transparent 48%,
+    rgba(149, 190, 255, 0.12) 76%,
+    rgba(255, 255, 255, 0.24) 100%
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* גם משטחי משנה ושדות קלט מקבלים עומק זכוכיתי */
+.fx-glass .panel-solid {
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
+    rgba(10, 21, 48, 0.62);
+  border-color: rgba(255, 255, 255, 0.17);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 14px 32px -24px rgba(0, 0, 0, 0.9);
+  -webkit-backdrop-filter: blur(24px) saturate(165%);
+  backdrop-filter: blur(24px) saturate(165%);
+}
+
+.fx-glass .inset-field {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025)), rgba(5, 11, 26, 0.35);
+  border-color: rgba(255, 255, 255, 0.17);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 2px 12px rgba(0, 0, 0, 0.24);
+  -webkit-backdrop-filter: blur(18px) saturate(155%);
+  backdrop-filter: blur(18px) saturate(155%);
+}
+
+/* משטחי ניווט צפים עם השתקפות עדינה */
+.kiosk-root.fx-glass > header > div:first-child,
+.kiosk-root.fx-glass > footer {
+  background: linear-gradient(110deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025) 52%, rgba(125, 166, 255, 0.055)), rgba(5, 11, 26, 0.5);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13),
+    0 -1px 0 rgba(255, 255, 255, 0.035);
+  -webkit-backdrop-filter: blur(26px) saturate(175%);
+  backdrop-filter: blur(26px) saturate(175%);
+}
+
+/* כפתורי פעולה משניים מקבלים מראה של זכוכית ולא של משטח אטום */
+.fx-glass .btn-ghost,
+.fx-glass .btn-navy,
+.fx-glass .btn-key {
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.045) 55%, rgba(113, 157, 255, 0.075));
+  border-color: rgba(255, 255, 255, 0.2);
+  box-shadow:
+    0 10px 25px -18px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.045);
+  -webkit-backdrop-filter: blur(18px) saturate(165%);
+  backdrop-filter: blur(18px) saturate(165%);
+}
+
+.fx-glass .btn-ghost:hover:not(:disabled),
+.fx-glass .btn-navy:hover:not(:disabled),
+.fx-glass .btn-key:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.34);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.065) 55%, rgba(113, 157, 255, 0.12));
+  box-shadow:
+    0 14px 30px -18px rgba(0, 0, 0, 0.9),
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 22px -16px rgba(170, 204, 255, 0.7);
+}
+
+/* בלי טשטוש יקר כשהאפקט מכובה או כשאנימציות מצומצמות */
+.kiosk-root:not(.fx-glass) .panel,
+.kiosk-root.fx-off .panel {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fx-glass .panel {
+    transition: none;
+  }
+}
