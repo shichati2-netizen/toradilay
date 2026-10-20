@@ -18,8 +18,6 @@ jobs:
     permissions:
       contents: write
     env:
-      # Placeholder used only at build time. Never packaged as a credential.
-      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/app_db
       NEXT_TELEMETRY_DISABLED: "1"
     steps:
       - name: Checkout repository
