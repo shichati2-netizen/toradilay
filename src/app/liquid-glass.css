@@ -87,8 +87,8 @@
 }
 
 /* משטחי ניווט צפים עם השתקפות עדינה */
-.kiosk-root.fx-glass > header > div:first-child,
-.kiosk-root.fx-glass > footer {
+.kiosk-root.fx-glass.liquid-glass-motion > header > div:first-child,
+.kiosk-root.fx-glass.liquid-glass-motion > footer {
   background: linear-gradient(110deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025) 52%, rgba(125, 166, 255, 0.055)), rgba(5, 11, 26, 0.5);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.13),
@@ -184,8 +184,8 @@
   animation: liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 1.7) ease-in-out infinite alternate;
 }
 
-.fx-glass .panel-solid,
-.fx-glass .inset-field {
+.kiosk-root.fx-glass.liquid-glass-motion .panel-solid,
+.kiosk-root.fx-glass.liquid-glass-motion .inset-field {
   background-size: 220% 220%;
   animation: liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 1.8) ease-in-out infinite alternate;
 }
