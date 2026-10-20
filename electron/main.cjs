@@ -116,7 +116,17 @@ function createWindow(url) {
       return isAllowedPopupUrl(target) ? { action: "allow" } : { action: "deny" };
     });
     const guardPopupNavigation = (event, target) => {
-      if (!isLocalAppUrl(target) && !isTrustedAuthUrl(target)) event.preventDefault();
+      // התחל עם about:blank מותר, אחרת Firebase Auth עלול להיתקע בחלון לבן.
+      // אחרי כן מותרות רק כתובות של היישום המקומי או ספקי Google/Firebase.
+      if (!isAllowedPopupUrl(target)) {
+        event.preventDefault();
+        try {
+          const blockedOrigin = new URL(target).origin;
+          console.warn("[auth-popup] blocked navigation origin:", blockedOrigin);
+        } catch {
+          console.warn("[auth-popup] blocked non-URL navigation");
+        }
+      }
     };
     popupWindow.webContents.on("will-navigate", guardPopupNavigation);
     popupWindow.webContents.on("will-redirect", guardPopupNavigation);
