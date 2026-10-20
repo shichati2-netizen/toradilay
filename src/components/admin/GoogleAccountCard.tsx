@@ -245,7 +245,20 @@ export function GoogleAccountCard({
       } catch (err) {
         setBusy(false);
         playSound("error");
-        setError(err instanceof Error ? err.message : "התחברות Google נכשלה או שהחלון נסגר");
+        const firebaseCode =
+          typeof err === "object" && err !== null && "code" in err
+            ? String(err.code)
+            : "";
+        if (firebaseCode === "auth/unauthorized-domain") {
+          setError(
+            "Firebase אינו מאשר כרגע את הדומיין המקומי של האפליקציה. יש לבצע הגדרה חד-פעמית: " +
+              "פתח את Firebase Console של הפרויקט gen-cackup, עבור אל Authentication > Settings > Authorized domains, " +
+              "לחץ Add domain והוסף localhost בלבד (בלי http ובלי מספר פורט). שמור ואז נסה להתחבר שוב. " +
+              "קישור להגדרות: https://console.firebase.google.com/project/gen-cackup/authentication/settings",
+          );
+        } else {
+          setError(err instanceof Error ? err.message : "התחברות Google נכשלה או שהחלון נסגר");
+        }
         return;
       }
     }
