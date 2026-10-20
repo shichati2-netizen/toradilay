@@ -154,9 +154,7 @@
     radial-gradient(65% 70% at 100% 100%, rgba(87, 139, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.13)), transparent 75%);
   background-size: 260% 100%, 180% 180%, 180% 180%;
   background-position: 180% 0%, 0% 0%, 100% 100%;
-  animation:
-    liquid-glass-sheen var(--liquid-glass-duration, 4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite,
-    liquid-glass-flow calc(var(--liquid-glass-duration, 4s) * 2.4) ease-in-out infinite alternate;
+  animation: liquid-glass-sheen var(--liquid-glass-duration, 4s) cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
   opacity: var(--liquid-glass-intensity, 0.88);
 }
 
