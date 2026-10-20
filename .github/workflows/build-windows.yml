@@ -41,7 +41,12 @@ jobs:
             throw "Expected portable executable was not created: $exe"
           }
           if (Test-Path $zip) { Remove-Item $zip -Force }
-          Compress-Archive -Path $exe -DestinationPath $zip -CompressionLevel Optimal
+          Push-Location "dist-electron"
+          try {
+            Compress-Archive -Path "ToraDelia-Kiosk.exe" -DestinationPath "ToraDelia-Kiosk-Windows.zip" -CompressionLevel Optimal
+          } finally {
+            Pop-Location
+          }
       - name: Verify ZIP contains only the portable EXE
         shell: pwsh
         run: |
