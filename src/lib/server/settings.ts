@@ -1,6 +1,3 @@
-import { eq, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { kioskSettings } from "@/db/schema";
 import {
   DEFAULT_ADMIN_PIN,
   DEFAULT_CONFIG,
@@ -13,7 +10,7 @@ import type {
   StoredConfig,
   StoredGoogleAccount,
 } from "@/lib/types";
-import { ensureTables } from "./db-init";
+import { mergeLocalSettings, readLocalSettings } from "./local-store";
 
 function normalizeOAuthClient(raw: unknown): GoogleOAuthClientConfig | null {
   if (!raw || typeof raw !== "object") return null;
@@ -57,9 +54,8 @@ function normalizeGoogleAccount(raw: unknown): StoredGoogleAccount | null {
   };
 }
 
-/** מיזוג אטומי של שדות ברמה העליונה לתוך השורה היחידה ב-PostgreSQL */
+/** שמירת הגדרות מקומית, ללא צורך בשרת PostgreSQL. */
 async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> {
-  await ensureTables();
   const initial: StoredConfig = {
     ...DEFAULT_CONFIG,
     adminPin: DEFAULT_ADMIN_PIN,
@@ -68,24 +64,15 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     googleAccount: null,
     ...(patch as Partial<StoredConfig>),
   };
-  await db.execute(sql`
-    INSERT INTO kiosk_settings (id, data, updated_at)
-    VALUES (1, ${JSON.stringify(initial)}::jsonb, now())
-    ON CONFLICT (id) DO UPDATE
-    SET data = kiosk_settings.data || ${JSON.stringify(patch)}::jsonb,
-        updated_at = now()
-  `);
+  await mergeLocalSettings(
+    initial as unknown as Record<string, unknown>,
+    patch,
+  );
 }
 
 export async function getStoredConfig(): Promise<StoredConfig> {
   try {
-    await ensureTables();
-    const rows = await db
-      .select()
-      .from(kioskSettings)
-      .where(eq(kioskSettings.id, 1))
-      .limit(1);
-    const raw = (rows[0]?.data ?? {}) as Partial<StoredConfig>;
+    const raw = (readLocalSettings() ?? {}) as Partial<StoredConfig>;
     const pin =
       typeof raw.adminPin === "string" && raw.adminPin.length >= 4
         ? raw.adminPin
