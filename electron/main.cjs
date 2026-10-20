@@ -13,6 +13,36 @@ app.commandLine.appendSwitch("disable-dev-shm-usage");
 let mainWindow = null;
 let activePort = 3210;
 
+function isLocalAppUrl(target) {
+  try {
+    const url = new URL(target);
+    return ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function isTrustedAuthUrl(target) {
+  try {
+    const hostname = new URL(target).hostname.toLowerCase();
+    return (
+      hostname === "accounts.google.com" ||
+      hostname === "google.com" || hostname.endsWith(".google.com") ||
+      hostname.endsWith(".googleusercontent.com") ||
+      hostname.endsWith(".gstatic.com") ||
+      hostname.endsWith(".firebaseapp.com") ||
+      hostname.endsWith(".web.app")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isAllowedPopupUrl(target) {
+  return target === "about:blank" || target.startsWith("about:blank#") ||
+    isLocalAppUrl(target) || isTrustedAuthUrl(target);
+}
+
 function loadUserEnvironment() {
   const configPath = path.join(app.getPath("userData"), "app.env");
   if (!fs.existsSync(configPath)) return configPath;
@@ -75,15 +105,21 @@ function createWindow(url) {
   });
   mainWindow.once("ready-to-show", () => { mainWindow.show(); mainWindow.focus(); });
 
+  // Firebase Auth פותח תחילה about:blank ואז מנווט לחלון ההזדהות.
+  // חסימת about:blank משאירה חלון לבן או מונעת מהחלון להתחלף למסך Google.
   mainWindow.webContents.setWindowOpenHandler(({ url: target }) => {
-    let hostname = "";
-    try { hostname = new URL(target).hostname.toLowerCase(); } catch {}
-    const trusted =
-      hostname === "accounts.google.com" ||
-      hostname === "google.com" || hostname.endsWith(".google.com") ||
-      hostname.endsWith(".googleusercontent.com") || hostname.endsWith(".gstatic.com") ||
-      hostname.endsWith(".firebaseapp.com") || hostname.endsWith(".web.app");
-    return trusted ? { action: "allow" } : { action: "deny" };
+    return isAllowedPopupUrl(target) ? { action: "allow" } : { action: "deny" };
+  });
+  mainWindow.webContents.on("did-create-window", (popupWindow) => {
+    // גם חלונות התחברות נשארים מוגבלים ל-Google/Firebase ולשרת המקומי.
+    popupWindow.webContents.setWindowOpenHandler(({ url: target }) => {
+      return isAllowedPopupUrl(target) ? { action: "allow" } : { action: "deny" };
+    });
+    const guardPopupNavigation = (event, target) => {
+      if (!isLocalAppUrl(target) && !isTrustedAuthUrl(target)) event.preventDefault();
+    };
+    popupWindow.webContents.on("will-navigate", guardPopupNavigation);
+    popupWindow.webContents.on("will-redirect", guardPopupNavigation);
   });
   mainWindow.webContents.on("will-navigate", (event, target) => {
     let u;
