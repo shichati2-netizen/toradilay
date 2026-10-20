@@ -1,8 +1,8 @@
-import { desc, sql } from "drizzle-orm";
-import { db } from "@/db";
-import { kioskActivity } from "@/db/schema";
+import {
+  appendLocalActivity,
+  readLocalActivities,
+} from "./local-store";
 import type { StatsResponse } from "@/lib/types";
-import { ensureTables } from "./db-init";
 
 export type ActivityType = "search" | "miss" | "print" | "copy" | "exit" | "register";
 
@@ -23,8 +23,7 @@ export async function logActivity(entry: {
   success?: boolean;
 }): Promise<void> {
   try {
-    await ensureTables();
-    await db.insert(kioskActivity).values({
+    appendLocalActivity({
       type: entry.type,
       studentRef: maskId(entry.studentId),
       fileName: entry.fileName?.slice(0, 300) ?? null,
@@ -32,59 +31,51 @@ export async function logActivity(entry: {
       success: entry.success ?? true,
     });
   } catch (err) {
-    console.error("[activity] failed to log:", err);
+    console.error("[activity] failed to log locally:", err);
   }
 }
 
+function utcDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
 export async function getStats(): Promise<StatsResponse> {
-  await ensureTables();
+  const rows = readLocalActivities().sort((a, b) => a.id - b.id);
+  const totals = {
+    prints: rows.filter((r) => r.type === "print" && r.success).length,
+    copies: rows.filter((r) => r.type === "copy" && r.success).length,
+    searches: rows.filter((r) => r.type === "search").length,
+    misses: rows.filter((r) => r.type === "miss").length,
+    registrations: rows.filter((r) => r.type === "register" && r.success).length,
+  };
 
-  const totalsRes = await db.execute(sql`
-    SELECT
-      count(*) FILTER (WHERE type = 'print' AND success) AS prints,
-      count(*) FILTER (WHERE type = 'copy' AND success) AS copies,
-      count(*) FILTER (WHERE type = 'search') AS searches,
-      count(*) FILTER (WHERE type = 'miss') AS misses,
-      count(*) FILTER (WHERE type = 'register' AND success) AS registrations,
-      min(created_at) AS since
-    FROM kiosk_activity
-  `);
-  const t = (totalsRes.rows[0] ?? {}) as Record<string, unknown>;
+  const today = new Date();
+  const end = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+  const dateKeys: string[] = [];
+  for (let offset = 6; offset >= 0; offset--) {
+    const day = new Date(end);
+    day.setUTCDate(day.getUTCDate() - offset);
+    dateKeys.push(utcDateKey(day));
+  }
+  const dailyCounts = new Map(dateKeys.map((date) => [date, { prints: 0, copies: 0 }]));
+  for (const row of rows) {
+    const day = dailyCounts.get(row.createdAt.slice(0, 10));
+    if (!day || !row.success) continue;
+    if (row.type === "print") day.prints++;
+    if (row.type === "copy") day.copies++;
+  }
 
-  const dailyRes = await db.execute(sql`
-    SELECT
-      to_char(d::date, 'YYYY-MM-DD') AS date,
-      coalesce(sum(CASE WHEN a.type = 'print' AND a.success THEN 1 ELSE 0 END), 0) AS prints,
-      coalesce(sum(CASE WHEN a.type = 'copy' AND a.success THEN 1 ELSE 0 END), 0) AS copies
-    FROM generate_series(current_date - interval '6 days', current_date, interval '1 day') AS d
-    LEFT JOIN kiosk_activity a ON a.created_at::date = d::date
-    GROUP BY d
-    ORDER BY d
-  `);
-
-  const recentRows = await db
-    .select()
-    .from(kioskActivity)
-    .orderBy(desc(kioskActivity.id))
-    .limit(25);
+  const sinceRow = rows.reduce<(typeof rows)[number] | null>(
+    (earliest, row) =>
+      !earliest || row.createdAt < earliest.createdAt ? row : earliest,
+    null,
+  );
+  const recentRows = [...rows].sort((a, b) => b.id - a.id).slice(0, 25);
 
   return {
-    totals: {
-      prints: Number(t.prints ?? 0),
-      copies: Number(t.copies ?? 0),
-      searches: Number(t.searches ?? 0),
-      misses: Number(t.misses ?? 0),
-      registrations: Number(t.registrations ?? 0),
-    },
-    since: t.since ? new Date(String(t.since)).toISOString() : null,
-    daily: dailyRes.rows.map((r) => {
-      const row = r as Record<string, unknown>;
-      return {
-        date: String(row.date),
-        prints: Number(row.prints ?? 0),
-        copies: Number(row.copies ?? 0),
-      };
-    }),
+    totals,
+    since: sinceRow ? new Date(sinceRow.createdAt).toISOString() : null,
+    daily: dateKeys.map((date) => ({ date, ...dailyCounts.get(date)! })),
     recent: recentRows.map((r) => ({
       id: r.id,
       type: r.type,
@@ -92,7 +83,7 @@ export async function getStats(): Promise<StatsResponse> {
       fileName: r.fileName,
       detail: r.detail,
       success: r.success,
-      createdAt: r.createdAt.toISOString(),
+      createdAt: new Date(r.createdAt).toISOString(),
     })),
   };
 }
