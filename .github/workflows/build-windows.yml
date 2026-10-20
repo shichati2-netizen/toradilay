@@ -30,35 +30,41 @@ jobs:
         run: npm install --legacy-peer-deps
       - name: Build Next.js standalone app
         run: npm run build:app
-      - name: Build Portable EXE, Setup EXE and unpacked directory
-        run: npx electron-builder --win --x64 --publish never
-      - name: Create ZIP of unpacked Windows app
+      - name: Build Portable Windows EXE only
+        run: npx electron-builder --win portable --x64 --publish never
+      - name: Package EXE into the only ZIP deliverable
         shell: pwsh
         run: |
-          if (!(Test-Path "dist-electron/win-unpacked/ToraDelia-Kiosk.exe")) {
-            throw "Expected executable was not created in dist-electron/win-unpacked."
+          $exe = "dist-electron/ToraDelia-Kiosk.exe"
+          $zip = "dist-electron/ToraDelia-Kiosk-Windows.zip"
+          if (!(Test-Path $exe)) {
+            throw "Expected portable executable was not created: $exe"
           }
-          Compress-Archive -Path "dist-electron/win-unpacked/*" -DestinationPath "dist-electron/ToraDelia-Kiosk-Windows.zip" -Force
-      - name: Verify outputs
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path $exe -DestinationPath $zip -CompressionLevel Optimal
+      - name: Verify ZIP contains only the portable EXE
         shell: pwsh
         run: |
-          $required = @(
-            "dist-electron/ToraDelia-Kiosk.exe",
-            "dist-electron/ToraDelia-Kiosk-Setup.exe",
-            "dist-electron/ToraDelia-Kiosk-Windows.zip"
-          )
-          foreach ($file in $required) {
-            if (!(Test-Path $file)) { throw "Build output missing: $file" }
-            Write-Host "$file - $([math]::Round((Get-Item $file).Length / 1MB, 2)) MB"
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $zipPath = (Resolve-Path "dist-electron/ToraDelia-Kiosk-Windows.zip").Path
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zipPath)
+          try {
+            if ($archive.Entries.Count -ne 1) {
+              throw "ZIP must contain exactly one file; found $($archive.Entries.Count)."
+            }
+            if ($archive.Entries[0].FullName -ne "ToraDelia-Kiosk.exe") {
+              throw "Unexpected ZIP entry: $($archive.Entries[0].FullName)"
+            }
+            Write-Host "Verified $($archive.Entries[0].FullName) - $([math]::Round($archive.Entries[0].Length / 1MB, 2)) MB"
+          } finally {
+            $archive.Dispose()
           }
-      - name: Upload Windows artifacts
+          Write-Host "ZIP size: $([math]::Round((Get-Item $zipPath).Length / 1MB, 2)) MB"
+      - name: Upload the single ZIP artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ToraDelia-Windows
-          path: |
-            dist-electron/ToraDelia-Kiosk.exe
-            dist-electron/ToraDelia-Kiosk-Setup.exe
-            dist-electron/ToraDelia-Kiosk-Windows.zip
+          name: ToraDelia-Windows-ZIP
+          path: dist-electron/ToraDelia-Kiosk-Windows.zip
           if-no-files-found: error
           retention-days: 30
       - name: Publish latest Windows release
@@ -70,14 +76,9 @@ jobs:
           overwrite_files: true
           make_latest: true
           body: |
-            ## קובצי Windows
-            - **ToraDelia-Kiosk.exe** — Portable.
-            - **ToraDelia-Kiosk-Setup.exe** — מתקין.
-            - **ToraDelia-Kiosk-Windows.zip** — תיקייה פרוסה.
+            ## גרסת Windows
+            הורד את **ToraDelia-Kiosk-Windows.zip** וחלץ אותו. בתוך ה-ZIP נמצא קובץ יחיד: **ToraDelia-Kiosk.exe** (גרסת Portable).
             ההגדרות ויומן הפעילות נשמרים מקומית בפרופיל המשתמש. אין צורך ב-PostgreSQL או בקובץ app.env כדי להפעיל את האפליקציה.
-          files: |
-            dist-electron/ToraDelia-Kiosk.exe
-            dist-electron/ToraDelia-Kiosk-Setup.exe
-            dist-electron/ToraDelia-Kiosk-Windows.zip
+          files: dist-electron/ToraDelia-Kiosk-Windows.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
