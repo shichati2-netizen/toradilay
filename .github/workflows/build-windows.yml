@@ -74,7 +74,7 @@ jobs:
             - **ToraDelia-Kiosk.exe** — Portable.
             - **ToraDelia-Kiosk-Setup.exe** — מתקין.
             - **ToraDelia-Kiosk-Windows.zip** — תיקייה פרוסה.
-            הערה: האפליקציה משתמשת ב-PostgreSQL ויש להגדיר DATABASE_URL בקובץ app.env המקומי.
+            ההגדרות ויומן הפעילות נשמרים מקומית בפרופיל המשתמש. אין צורך ב-PostgreSQL או בקובץ app.env כדי להפעיל את האפליקציה.
           files: |
             dist-electron/ToraDelia-Kiosk.exe
             dist-electron/ToraDelia-Kiosk-Setup.exe
