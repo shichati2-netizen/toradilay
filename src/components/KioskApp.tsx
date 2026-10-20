@@ -1,5 +1,7 @@
 "use client";
 
+import type { CSSProperties } from "react";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { RotateCcw } from "lucide-react";
@@ -319,6 +321,10 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     <FxProvider effects={effects}>
       <div
         className={`kiosk-root ${effectClasses(effects)} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
+        style={{
+          "--liquid-glass-intensity": effects.glassIntensity / 100,
+          "--liquid-glass-duration": `${11 - effects.glassSpeed}s`,
+        } as CSSProperties}
       >
         <Background />
 
