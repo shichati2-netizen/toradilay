@@ -1,0 +1,29 @@
+name: Download WIN91PT printer driver
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  download-driver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download driver archive
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://www.parkeer.com.br/upload/WIN91PTDriver.zip" \
+            --output WIN91PTDriver.zip
+          test -s WIN91PTDriver.zip
+          unzip -t WIN91PTDriver.zip
+
+      - name: Upload ZIP as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: WIN91PTDriver
+          path: WIN91PTDriver.zip
+          if-no-files-found: error
+          retention-days: 30
