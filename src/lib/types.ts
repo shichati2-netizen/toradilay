@@ -35,6 +35,10 @@ export interface EffectsConfig {
   particlesDensity: number;
   /** עוצמת צלילים באחוזים (0–100) */
   soundVolume: number;
+  /** עוצמת השתקפויות הזכוכית (0–100) */
+  glassIntensity: number;
+  /** מהירות תנועת ההשתקפות (1–10) */
+  glassSpeed: number;
 }
 
 export interface KioskConfig {
