@@ -92,8 +92,8 @@ export const EFFECT_META: EffectMeta[] = [
   },
   {
     key: "glass",
-    label: "זכוכית מט (טשטוש)",
-    description: "לוחות שקופים עם טשטוש רקע. כיבוי משפר ביצועים במחשבים חלשים",
+    label: "זכוכית נוזלית (Liquid Glass)",
+    description: "מראה זכוכיתי בסגנון iOS: שקיפות עמוקה, טשטוש, השתקפויות ושפה מוארת. כיבוי משפר ביצועים במחשבים חלשים",
     group: "ambient",
   },
   {
