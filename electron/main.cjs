@@ -49,7 +49,7 @@ function waitForServer(url, maxAttempts = 100) {
     let attempts = 0;
     const retry = () => {
       attempts++;
-      if (attempts >= maxAttempts) return reject(new Error("השרת המקומי לא עלה בזמן. בדוק את קובץ ההגדרות ואת החיבור למסד הנתונים."));
+      if (attempts >= maxAttempts) return reject(new Error("השרת המקומי לא עלה בזמן. בדוק שההתקנה מלאה ושאין תוכנת אבטחה שחוסמת את האפליקציה."));
       setTimeout(check, 350);
     };
     const check = () => {
@@ -99,18 +99,9 @@ function createWindow(url) {
 
 app.whenReady().then(async () => {
   if (!app.requestSingleInstanceLock()) { app.quit(); return; }
-  const envPath = loadUserEnvironment();
-  if (!process.env.DATABASE_URL) {
-    dialog.showErrorBox(
-      "חסר חיבור למסד הנתונים",
-      "הגרסה הזו משתמשת ב-PostgreSQL. לפני ההפעלה, צור קובץ app.env בתיקייה:\n\n" +
-      path.dirname(envPath) +
-      "\n\nוהוסף בו שורה:\nDATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DATABASE\n\n" +
-      "סיסמת מסד הנתונים אינה נכללת בקובץ ההתקנה."
-    );
-    app.quit();
-    return;
-  }
+  // app.env נשאר אופציונלי להגדרות מתקדמות בלבד. נתוני הקיוסק נשמרים מקומית.
+  loadUserEnvironment();
+  process.env.KIOSK_DATA_DIR = path.join(app.getPath("userData"), "data");
   try {
     const standaloneDir = path.join(app.getAppPath(), "standalone");
     const serverScript = path.join(standaloneDir, "server.js");
