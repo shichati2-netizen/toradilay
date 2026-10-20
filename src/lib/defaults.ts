@@ -28,6 +28,8 @@ export const FULL_EFFECTS: EffectsConfig = {
   sounds: false,
   particlesDensity: 45,
   soundVolume: 40,
+  glassIntensity: 88,
+  glassSpeed: 7,
 };
 
 export const DEFAULT_CONFIG: KioskConfig = {
@@ -236,6 +238,8 @@ export function normalizeEffects(raw: unknown): EffectsConfig {
     sounds: bool(r.sounds, d.sounds),
     particlesDensity: num(r.particlesDensity, d.particlesDensity, 10, 120),
     soundVolume: num(r.soundVolume, d.soundVolume, 0, 100),
+    glassIntensity: num(r.glassIntensity, d.glassIntensity, 0, 100),
+    glassSpeed: num(r.glassSpeed, d.glassSpeed, 1, 10),
   };
 }
 
