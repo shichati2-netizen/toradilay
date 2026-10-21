@@ -115,12 +115,13 @@ export interface GoogleAuthStatus {
   serviceAccountEmail: string | null;
 }
 
-export type SheetsMethod = "oauth" | "service-account" | "webhook" | "local-file";
+export type SheetsMethod = "oauth" | "service-account" | "webhook";
+export type RegistrationMethod = SheetsMethod | "local-file";
 
 export interface RegistrationStatus {
   enabled: boolean;
   configured: boolean;
-  method: SheetsMethod | null;
+  method: RegistrationMethod | null;
   spreadsheetId: string;
   /** למנהל בלבד */
   googleAccountEmail?: string | null;
