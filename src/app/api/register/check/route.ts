@@ -1,14 +1,9 @@
 import { getStoredConfig } from "@/lib/server/settings";
-import {
-  checkExistingRegistration,
-  NOT_CONFIGURED_MESSAGE,
-  resolveTarget,
-} from "@/lib/server/sheets";
+import { findLocalRegistration } from "@/lib/server/registrations";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
-/** בדיקת כפילות לפני רישום */
+/** בדיקת כפילות בקובץ הרישומים המקומי. */
 export async function POST(req: Request) {
   let idNumber = "";
   try {
@@ -17,6 +12,7 @@ export async function POST(req: Request) {
   } catch {
     /* handled below */
   }
+
   if (!/^\d{5,9}$/.test(idNumber)) {
     return Response.json({ error: "מספר תעודת זהות לא תקין" }, { status: 400 });
   }
@@ -25,11 +21,11 @@ export async function POST(req: Request) {
   if (!cfg.registrationEnabled) {
     return Response.json({ error: "הרישום מהעמדה כבוי בהגדרות" }, { status: 403 });
   }
-  const target = await resolveTarget();
-  if (!target) {
-    return Response.json({ error: NOT_CONFIGURED_MESSAGE, code: "NOT_CONFIGURED" }, { status: 409 });
-  }
 
-  const result = await checkExistingRegistration(target, idNumber);
-  return Response.json(result);
+  try {
+    return Response.json(findLocalRegistration(idNumber));
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "קריאת קובץ הרישום נכשלה";
+    return Response.json({ error: message }, { status: 500 });
+  }
 }
