@@ -533,11 +533,11 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 ) : (
                   <UserPlus className="h-4 w-4" />
                 )}
-                {busy ? "בודק בגיליון..." : "המשך לאישור הרישום"}
+                {busy ? "בודק בקובץ..." : "המשך לאישור הרישום"}
               </FxButton>
             </div>
             <p className="text-center text-[11px] text-slate-500">
-              שם: {fullName || "—"} · הנתונים נכתבים ישירות לגיליון הישיבה
+              שם: {fullName || "—"} · הרישום נשמר במחשב בקובץ CSV
             </p>
           </form>
         )}
