@@ -3,7 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { getDriveSequence } from "@/lib/defaults";
 import type { KioskConfig, KioskFile, RemovableDrive } from "@/lib/types";
-import { isWordItem, registerLocalFile, toKioskFile } from "./drive";
+import { isWordItem, normalizeFolderName, registerLocalFile, toKioskFile } from "./drive";
 
 export const isWindows = process.platform === "win32";
 
@@ -159,6 +159,7 @@ export function copyToTarget(
 export async function searchLocalFolder(
   cleanId: string,
   cfg: TargetCfg,
+  studentName?: string,
 ): Promise<{ folderName: string; files: KioskFile[] } | null> {
   const folder = cfg.targetFolderName;
   const candidatePaths: string[] = [];
@@ -178,10 +179,24 @@ export async function searchLocalFolder(
         continue;
       }
       const entries = fs.readdirSync(searchPath, { withFileTypes: true });
-      const dir =
-        entries.find((e) => e.isDirectory() && e.name.trim() === cleanId) ||
-        entries.find((e) => e.isDirectory() && e.name.trim().startsWith(cleanId)) ||
-        entries.find((e) => e.isDirectory() && e.name.includes(cleanId));
+      const dirs = entries.filter((entry) => entry.isDirectory());
+      const dirById =
+        dirs.find((entry) => entry.name.trim() === cleanId) ||
+        dirs.find((entry) => entry.name.trim().startsWith(cleanId)) ||
+        dirs.find((entry) => entry.name.includes(cleanId));
+
+      const nameParts = String(studentName ?? "").trim().split(/\\s+/).filter(Boolean);
+      const nameKeys = [...new Set([
+        normalizeFolderName(studentName ?? ""),
+        normalizeFolderName(nameParts.slice().reverse().join(" ")),
+      ])].filter((key) => key.length >= 4);
+      const dirByName = nameKeys.length
+        ? dirs.find((entry) => {
+            const key = normalizeFolderName(entry.name);
+            return nameKeys.some((candidate) => key === candidate || key.includes(candidate));
+          })
+        : undefined;
+      const dir = dirById || dirByName;
       if (!dir) continue;
 
       const dirPath = path.join(searchPath, dir.name);
