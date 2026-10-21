@@ -454,7 +454,7 @@ export async function registerStudent(
   const range = `${sheet}!A:E`;
   const result = await sheetsRequest<{ updates?: { updatedRange?: string } }>(
     t,
-    `/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+    `/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
     {
       method: "POST",
       body: JSON.stringify({
