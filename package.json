@@ -7,8 +7,8 @@
     "build:app": "npm run build && node scripts/prepare-standalone.cjs",
     "start": "next start",
     "start:desktop": "node standalone/server.js",
-    "build:electron": "npm run build:app && electron-builder --win --x64 dir --publish never",
-    "package:win": "npm run build:app && electron-builder --win --x64 dir --publish never",
+    "build:electron": "npm run build:app && electron-builder --win --x64 --dir --publish never",
+    "package:win": "npm run build:app && electron-builder --win --x64 --dir --publish never",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -72,7 +72,7 @@
     "win": {
       "target": [
         {
-          "target": "dir",
+          "target": "portable",
           "arch": [
             "x64"
           ]
