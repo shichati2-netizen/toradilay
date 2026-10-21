@@ -7,8 +7,8 @@
     "build:app": "npm run build && node scripts/prepare-standalone.cjs",
     "start": "next start",
     "start:desktop": "node standalone/server.js",
-    "build:electron": "npm run build:app && electron-builder --win portable --x64 --publish never",
-    "package:win": "npm run build:app && electron-builder --win portable --x64 --publish never",
+    "build:electron": "npm run build:app && electron-builder --win --x64 dir --publish never",
+    "package:win": "npm run build:app && electron-builder --win --x64 dir --publish never",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit"
   },
@@ -72,16 +72,12 @@
     "win": {
       "target": [
         {
-          "target": "portable",
+          "target": "dir",
           "arch": [
             "x64"
           ]
         }
       ]
-    },
-    "portable": {
-      "artifactName": "ToraDelia-Kiosk.exe",
-      "requestExecutionLevel": "user"
     }
   },
   "version": "1.0.0"
