@@ -3,6 +3,7 @@ import fs from "node:fs";
 import type { RegistrationPayload, SheetsMethod } from "@/lib/types";
 import { getGoogleAuthToken } from "./google-oauth";
 import { getStoredConfig } from "./settings";
+import { readLocalSettings } from "./local-store";
 
 function getSheetsApiBase(): string {
   return (
@@ -28,7 +29,7 @@ export interface ServiceAccount {
   private_key: string;
 }
 
-function parseServiceAccountJson(text: string): ServiceAccount | null {
+export function parseServiceAccountJson(text: string): ServiceAccount | null {
   try {
     const trimmed = text.trim();
     const json = JSON.parse(
@@ -51,6 +52,7 @@ function parseServiceAccountJson(text: string): ServiceAccount | null {
  *  GOOGLE_SERVICE_ACCOUNT_JSON (ה-JSON המלא, או base64 שלו)
  *  GOOGLE_SERVICE_ACCOUNT_EMAIL + GOOGLE_PRIVATE_KEY
  *  GOOGLE_APPLICATION_CREDENTIALS (נתיב לקובץ JSON)
+ *  JSON שנשמר במסך הניהול בקובץ ההגדרות המקומי
  */
 export function loadServiceAccount(): ServiceAccount | null {
   const json =
@@ -59,6 +61,12 @@ export function loadServiceAccount(): ServiceAccount | null {
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (json) {
     const sa = parseServiceAccountJson(json);
+    if (sa) return sa;
+  }
+
+  const storedJson = readLocalSettings()?.googleServiceAccountJson;
+  if (typeof storedJson === "string" && storedJson.trim()) {
+    const sa = parseServiceAccountJson(storedJson);
     if (sa) return sa;
   }
 
@@ -97,7 +105,8 @@ export async function getServiceAccountToken(
   scope: string = SHEETS_SCOPE,
 ): Promise<string> {
   const cache = (g.__kioskSaTokens ??= new Map());
-  const cacheKey = `${sa.client_email}::${scope}`;
+  const keyFingerprint = crypto.createHash("sha256").update(sa.private_key).digest("hex").slice(0, 16);
+  const cacheKey = `${sa.client_email}::${scope}::${keyFingerprint}`;
   const cached = cache.get(cacheKey);
   if (cached && cached.exp - 60 > Date.now() / 1000) {
     return cached.token;
@@ -252,8 +261,8 @@ export interface SheetsTarget {
 
 /**
  * קובע את שיטת החיבור ל-Google Sheets:
- * 1. חשבון Google מחובר (OAuth קבוע)
- * 2. חשבון שירות (Service Account)
+ * 1. חשבון שירות (Service Account) שהוגדר מפורשות
+ * 2. חשבון Google מחובר (OAuth קבוע)
  * 3. Apps Script Webhook
  */
 export async function resolveTarget(
@@ -263,6 +272,8 @@ export async function resolveTarget(
   const spreadsheetId = override.spreadsheetId || cfg.spreadsheetId;
   const webhookUrl = override.webhookUrl ?? cfg.sheetsWebhookUrl;
 
+  const sa = loadServiceAccount();
+  if (sa) return { method: "service-account", spreadsheetId, sa, webhookUrl };
   if (
     cfg.googleAccount?.refreshToken ||
     Boolean(cfg.googleAccount?.accessToken && cfg.googleAccount.expiresAt > Date.now()) ||
@@ -270,8 +281,6 @@ export async function resolveTarget(
   ) {
     return { method: "oauth", spreadsheetId, sa: null, webhookUrl };
   }
-  const sa = loadServiceAccount();
-  if (sa) return { method: "service-account", spreadsheetId, sa, webhookUrl };
   if (webhookUrl) return { method: "webhook", spreadsheetId, sa: null, webhookUrl };
   return null;
 }
