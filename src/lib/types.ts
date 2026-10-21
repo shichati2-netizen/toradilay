@@ -115,7 +115,7 @@ export interface GoogleAuthStatus {
   serviceAccountEmail: string | null;
 }
 
-export type SheetsMethod = "oauth" | "service-account" | "webhook";
+export type SheetsMethod = "oauth" | "service-account" | "webhook" | "local-file";
 
 export interface RegistrationStatus {
   enabled: boolean;
@@ -126,6 +126,8 @@ export interface RegistrationStatus {
   googleAccountEmail?: string | null;
   serviceAccountEmail?: string | null;
   webhookUrl?: string;
+  /** הנתיב המלא לקובץ הרישום המקומי */
+  localFilePath?: string;
 }
 
 export interface RegistrationPayload {
