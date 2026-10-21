@@ -196,7 +196,7 @@ export function GoogleTab({
               value={draft.spreadsheetId}
               onChange={(e) => handleSpreadsheetIdChange(e.target.value)}
               placeholder="הדבק קישור או מזהה גיליון"
-              className={\`\${inputClass} font-mono text-left\`}
+              className={`${inputClass} font-mono text-left`}
             />
           </Field>
           <div className="flex flex-wrap gap-2">
@@ -211,7 +211,7 @@ export function GoogleTab({
             </FxButton>
           </div>
           {sheetTestResult && (
-            <div className={\`rounded-xl border p-3 text-xs \${sheetTestResult.ok ? "border-emerald-400/35 bg-emerald-400/[0.08] text-emerald-100" : "border-red-400/35 bg-red-400/[0.08] text-red-100"}\`}>
+            <div className={`rounded-xl border p-3 text-xs ${sheetTestResult.ok ? "border-emerald-400/35 bg-emerald-400/[0.08] text-emerald-100" : "border-red-400/35 bg-red-400/[0.08] text-red-100"}`}>
               {sheetTestResult.ok ? (
                 <>
                   <div className="font-bold">הגישה לגיליון תקינה: {sheetTestResult.title}</div>
