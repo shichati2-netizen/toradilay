@@ -12,12 +12,12 @@ export async function GET(req: Request) {
     configured: true,
     method: "local-file",
     spreadsheetId: cfg.spreadsheetId,
-    localFilePath: getLocalRegistrationFilePath(),
   };
 
   const pin = req.headers.get("x-admin-pin");
   if (pin && (await verifyPin(pin))) {
     status.googleAccountEmail = cfg.googleAccount?.email ?? null;
+    status.localFilePath = getLocalRegistrationFilePath();
   }
 
   return Response.json(status);
