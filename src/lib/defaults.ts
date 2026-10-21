@@ -29,7 +29,6 @@ export const FULL_EFFECTS: EffectsConfig = {
   particlesDensity: 45,
   soundVolume: 40,
   glassIntensity: 88,
-  glassSpeed: 7,
 };
 
 export const DEFAULT_CONFIG: KioskConfig = {
@@ -37,6 +36,7 @@ export const DEFAULT_CONFIG: KioskConfig = {
   rootFolderName: "תיקיית תורה דיליה הראשית",
   kioskTitle: "תורה דיליה",
   kioskSubtitle: "עמדת קליטה והדפסת מסמכים",
+  backgroundColor: "#0a1530",
   autoLogoutSeconds: 60,
   targetDriveLetter: "D",
   targetFolderName: "תורה דיליה",
@@ -95,7 +95,7 @@ export const EFFECT_META: EffectMeta[] = [
   {
     key: "glass",
     label: "זכוכית נוזלית (Liquid Glass)",
-    description: "מראה זכוכיתי בסגנון iOS: שקיפות עמוקה, טשטוש, השתקפויות ושפה מוארת. כיבוי משפר ביצועים במחשבים חלשים",
+    description: "חומר זכוכיתי בסגנון iOS: רקע שנראה דרך המשטח, טשטוש ורוויית צבע עדינים ושפה רגועה — ללא פסי אור נעים.",
     group: "ambient",
   },
   {
@@ -239,7 +239,6 @@ export function normalizeEffects(raw: unknown): EffectsConfig {
     particlesDensity: num(r.particlesDensity, d.particlesDensity, 10, 120),
     soundVolume: num(r.soundVolume, d.soundVolume, 0, 100),
     glassIntensity: num(r.glassIntensity, d.glassIntensity, 0, 100),
-    glassSpeed: num(r.glassSpeed, d.glassSpeed, 1, 10),
   };
 }
 
@@ -257,6 +256,10 @@ export function normalizeConfig(raw: unknown): KioskConfig {
     rootFolderName: str(r.rootFolderName, d.rootFolderName),
     kioskTitle: str(r.kioskTitle, d.kioskTitle, 40),
     kioskSubtitle: str(r.kioskSubtitle, d.kioskSubtitle, 80),
+    backgroundColor:
+      typeof r.backgroundColor === "string" && /^#[0-9a-fA-F]{6}$/.test(r.backgroundColor)
+        ? r.backgroundColor.toLowerCase()
+        : d.backgroundColor,
     autoLogoutSeconds: num(r.autoLogoutSeconds, d.autoLogoutSeconds, 10, 600),
     targetDriveLetter: letter,
     targetFolderName: str(r.targetFolderName, d.targetFolderName, 80).replace(

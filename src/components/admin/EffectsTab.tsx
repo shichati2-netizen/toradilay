@@ -126,33 +126,21 @@ export function EffectsTab({
                     </div>
                   )}
                   {m.key === "glass" && effects.glass && (
-                    <div className="mt-3 space-y-4 rounded-xl border border-sky-300/15 bg-sky-300/[0.04] p-3">
+                    <div className="mt-3 space-y-3 rounded-xl border border-sky-300/15 bg-sky-300/[0.04] p-3">
                       <div className="flex items-center justify-between gap-4">
-                        <div className="text-xs font-semibold text-slate-200">עוצמת הזכוכית</div>
+                        <div className="text-xs font-semibold text-slate-200">עוצמת חומר הזכוכית</div>
                         <div className="font-mono text-xs font-bold text-sky-200">{effects.glassIntensity}%</div>
                       </div>
                       <Slider
-                        label="עוצמת אפקט Liquid Glass"
+                        label="שקיפות וטשטוש של Liquid Glass"
                         min={0}
                         max={100}
                         step={1}
                         value={effects.glassIntensity}
                         onChange={(v) => set("glassIntensity", v)}
                       />
-                      <div className="flex items-center justify-between gap-4">
-                        <div className="text-xs font-semibold text-slate-200">מהירות ההשתקפות</div>
-                        <div className="font-mono text-xs font-bold text-sky-200">{effects.glassSpeed}/10</div>
-                      </div>
-                      <Slider
-                        label="מהירות תנועת Liquid Glass"
-                        min={1}
-                        max={10}
-                        step={1}
-                        value={effects.glassSpeed}
-                        onChange={(v) => set("glassSpeed", v)}
-                      />
                       <p className="text-[11px] leading-relaxed text-slate-400">
-                        השינויים נראים מיד. עוצמה 0 מכבה את ההשתקפות המונפשת; מהירות 1 איטית ומהירות 10 מהירה.
+                        שולט בשקיפות ובנוכחות של חומר הזכוכית בלבד. האפקט משתמש בטשטוש וברקע שמתחת למשטח, ללא פסי אור נעים מעל הכפתורים.
                       </p>
                     </div>
                   )}

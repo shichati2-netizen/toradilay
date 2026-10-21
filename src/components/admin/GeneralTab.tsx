@@ -5,6 +5,14 @@ import type { KioskConfig } from "@/lib/types";
 import { Field, SectionCard, ToggleRow, inputClass } from "./ui";
 
 const TIMEOUTS = [30, 60, 90, 120, 180, 300];
+const BACKGROUND_PRESETS = [
+  { label: "כחול לילה", color: "#0a1530" },
+  { label: "סגול כהה", color: "#211638" },
+  { label: "ירוק עמוק", color: "#10332e" },
+  { label: "אפור פחם", color: "#24272e" },
+  { label: "בורדו כהה", color: "#3a1826" },
+  { label: "כחול ים", color: "#0c344a" },
+];
 
 export function GeneralTab({
   draft,
@@ -46,6 +54,45 @@ export function GeneralTab({
             />
           </Field>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="צבע הרקע"
+        icon={<Palette className="h-4 w-4 text-gold-400" />}
+        hint="בחר צבע רקע לעמדת הקיוסק. הבחירה נשמרת עם שאר ההגדרות ומשפיעה מיד גם על התצוגה המקדימה."
+      >
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+          <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <input
+              type="color"
+              aria-label="בחירת צבע רקע"
+              value={draft.backgroundColor}
+              onChange={(e) => update({ backgroundColor: e.currentTarget.value.toLowerCase() })}
+              className="h-12 w-16 cursor-pointer rounded-lg border border-white/20 bg-transparent p-1"
+            />
+            <span>
+              <span className="block text-sm font-bold text-white">צבע מותאם אישית</span>
+              <span className="block font-mono text-xs uppercase text-slate-400" dir="ltr">{draft.backgroundColor}</span>
+            </span>
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {BACKGROUND_PRESETS.map((preset) => (
+              <button
+                key={preset.color}
+                type="button"
+                onClick={() => update({ backgroundColor: preset.color })}
+                aria-label={preset.label}
+                title={preset.label}
+                aria-pressed={draft.backgroundColor.toLowerCase() === preset.color}
+                className={`h-10 w-10 rounded-xl border-2 transition ${draft.backgroundColor.toLowerCase() === preset.color ? "border-white ring-2 ring-white/25" : "border-white/15 hover:border-white/50"}`}
+                style={{ backgroundColor: preset.color }}
+              />
+            ))}
+          </div>
+        </div>
+        <p className="mt-2 text-xs leading-relaxed text-slate-400">
+          לבהירות טובה של הכיתוב, מומלץ לבחור גוון כהה. ניתן לבחור כל צבע דרך בורר הצבעים.
+        </p>
       </SectionCard>
 
       <SectionCard

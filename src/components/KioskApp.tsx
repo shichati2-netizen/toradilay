@@ -322,8 +322,8 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
       <div
         className={`kiosk-root ${effectClasses(effects)} ${effects.glass && effects.glassIntensity > 0 ? "liquid-glass-motion" : ""} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
         style={{
+          "--kiosk-background-color": active.backgroundColor,
           "--liquid-glass-intensity": effects.glassIntensity / 100,
-          "--liquid-glass-duration": `${11 - effects.glassSpeed}s`,
         } as CSSProperties}
       >
         <Background />

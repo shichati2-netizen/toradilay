@@ -79,10 +79,7 @@ select {
 .kiosk-root {
   position: relative;
   isolation: isolate;
-  background:
-    radial-gradient(1100px 650px at 85% -10%, rgba(42, 70, 136, 0.7) 0%, transparent 62%),
-    radial-gradient(900px 600px at 0% 110%, rgba(30, 53, 103, 0.65) 0%, transparent 58%),
-    linear-gradient(180deg, #0a1530 0%, #060d1f 100%);
+  background-color: var(--kiosk-background-color, #0a1530);
 }
 
 .grid-overlay {

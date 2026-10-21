@@ -37,8 +37,6 @@ export interface EffectsConfig {
   soundVolume: number;
   /** עוצמת השתקפויות הזכוכית (0–100) */
   glassIntensity: number;
-  /** מהירות תנועת ההשתקפות (1–10) */
-  glassSpeed: number;
 }
 
 export interface KioskConfig {
@@ -46,6 +44,8 @@ export interface KioskConfig {
   rootFolderName: string;
   kioskTitle: string;
   kioskSubtitle: string;
+  /** צבע הרקע הראשי של העמדה בפורמט HEX */
+  backgroundColor: string;
   autoLogoutSeconds: number;
   targetDriveLetter: string;
   targetFolderName: string;
