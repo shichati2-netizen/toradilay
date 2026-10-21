@@ -88,6 +88,8 @@ export interface StoredConfig extends KioskConfig {
   googleOAuthClient?: GoogleOAuthClientConfig | null;
   /** חשבון Google מחובר באופן קבוע (עם refresh_token שמתחדש אוטומטית) */
   googleAccount?: StoredGoogleAccount | null;
+  /** מפתח JSON של חשבון שירות ל-Google Sheets/Drive שנשמר מקומית בלבד */
+  googleServiceAccountJson?: string | null;
 }
 
 export interface GoogleAuthStatus {
