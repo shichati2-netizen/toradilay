@@ -30,10 +30,10 @@ export async function POST(req: Request) {
       spreadsheetId,
       webhookUrl: normalizeWebhookUrl(body.webhookUrl),
     });
-    if (!target) {
+    if (!target || target.method !== "service-account") {
       return Response.json({
         ok: false,
-        error: "לא הוגדרה שיטת חיבור. העלה JSON של חשבון שירות בלשונית חשבון Google ודרייב, והענק לו גישה לגיליון.",
+        error: "לא מוגדר חשבון שירות פעיל. העלה JSON של חשבון שירות בלשונית חשבון Google ודרייב, ושמור את מזהה הגיליון.",
       });
     }
 
