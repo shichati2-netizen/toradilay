@@ -26,6 +26,6 @@ export async function POST(req: Request) {
     return Response.json(findLocalRegistration(idNumber));
   } catch (err) {
     const message = err instanceof Error ? err.message : "קריאת קובץ הרישום נכשלה";
-    return Response.json({ error: message }, { status: 500 });
+    return Response.json({ error: message, code: "LOCAL_FILE_ERROR" }, { status: 500 });
   }
 }
