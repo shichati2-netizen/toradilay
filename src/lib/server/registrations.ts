@@ -22,7 +22,7 @@ function cleanCell(value: string | number): string {
 
 function csvCell(value: string | number, asText = false): string {
   let text = cleanCell(value);
-  if (asText && text) text = "'" + text;
+  if (/^[=+@-]/.test(text) || (asText && text)) text = "'" + text;
   return '"' + text.replace(/"/g, '""') + '"';
 }
 
