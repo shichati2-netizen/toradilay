@@ -1,4 +1,5 @@
 import { getStoredConfig } from "@/lib/server/settings";
+import { findLocalRegistration } from "@/lib/server/registrations";
 import {
   matchStudentFolder,
   scrapeFolder,
@@ -29,9 +30,18 @@ export async function POST(req: Request) {
 
   const cfg = await getStoredConfig();
 
-  // 1. חיפוש בגוגל דרייב
+  // המספר שהוקלד משמש לשליפת השם בקובץ הרישומים המקומי.
+  // אם אין רישום מקומי, החיפוש לפי ת.ז. ממשיך לעבוד כרגיל.
+  let studentName: string | undefined;
+  try {
+    studentName = findLocalRegistration(studentId).studentName;
+  } catch (err) {
+    console.warn("[search] local registration lookup failed:", err);
+  }
+
+  // 1. חיפוש ב-Google Drive: קודם ת.ז., ואז השם שנשמר בקובץ המקומי.
   const root = await scrapeFolder(cfg.rootFolderId);
-  const match = matchStudentFolder(root.folders, studentId);
+  const match = matchStudentFolder(root.folders, studentId, studentName);
 
   if (match) {
     const sub = await scrapeFolder(match.id);
@@ -51,7 +61,7 @@ export async function POST(req: Request) {
 
   // 2. גיבוי: כוננים מקומיים / דיסק און קי
   try {
-    const local = await searchLocalFolder(studentId, cfg);
+    const local = await searchLocalFolder(studentId, cfg, studentName);
     if (local) {
       await logActivity({
         type: "search",
@@ -94,6 +104,6 @@ export async function POST(req: Request) {
   return Response.json({
     found: false,
     error: "FOLDER_NOT_FOUND",
-    message: `לא נמצאה תיקייה עבור תעודת זהות "${studentId}". ודא שהמספר נכון ושהתיקייה קיימת בדרייב.`,
+    message: `לא נמצאה תיקייה עבור תעודת זהות "${studentId}"${studentName ? ` (${studentName})` : ""}. ודא שהתיקייה קיימת בדרייב או בכונן המקומי.`,
   } satisfies SearchResponse);
 }
