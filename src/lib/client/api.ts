@@ -258,6 +258,22 @@ export async function fetchGoogleAuthStatus(pin: string): Promise<GoogleAuthStat
   }
 }
 
+export async function saveGoogleServiceAccountJsonApi(
+  pin: string,
+  payload: { json?: string; clear?: boolean },
+): Promise<{ ok: boolean; status?: GoogleAuthStatus; error?: string }> {
+  try {
+    const res = await fetch("/api/google/service-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin, ...payload }),
+    });
+    return await json(res);
+  } catch {
+    return { ok: false, error: "שגיאת תקשורת" };
+  }
+}
+
 export async function saveGoogleClientApi(
   pin: string,
   payload: {
