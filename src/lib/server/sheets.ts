@@ -349,47 +349,42 @@ export async function checkExistingRegistration(
   idNumber: string,
 ): Promise<ExistingRegistration> {
   const cleanId = idNumber.trim();
-  try {
-    if (t.method === "webhook") {
-      const d = await webhookCall<ExistingRegistration>(t.webhookUrl, {
-        action: "check",
-        spreadsheetId: t.spreadsheetId,
-        idNumber: cleanId,
-      });
+  if (t.method === "webhook") {
+    const d = await webhookCall<ExistingRegistration>(t.webhookUrl, {
+      action: "check",
+      spreadsheetId: t.spreadsheetId,
+      idNumber: cleanId,
+    });
+    return {
+      exists: Boolean(d.exists),
+      studentName: d.studentName || undefined,
+      rowNumber: typeof d.rowNumber === "number" ? d.rowNumber : undefined,
+    };
+  }
+
+  const info = await getSheetInfo(t);
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    t,
+    `/values/${encodeURIComponent(`${info.firstSheetTitle}!A1:D5000`)}`,
+  );
+  const rows = data.values ?? [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    const colC = String(row[2] ?? "").trim().replace(/^'/, "");
+    const colB = String(row[1] ?? "").trim();
+    if (colC === cleanId) {
+      const name = `${String(row[0] ?? "").trim()} ${colB}`.trim();
+      return { exists: true, studentName: name || undefined, rowNumber: i + 1 };
+    }
+    if (colB === cleanId) {
       return {
-        exists: Boolean(d.exists),
-        studentName: d.studentName || undefined,
-        rowNumber: typeof d.rowNumber === "number" ? d.rowNumber : undefined,
+        exists: true,
+        studentName: String(row[0] ?? "").trim() || undefined,
+        rowNumber: i + 1,
       };
     }
-
-    const info = await getSheetInfo(t);
-    const data = await sheetsRequest<{ values?: unknown[][] }>(
-      t,
-      `/values/${encodeURIComponent(`${info.firstSheetTitle}!A1:D5000`)}`,
-    );
-    const rows = data.values ?? [];
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i] ?? [];
-      const colC = String(row[2] ?? "").trim();
-      const colB = String(row[1] ?? "").trim();
-      if (colC === cleanId) {
-        const name = `${String(row[0] ?? "").trim()} ${colB}`.trim();
-        return { exists: true, studentName: name || undefined, rowNumber: i + 1 };
-      }
-      if (colB === cleanId) {
-        return {
-          exists: true,
-          studentName: String(row[0] ?? "").trim() || undefined,
-          rowNumber: i + 1,
-        };
-      }
-    }
-    return { exists: false };
-  } catch (err) {
-    console.warn("[sheets] duplicate check failed:", err);
-    return { exists: false };
   }
+  return { exists: false };
 }
 
 function israelTimestamp(): string {
