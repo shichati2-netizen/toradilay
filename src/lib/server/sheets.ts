@@ -37,13 +37,13 @@ export function parseServiceAccountJson(text: string): ServiceAccount | null {
     ) as Partial<ServiceAccount>;
     if (
       typeof json.client_email === "string" &&
-      /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(json.client_email) &&
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(json.client_email) &&
       typeof json.private_key === "string" &&
       json.private_key.includes("PRIVATE KEY")
     ) {
       return {
         client_email: json.client_email.trim(),
-        private_key: json.private_key.replace(/\\\\n/g, "\n"),
+        private_key: json.private_key.replace(/\\n/g, "\n"),
       };
     }
   } catch {
