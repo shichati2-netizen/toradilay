@@ -116,14 +116,14 @@ async function resolveDriveAuth(): Promise<{
   mode: "oauth" | "service-account";
   identity: string;
 } | null> {
-  const oauth = await getGoogleAuthToken();
-  if (oauth) {
-    return { token: oauth.token, mode: "oauth", identity: oauth.email };
-  }
   const sa = loadServiceAccount();
   if (sa) {
     const token = await getServiceAccountToken(sa, DRIVE_READ_SCOPE);
     return { token, mode: "service-account", identity: sa.client_email };
+  }
+  const oauth = await getGoogleAuthToken();
+  if (oauth) {
+    return { token: oauth.token, mode: "oauth", identity: oauth.email };
   }
   return null;
 }
