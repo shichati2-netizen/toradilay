@@ -139,7 +139,7 @@ export function GoogleTab({
                 setServiceAccountMessage(null);
               }}
               placeholder={'{\n  "type": "service_account",\n  "client_email": "...",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\n..."\n}'}
-              className={\`\${inputClass} min-h-40 resize-y font-mono text-xs leading-relaxed\`}
+              className={`${inputClass} min-h-40 resize-y font-mono text-xs leading-relaxed`}
             />
           </Field>
 
