@@ -54,7 +54,7 @@ function ensureFile(): string {
   const file = getLocalRegistrationFilePath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   if (!fs.existsSync(file) || fs.statSync(file).size === 0) {
-    fs.writeFileSync(file, "\uFEFF" + HEADERS.map(csvCell).join(",") + "\r\n", "utf8");
+    fs.writeFileSync(file, "\uFEFF" + HEADERS.map((header) => csvCell(header)).join(",") + "\r\n", "utf8");
   }
   return file;
 }
