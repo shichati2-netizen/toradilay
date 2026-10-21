@@ -35,10 +35,15 @@ export function parseServiceAccountJson(text: string): ServiceAccount | null {
     const json = JSON.parse(
       trimmed.startsWith("{") ? trimmed : Buffer.from(trimmed, "base64").toString("utf8"),
     ) as Partial<ServiceAccount>;
-    if (json.client_email && json.private_key) {
+    if (
+      typeof json.client_email === "string" &&
+      /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(json.client_email) &&
+      typeof json.private_key === "string" &&
+      json.private_key.includes("PRIVATE KEY")
+    ) {
       return {
-        client_email: json.client_email,
-        private_key: String(json.private_key).replace(/\\n/g, "\n"),
+        client_email: json.client_email.trim(),
+        private_key: json.private_key.replace(/\\\\n/g, "\n"),
       };
     }
   } catch {
@@ -55,18 +60,19 @@ export function parseServiceAccountJson(text: string): ServiceAccount | null {
  *  JSON שנשמר במסך הניהול בקובץ ההגדרות המקומי
  */
 export function loadServiceAccount(): ServiceAccount | null {
+  // JSON שהוזן במסך הניהול גובר על משתני הסביבה, כדי להשתמש בחשבון שנבחר מפורשות.
+  const storedJson = readLocalSettings()?.googleServiceAccountJson;
+  if (typeof storedJson === "string" && storedJson.trim()) {
+    const sa = parseServiceAccountJson(storedJson);
+    if (sa) return sa;
+  }
+
   const json =
     process.env.GOOGLE_SERVICE_ACCOUNT_JSON ||
     process.env.GOOGLE_SERVICE_ACCOUNT_KEY ||
     process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
   if (json) {
     const sa = parseServiceAccountJson(json);
-    if (sa) return sa;
-  }
-
-  const storedJson = readLocalSettings()?.googleServiceAccountJson;
-  if (typeof storedJson === "string" && storedJson.trim()) {
-    const sa = parseServiceAccountJson(storedJson);
     if (sa) return sa;
   }
 
