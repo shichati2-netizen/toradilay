@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { CheckCircle2, ExternalLink, FileUp, FolderOpen, KeyRound, Loader2, Lock, PlugZap, Save, Trash2, XCircle } from "lucide-react";
 import type { GoogleAuthStatus, KioskConfig } from "@/lib/types";
-import { saveGoogleServiceAccountJsonApi, testDriveFolder } from "@/lib/client/api";
+import { saveGoogleServiceAccountJsonApi, testDriveFolder, testSheetsConnection } from "@/lib/client/api";
 import { FxButton } from "../FxButton";
 import { GoogleAccountCard } from "./GoogleAccountCard";
 import { Field, SectionCard, inputClass } from "./ui";
@@ -29,6 +29,8 @@ export function GoogleTab({
 }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const [sheetTestBusy, setSheetTestBusy] = useState(false);
+  const [sheetTestResult, setSheetTestResult] = useState<Awaited<ReturnType<typeof testSheetsConnection>> | null>(null);
   const [serviceAccountJson, setServiceAccountJson] = useState("");
   const [savingServiceAccount, setSavingServiceAccount] = useState(false);
   const [serviceAccountError, setServiceAccountError] = useState<string | null>(null);
@@ -86,6 +88,23 @@ export function GoogleTab({
     const r = await testDriveFolder(pin, draft.rootFolderId.trim());
     setResult(r);
     setTesting(false);
+  };
+
+  const handleSpreadsheetIdChange = (raw: string) => {
+    const match = raw.match(/spreadsheets\\/d\\/([A-Za-z0-9_-]{10,})/);
+    update({ spreadsheetId: match ? match[1] : raw.trim() });
+    setSheetTestResult(null);
+  };
+
+  const runSheetTest = async () => {
+    setSheetTestBusy(true);
+    setSheetTestResult(null);
+    try {
+      const response = await testSheetsConnection(pin, draft.spreadsheetId.trim(), "");
+      setSheetTestResult(response);
+    } finally {
+      setSheetTestBusy(false);
+    }
   };
 
   // מאפשר להדביק קישור מלא של תיקייה ולחלץ ממנו את המזהה
@@ -169,6 +188,39 @@ export function GoogleTab({
           )}
           {serviceAccountMessage && (
             <div className="rounded-xl border border-emerald-400/35 bg-emerald-400/[0.08] p-3 text-xs text-emerald-100" role="status">{serviceAccountMessage}</div>
+          )}
+          <Field label="מזהה גיליון Google Sheets (או הדבקת קישור מלא)">
+            <input
+              type="text"
+              dir="ltr"
+              value={draft.spreadsheetId}
+              onChange={(e) => handleSpreadsheetIdChange(e.target.value)}
+              placeholder="הדבק קישור או מזהה גיליון"
+              className={\`\${inputClass} font-mono text-left\`}
+            />
+          </Field>
+          <div className="flex flex-wrap gap-2">
+            <FxButton
+              variant="navy"
+              onClick={() => void runSheetTest()}
+              disabled={sheetTestBusy || !draft.spreadsheetId.trim()}
+              className="h-11 px-4 text-sm"
+            >
+              {sheetTestBusy ? <Loader2 className="keep-anim h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
+              בדיקת גישה לגיליון
+            </FxButton>
+          </div>
+          {sheetTestResult && (
+            <div className={\`rounded-xl border p-3 text-xs \${sheetTestResult.ok ? "border-emerald-400/35 bg-emerald-400/[0.08] text-emerald-100" : "border-red-400/35 bg-red-400/[0.08] text-red-100"}\`}>
+              {sheetTestResult.ok ? (
+                <>
+                  <div className="font-bold">הגישה לגיליון תקינה: {sheetTestResult.title}</div>
+                  <div className="mt-1">שיטת חיבור: {sheetTestResult.method === "service-account" ? "חשבון שירות" : sheetTestResult.method === "oauth" ? "OAuth" : "Apps Script"} · לשוניות: {sheetTestResult.sheets?.join(", ") || "לא נמצאו"}</div>
+                </>
+              ) : (
+                <div role="alert">{sheetTestResult.error || "בדיקת הגישה נכשלה."}</div>
+              )}
+            </div>
           )}
           <p className="text-xs leading-relaxed text-slate-400">
             חשוב: יש לשתף את תיקיית ה-Drive או את גיליון ה-Sheets עם כתובת האימייל של חשבון השירות, ולהעניק הרשאת צפייה או עריכה לפי הצורך. הגדרת חשבון השירות במסך זה תקבל עדיפות על חיבור OAuth.
