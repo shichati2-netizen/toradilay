@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     if (!target) {
       return Response.json({
         ok: false,
-        error: "לא מוגדרת שיטת חיבור: הגדר חשבון שירות במשתני הסביבה או הדבק כתובת Apps Script.",
+        error: "לא הוגדרה שיטת חיבור. העלה JSON של חשבון שירות בלשונית חשבון Google ודרייב, והענק לו גישה לגיליון.",
       });
     }
 
