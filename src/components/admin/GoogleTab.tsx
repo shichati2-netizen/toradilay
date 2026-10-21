@@ -91,7 +91,7 @@ export function GoogleTab({
   };
 
   const handleSpreadsheetIdChange = (raw: string) => {
-    const match = raw.match(/spreadsheets\\/d\\/([A-Za-z0-9_-]{10,})/);
+    const match = raw.match(/spreadsheets\/d\/([A-Za-z0-9_-]{10,})/);
     update({ spreadsheetId: match ? match[1] : raw.trim() });
     setSheetTestResult(null);
   };
