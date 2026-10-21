@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, ExternalLink, FolderOpen, Loader2, Lock, PlugZap, XCircle } from "lucide-react";
+import { useRef, useState } from "react";
+import { CheckCircle2, ExternalLink, FileUp, FolderOpen, KeyRound, Loader2, Lock, PlugZap, Save, Trash2, XCircle } from "lucide-react";
 import type { GoogleAuthStatus, KioskConfig } from "@/lib/types";
-import { testDriveFolder } from "@/lib/client/api";
+import { saveGoogleServiceAccountJsonApi, testDriveFolder } from "@/lib/client/api";
 import { FxButton } from "../FxButton";
 import { GoogleAccountCard } from "./GoogleAccountCard";
 import { Field, SectionCard, inputClass } from "./ui";
@@ -29,6 +29,56 @@ export function GoogleTab({
 }) {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
+  const [serviceAccountJson, setServiceAccountJson] = useState("");
+  const [savingServiceAccount, setSavingServiceAccount] = useState(false);
+  const [serviceAccountError, setServiceAccountError] = useState<string | null>(null);
+  const [serviceAccountMessage, setServiceAccountMessage] = useState<string | null>(null);
+  const [serviceAccountEmail, setServiceAccountEmail] = useState<string | null>(null);
+  const serviceAccountFileRef = useRef<HTMLInputElement>(null);
+
+  const handleGoogleStatusChange = (status: GoogleAuthStatus | null) => {
+    setServiceAccountEmail(status?.serviceAccountEmail ?? null);
+    onGoogleStatusChange?.(status);
+  };
+
+  const handleServiceAccountFile = async (file?: File) => {
+    if (!file) return;
+    setServiceAccountError(null);
+    setServiceAccountMessage(null);
+    try {
+      setServiceAccountJson(await file.text());
+    } catch {
+      setServiceAccountError("לא ניתן לקרוא את קובץ ה-JSON.");
+    } finally {
+      if (serviceAccountFileRef.current) serviceAccountFileRef.current.value = "";
+    }
+  };
+
+  const saveServiceAccount = async (clear = false) => {
+    setSavingServiceAccount(true);
+    setServiceAccountError(null);
+    setServiceAccountMessage(null);
+    try {
+      const response = await saveGoogleServiceAccountJsonApi(
+        pin,
+        clear ? { clear: true } : { json: serviceAccountJson },
+      );
+      if (!response.ok || !response.status) {
+        setServiceAccountError(response.error ?? "שמירת חשבון השירות נכשלה.");
+        return;
+      }
+      setServiceAccountEmail(response.status.serviceAccountEmail ?? null);
+      onGoogleStatusChange?.(response.status);
+      setServiceAccountJson("");
+      setServiceAccountMessage(
+        clear
+          ? "ה-JSON שהוזן במסך זה הוסר. אם הוגדר חשבון שירות במשתני סביבה, הוא ימשיך להיות זמין."
+          : "חשבון השירות נשמר מקומית ונבחר לחיבור ל-Drive ול-Sheets.",
+      );
+    } finally {
+      setSavingServiceAccount(false);
+    }
+  };
 
   const runTest = async () => {
     setTesting(true);
@@ -47,7 +97,84 @@ export function GoogleTab({
 
   return (
     <div className="space-y-4">
-      <GoogleAccountCard pin={pin} onStatusChange={onGoogleStatusChange} />
+      <GoogleAccountCard pin={pin} onStatusChange={handleGoogleStatusChange} />
+
+      <SectionCard
+        title="חשבון שירות (Service Account)"
+        icon={<KeyRound className="h-4 w-4 text-gold-400" />}
+        hint="אפשר להדביק כאן את ה-JSON שהורדת מ-Google Cloud או להעלות את הקובץ. המפתח נשמר בקובץ ההגדרות המקומי של העמדה, ולא נשלח בחזרה למסך."
+      >
+        <div className="space-y-3.5">
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-white/10 bg-navy-950/40 p-3">
+            <div className="text-xs text-slate-300">
+              <div className="font-bold text-white">מצב חשבון השירות</div>
+              {serviceAccountEmail ? (
+                <div className="mt-1 font-mono text-emerald-200" dir="ltr">{serviceAccountEmail}</div>
+              ) : (
+                <div className="mt-1 text-slate-400">לא זוהה חשבון שירות פעיל</div>
+              )}
+            </div>
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-xl border border-white/15 bg-white/[0.05] px-3 text-xs font-bold text-slate-100 transition hover:bg-white/10">
+              <FileUp className="h-4 w-4 text-gold-300" />
+              בחירת קובץ JSON
+              <input
+                ref={serviceAccountFileRef}
+                type="file"
+                accept=".json,application/json"
+                className="sr-only"
+                onChange={(e) => void handleServiceAccountFile(e.target.files?.[0])}
+              />
+            </label>
+          </div>
+
+          <Field label="תוכן JSON של חשבון השירות">
+            <textarea
+              dir="ltr"
+              spellCheck={false}
+              autoComplete="off"
+              value={serviceAccountJson}
+              onChange={(e) => {
+                setServiceAccountJson(e.target.value);
+                setServiceAccountError(null);
+                setServiceAccountMessage(null);
+              }}
+              placeholder={'{\n  "type": "service_account",\n  "client_email": "...",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\n..."\n}'}
+              className={\`\${inputClass} min-h-40 resize-y font-mono text-xs leading-relaxed\`}
+            />
+          </Field>
+
+          <div className="flex flex-wrap gap-2">
+            <FxButton
+              variant="gold"
+              onClick={() => void saveServiceAccount(false)}
+              disabled={savingServiceAccount || !serviceAccountJson.trim()}
+              className="h-11 px-4 text-sm"
+            >
+              {savingServiceAccount ? <Loader2 className="keep-anim h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              שמירת חשבון השירות
+            </FxButton>
+            <FxButton
+              variant="ghost"
+              onClick={() => void saveServiceAccount(true)}
+              disabled={savingServiceAccount || (!serviceAccountEmail && !serviceAccountJson.trim())}
+              className="h-11 px-4 text-sm"
+            >
+              <Trash2 className="h-4 w-4" />
+              הסרת JSON שמור
+            </FxButton>
+          </div>
+
+          {serviceAccountError && (
+            <div className="rounded-xl border border-red-400/35 bg-red-400/[0.08] p-3 text-xs text-red-100" role="alert">{serviceAccountError}</div>
+          )}
+          {serviceAccountMessage && (
+            <div className="rounded-xl border border-emerald-400/35 bg-emerald-400/[0.08] p-3 text-xs text-emerald-100" role="status">{serviceAccountMessage}</div>
+          )}
+          <p className="text-xs leading-relaxed text-slate-400">
+            חשוב: יש לשתף את תיקיית ה-Drive או את גיליון ה-Sheets עם כתובת האימייל של חשבון השירות, ולהעניק הרשאת צפייה או עריכה לפי הצורך. הגדרת חשבון השירות במסך זה תקבל עדיפות על חיבור OAuth.
+          </p>
+        </div>
+      </SectionCard>
 
       <SectionCard
         title="תיקיית השורש בגוגל דרייב"
