@@ -42,9 +42,14 @@ export async function POST(req: Request) {
     }
 
     // מגבה מפני רשומות ישנות ששמורות ב-CSV מלפני החיבור ל-Sheets.
-    const localMatch = findLocalRegistration(idNumber);
-    if (localMatch.exists) {
-      return Response.json({ ...localMatch, source: "local-csv" });
+    try {
+      const localMatch = findLocalRegistration(idNumber);
+      if (localMatch.exists) {
+        return Response.json({ ...localMatch, source: "local-csv" });
+      }
+    } catch (err) {
+      // אם קובץ הגיבוי אינו קריא, לא מייחסים את התקלה ל-Sheets ואפשר להמשיך לפי תוצאת הגיליון.
+      console.warn("[register] local CSV duplicate fallback failed:", err);
     }
 
     return Response.json({ exists: false });
