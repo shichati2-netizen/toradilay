@@ -115,6 +115,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<RegistrationStatus | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [duplicate, setDuplicate] = useState<{
     studentName?: string;
     rowNumber?: number;
@@ -165,9 +166,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
     setError(null);
     if (!validate()) return;
     if (notConfigured) {
-      fail(
-        'הנתונים יישמרו בקובץ המקומי במחשב.',
-      );
+      fail("הרישום ל-Google Sheets אינו מוגדר. יש לפנות למנהל כדי להגדיר חשבון שירות ולשמור את מזהה הגיליון.");
       return;
     }
     setBusy(true);
@@ -201,12 +200,13 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
     });
     setBusy(false);
     if (res.success) {
+      setSuccessMessage(res.message ?? "התלמיד נוסף ל-Google Sheets בהצלחה.");
       setStep("success");
       playSound("success");
       if (on("confetti")) fireConfetti({ x: 0.5, y: 0.5 });
     } else {
       setStep("form");
-      fail(res.error ?? "אירעה שגיאה בעת שמירת הנתונים בקובץ המקומי");
+      fail(res.error ?? "אירעה שגיאה בעת הוספת התלמיד ל-Google Sheets");
     }
   };
 
@@ -218,6 +218,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
     setVaad("1");
     setError(null);
     setDuplicate(null);
+    setSuccessMessage(null);
   };
 
   const searchRegistered = () => {
@@ -269,7 +270,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 הרישום הושלם בהצלחה!
               </h4>
               <p className="mt-1 text-xs text-slate-400">
-                פרטי התלמיד נשמרו בקובץ ToraDelia-Registrations.csv במחשב.
+                {successMessage ?? "התלמיד נוסף ל-Google Sheets ונשמר גם בקובץ CSV מקומי."}
               </p>
             </div>
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] px-4 py-1 text-right">
@@ -308,7 +309,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 <p className="font-bold">
                   לתשומת לבך: תעודת זהות{" "}
                   <span className="font-mono">{idNumber.trim()}</span> כבר רשומה
-                  בקובץ.
+                  במאגר הרישום.
                 </p>
                 <p className="mt-1 text-xs text-amber-100/90">
                   שם קיים: <strong>{duplicate?.studentName || "ללא שם"}</strong>
@@ -345,7 +346,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
           <div className="space-y-4">
             <div className="flex items-start gap-3 rounded-2xl border border-gold-400/30 bg-gold-400/[0.07] p-4 text-sm text-gold-100">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-gold-300" />
-              פעולה זו תשמור שורה חדשה בקובץ הרישומים המקומי עם הפרטים שלהלן:
+              פעולה זו תוסיף שורה ל-Google Sheets וגם תשמור עותק מקומי לצורך חיפוש שמות:
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-1">
               <Row label="שם פרטי" col="A" value={firstName.trim()} />
@@ -354,7 +355,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
               <Row label="מספר ועד" col="D" value={vaad.trim()} mono />
             </div>
             <p className="break-all text-[11px] text-slate-400">
-              קובץ לשמירה: <span className="font-mono" dir="ltr">Documents\\ToraDelia-Registrations.csv</span>
+              גיבוי מקומי: <span className="font-mono" dir="ltr">Documents\\ToraDelia-Registrations.csv</span>
             </p>
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-red-400/40 bg-red-500/15 p-3 text-sm text-red-100">
@@ -382,7 +383,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
-                {busy ? "שומר בקובץ..." : "אשר ושמור בקובץ"}
+                {busy ? "מוסיף ל-Sheets..." : "אשר והוסף ל-Sheets"}
               </FxButton>
             </div>
           </div>
@@ -400,7 +401,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
             {notConfigured && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/35 bg-amber-400/[0.08] p-3 text-xs leading-relaxed text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                הרישום נשמר לקובץ מקומי במחשב. אין צורך בחיבור לחשבון Google.
+                הרישום יתווסף ל-Google Sheets באמצעות חשבון השירות, ובנוסף יישמר CSV מקומי לחיפוש שמות.
               </div>
             )}
 
