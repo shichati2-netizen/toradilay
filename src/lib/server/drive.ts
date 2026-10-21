@@ -357,7 +357,7 @@ export async function scrapeFolder(
 
 /** מנרמל שם לצורך התאמה גם כשהתיקייה כוללת רווחים, מקפים או סוגריים. */
 export function normalizeFolderName(value: string): string {
-  return value.normalize("NFKC").toLocaleLowerCase("he-IL").replace(/[^\\p{L}\\p{N}]/gu, "");
+  return value.normalize("NFKC").toLocaleLowerCase("he-IL").replace(/[^\p{L}\p{N}]/gu, "");
 }
 
 /** חיפוש תיקיית תלמיד: קודם תעודת זהות, אחר כך השם שנשמר בקובץ הרישומים המקומי. */
@@ -372,7 +372,7 @@ export function matchStudentFolder(
     folders.find((f) => f.name.includes(cleanId));
   if (byId) return byId;
 
-  const parts = String(studentName ?? "").trim().split(/\\s+/).filter(Boolean);
+  const parts = String(studentName ?? "").trim().split(/\s+/).filter(Boolean);
   const nameKeys = [...new Set([
     normalizeFolderName(studentName ?? ""),
     normalizeFolderName(parts.slice().reverse().join(" ")),
