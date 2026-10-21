@@ -148,6 +148,8 @@ app.whenReady().then(async () => {
   // app.env נשאר אופציונלי להגדרות מתקדמות בלבד. נתוני הקיוסק נשמרים מקומית.
   loadUserEnvironment();
   process.env.KIOSK_DATA_DIR = path.join(app.getPath("userData"), "data");
+  // קובץ הרישומים נגיש למשתמש בתיקיית המסמכים, ונותר גם אחרי עדכון התוכנה.
+  process.env.KIOSK_REGISTRATIONS_FILE = path.join(app.getPath("documents"), "ToraDelia-Registrations.csv");
   try {
     const standaloneDir = path.join(app.getAppPath(), "standalone");
     const serverScript = path.join(standaloneDir, "server.js");
