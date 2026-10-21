@@ -166,7 +166,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
     if (!validate()) return;
     if (notConfigured) {
       fail(
-        'העמדה טרם חוברה לגיליון Google Sheets ע"י מנהל המערכת. נא לפנות למנהל לחיבור ראשוני באזור הניהול.',
+        'הנתונים יישמרו בקובץ המקומי במחשב.',
       );
       return;
     }
@@ -206,7 +206,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
       if (on("confetti")) fireConfetti({ x: 0.5, y: 0.5 });
     } else {
       setStep("form");
-      fail(res.error ?? "אירעה שגיאה בעת שמירת הנתונים בגיליון Google Sheets");
+      fail(res.error ?? "אירעה שגיאה בעת שמירת הנתונים בקובץ המקומי");
     }
   };
 
@@ -242,7 +242,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
               רישום תלמיד חדש
             </h3>
             <p className="text-xs text-slate-400">
-              הזנת פרטים לגיליון התלמידים המרכזי (Google Sheets)
+              הזנת פרטים לקובץ הרישומים במחשב
             </p>
           </div>
         </div>
@@ -269,8 +269,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 הרישום הושלם בהצלחה!
               </h4>
               <p className="mt-1 text-xs text-slate-400">
-                פרטי התלמיד נשמרו בגיליון: שם פרטי (A), שם משפחה (B), ת.ז. (C),
-                ועד (D)
+                פרטי התלמיד נשמרו בקובץ ToraDelia-Registrations.csv במחשב.
               </p>
             </div>
             <div className="rounded-2xl border border-emerald-400/25 bg-emerald-400/[0.06] px-4 py-1 text-right">
@@ -309,7 +308,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 <p className="font-bold">
                   לתשומת לבך: תעודת זהות{" "}
                   <span className="font-mono">{idNumber.trim()}</span> כבר רשומה
-                  בגיליון.
+                  בקובץ.
                 </p>
                 <p className="mt-1 text-xs text-amber-100/90">
                   שם קיים: <strong>{duplicate?.studentName || "ללא שם"}</strong>
@@ -346,7 +345,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
           <div className="space-y-4">
             <div className="flex items-start gap-3 rounded-2xl border border-gold-400/30 bg-gold-400/[0.07] p-4 text-sm text-gold-100">
               <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-gold-300" />
-              פעולה זו תוסיף שורה חדשה בגיליון התלמידים עם הפרטים שלהלן:
+              פעולה זו תשמור שורה חדשה בקובץ הרישומים המקומי עם הפרטים שלהלן:
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-1">
               <Row label="שם פרטי" col="A" value={firstName.trim()} />
@@ -354,12 +353,9 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
               <Row label="תעודת זהות" col="C" value={idNumber.trim()} mono />
               <Row label="מספר ועד" col="D" value={vaad.trim()} mono />
             </div>
-            {status?.spreadsheetId && (
-              <p className="text-[11px] text-slate-500">
-                מזהה גיליון:{" "}
-                <span className="font-mono" dir="ltr">
-                  {status.spreadsheetId.slice(0, 14)}…
-                </span>
+            {status?.localFilePath && (
+              <p className="break-all text-[11px] text-slate-400">
+                קובץ לשמירה: <span className="font-mono" dir="ltr">{status.localFilePath}</span>
               </p>
             )}
             {error && (
@@ -388,7 +384,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 ) : (
                   <CheckCircle2 className="h-4 w-4" />
                 )}
-                {busy ? "רושם בגיליון..." : "אשר ורשום כעת בגיליון"}
+                {busy ? "שומר בקובץ..." : "אשר ושמור בקובץ"}
               </FxButton>
             </div>
           </div>
@@ -406,8 +402,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
             {notConfigured && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/35 bg-amber-400/[0.08] p-3 text-xs leading-relaxed text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                העמדה טרם חוברה לגיליון Google Sheets. מנהל המערכת יכול לחבר
-                אותה בלשונית &quot;רישום תלמידים&quot; בניהול.
+                הרישום נשמר לקובץ מקומי במחשב. אין צורך בחיבור לחשבון Google.
               </div>
             )}
 
@@ -434,7 +429,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={inputClass}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה A בגיליון
+                  עמודה A בקובץ CSV
                 </span>
               </label>
               <label className="block">
@@ -453,7 +448,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={inputClass}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה B בגיליון
+                  עמודה B בקובץ CSV
                 </span>
               </label>
             </div>
@@ -485,7 +480,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   )}
                 </div>
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה C בגיליון
+                  עמודה C בקובץ CSV
                 </span>
               </label>
               <label className="block">
@@ -507,7 +502,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={`${inputClass} text-left font-mono`}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  להכניס מספר (1, 2, 3...) · עמודה D
+                  להכניס מספר (1, 2, 3...) · עמודה D בקובץ CSV
                 </span>
               </label>
             </div>
