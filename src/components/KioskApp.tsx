@@ -8,6 +8,7 @@ import { RotateCcw } from "lucide-react";
 import type { KioskConfig, KioskFile, KioskFolder } from "@/lib/types";
 import { FxProvider, effectClasses, fireConfetti } from "@/lib/client/fx";
 import { playSound } from "@/lib/client/sound";
+import { applyLiquidGlassRefraction } from "@/lib/client/liquid-glass";
 import { printHtmlDocument } from "@/lib/client/print";
 import {
   copyFile,
@@ -57,6 +58,14 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const active = preview ?? config;
   const effects = active.effects;
   const animated = effects.master && effects.pageTransitions;
+
+  // True optical refraction belongs on controls/navigation, not every content card.
+  useEffect(() => {
+    if (!effects.master || !effects.glass || effects.glassIntensity <= 0) return;
+    const root = document.querySelector<HTMLElement>(".kiosk-root");
+    if (!root) return;
+    return applyLiquidGlassRefraction(root, effects.glassIntensity);
+  }, [effects.master, effects.glass, effects.glassIntensity]);
 
   // מצב מסכים
   const [view, setView] = useState<"id-entry" | "student-files">("id-entry");

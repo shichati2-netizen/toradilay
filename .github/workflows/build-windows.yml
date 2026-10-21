@@ -30,7 +30,7 @@ jobs:
       - name: Set a unique application version for this build
         shell: pwsh
         run: |
-          $version = "1.0.${{ github.run_number }}"
+          $version = "1.0.${{ github.run_number }}-${{ github.run_attempt }}"
           npm version $version --no-git-tag-version --ignore-scripts --no-package-lock
           if ($LASTEXITCODE -ne 0) { throw "Failed to set application version $version" }
           Write-Host "Building ToraDelia Kiosk version $version"
@@ -38,39 +38,27 @@ jobs:
       - name: Build Next.js standalone app
         run: npm run build:app
 
-      - name: Build unpacked Portable Windows application
-        run: npx electron-builder --win --x64 --dir --publish never
+      - name: Build a single portable Windows executable
+        run: npx electron-builder --win --x64 --publish never
 
-      - name: Verify and package the complete Portable folder
+      - name: Verify the single-file portable executable
         shell: pwsh
         run: |
-          $app = "dist-electron/win-unpacked"
-          $exe = Join-Path $app "ToraDelia-Kiosk.exe"
-          $server = Join-Path $app "resources/app/standalone/server.js"
-          $main = Join-Path $app "resources/app/electron/main.cjs"
-          foreach ($required in @($exe, $server, $main)) {
-            if (!(Test-Path $required)) { throw "Required Portable application file is missing: $required" }
-          }
-          $version = "1.0.${{ github.run_number }}"
-          $zip = "dist-electron/ToraDelia-Kiosk-Windows-v$version.zip"
-          Compress-Archive -Path "$app/*" -DestinationPath $zip -CompressionLevel Optimal
-          Add-Type -AssemblyName System.IO.Compression.FileSystem
-          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path $zip).Path)
-          try {
-            $names = @($archive.Entries | ForEach-Object { $_.FullName.Replace("\", "/") })
-            foreach ($requiredEntry in @("ToraDelia-Kiosk.exe", "resources/app/standalone/server.js", "resources/app/electron/main.cjs")) {
-              if ($names -notcontains $requiredEntry) { throw "ZIP is missing required entry: $requiredEntry" }
-            }
-            if ($archive.Entries.Count -lt 20) { throw "ZIP does not look like a complete application folder: only $($archive.Entries.Count) entries found" }
-            Write-Host "Verified complete Portable ZIP version $version with $($archive.Entries.Count) entries"
-          } finally { $archive.Dispose() }
-          Write-Host "ZIP size: $([math]::Round((Get-Item $zip).Length / 1MB, 2)) MB"
+          $version = "1.0.${{ github.run_number }}-${{ github.run_attempt }}"
+          $exe = "dist-electron/ToraDelia-Kiosk-v$version.exe"
+          if (!(Test-Path $exe)) { throw "Portable executable not found: $exe" }
+          $item = Get-Item $exe
+          if ($item.Length -lt 20MB) { throw "Portable executable looks incomplete: $([math]::Round($item.Length / 1MB, 2)) MB" }
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash
+          Write-Host "Verified single-file Portable app: $($item.Name)"
+          Write-Host "Size: $([math]::Round($item.Length / 1MB, 2)) MB"
+          Write-Host "SHA256: $hash"
 
-      - name: Upload versioned Portable ZIP artifact
+      - name: Upload single-file Portable Windows app
         uses: actions/upload-artifact@v4
         with:
-          name: ToraDelia-Portable-Windows-v1.0.${{ github.run_number }}
-          path: dist-electron/ToraDelia-Kiosk-Windows-v1.0.${{ github.run_number }}.zip
+          name: ToraDelia-Kiosk-Windows-v1.0.${{ github.run_number }}-${{ github.run_attempt }}
+          path: dist-electron/ToraDelia-Kiosk-v1.0.${{ github.run_number }}-${{ github.run_attempt }}.exe
           if-no-files-found: error
           retention-days: 30
 
@@ -78,18 +66,18 @@ jobs:
         if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: windows-v1.0.${{ github.run_number }}
+          tag_name: windows-v1.0.${{ github.run_number }}-${{ github.run_attempt }}
           target_commitish: ${{ github.sha }}
-          name: "תורה דיליה — Windows v1.0.${{ github.run_number }}"
+          name: "תורה דיליה — Windows v1.0.${{ github.run_number }}-${{ github.run_attempt }}"
           overwrite_files: false
           make_latest: true
           body: |
-            ## תורה דיליה — גרסת Windows v1.0.${{ github.run_number }}
+            ## תורה דיליה — גרסת Windows v1.0.${{ github.run_number }}-${{ github.run_attempt }}
 
-            זו גרסת Portable מלאה ונפרדת. גרסאות קודמות וקובצי ההורדה שלהן נשמרים; אין מחיקה או החלפה של נכסי Release קודמים.
+            קובץ Portable יחיד — אין צורך לחלץ תיקייה עם אלפי קבצים.
+            הורד את קובץ ה-EXE והפעל אותו ישירות. גרסאות קודמות נשמרות עם תגית וקובץ נפרדים.
 
-            חלץ את ה-ZIP לתיקייה אחת והפעל את **ToraDelia-Kiosk.exe** שבשורש התיקייה.
-            ההגדרות ויומן הפעילות נשמרים מקומית בפרופיל המשתמש. אין צורך ב-PostgreSQL או בקובץ app.env כדי להפעיל את האפליקציה.
-          files: dist-electron/ToraDelia-Kiosk-Windows-v1.0.${{ github.run_number }}.zip
+            ההגדרות ויומן הפעילות נשמרים מקומית בפרופיל המשתמש. אין צורך ב-PostgreSQL או בקובץ app.env להפעלה.
+          files: dist-electron/ToraDelia-Kiosk-v1.0.${{ github.run_number }}-${{ github.run_attempt }}.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,101 +1,82 @@
-/* Liquid Glass inspired by Apple's material guidance:
-   translucent surfaces, background visible through the layer, blur/saturation,
-   and quiet edge highlights. No moving light bands or button spotlights. */
+/* Apple-like Liquid Glass for functional controls and navigation.
+   Refractive SVG displacement is applied at runtime in liquid-glass.ts.
+   Content panels intentionally use standard material rather than stacking glass everywhere. */
 
 .fx-glass .panel {
-  isolation: isolate;
-  background:
-    linear-gradient(
-      145deg,
-      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.16)) 0%,
-      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.045)) 52%,
-      rgba(255, 255, 255, calc(var(--liquid-glass-intensity, 0.88) * 0.085)) 100%
-    ),
-    rgba(255, 255, 255, 0.025);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.045),
-    0 14px 32px -20px rgba(0, 0, 0, 0.58);
-  -webkit-backdrop-filter: blur(26px) saturate(180%);
-  backdrop-filter: blur(26px) saturate(180%);
-  transition:
-    border-color 200ms ease,
-    background-color 200ms ease,
-    box-shadow 200ms ease;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.025));
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 18px 38px -28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(16px) saturate(145%);
+  backdrop-filter: blur(16px) saturate(145%);
 }
 
-/* Settings/dialog panels remain denser for readable text. */
-.fx-glass .panel-solid {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.035)),
-    rgba(12, 20, 37, 0.72);
-  border-color: rgba(255, 255, 255, 0.2);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.2),
-    0 20px 50px -30px rgba(0, 0, 0, 0.75);
-  -webkit-backdrop-filter: blur(30px) saturate(175%);
-  backdrop-filter: blur(30px) saturate(175%);
-}
-
-.fx-glass .inset-field {
-  background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.025)),
-    rgba(255, 255, 255, 0.025);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
-  backdrop-filter: blur(18px) saturate(160%);
-}
-
-/* Floating navigation adopts the same translucent material. */
+/* Controls have a curved, translucent lens with a fine specular rim. */
+.fx-glass .btn-ghost,
+.fx-glass .btn-navy,
+.fx-glass .btn-key,
+.fx-glass .inset-field,
 .kiosk-root.fx-glass > header > div:first-child,
 .kiosk-root.fx-glass > footer {
-  background: rgba(255, 255, 255, 0.075);
-  border-color: rgba(255, 255, 255, 0.17);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  backdrop-filter: blur(28px) saturate(180%);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.27) 0%, rgba(255, 255, 255, 0.09) 22%, rgba(255, 255, 255, 0.025) 58%, rgba(255, 255, 255, 0.12) 100%);
+  border-color: rgba(255, 255, 255, 0.29);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.5),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    inset 1px 0 0 rgba(255, 255, 255, 0.12),
+    inset -1px 0 0 rgba(255, 255, 255, 0.07),
+    0 5px 18px -9px rgba(0, 0, 0, 0.35);
+  -webkit-backdrop-filter: blur(8px) saturate(175%);
+  backdrop-filter: blur(8px) saturate(175%);
+  background-clip: padding-box;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
 }
 
-/* Neutral controls are translucent capsules, not illuminated buttons. */
 .fx-glass .btn-ghost,
 .fx-glass .btn-navy,
 .fx-glass .btn-key {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.055));
-  border-color: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.fx-glass .inset-field {
+  border-radius: 1rem;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.24),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.045),
-    0 3px 10px rgba(0, 0, 0, 0.12);
-  -webkit-backdrop-filter: blur(18px) saturate(175%);
-  backdrop-filter: blur(18px) saturate(175%);
+    inset 0 1px 0 rgba(255, 255, 255, 0.31),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.055),
+    0 3px 12px rgba(0, 0, 0, 0.12);
 }
 
 .fx-glass .btn-ghost:hover:not(:disabled),
 .fx-glass .btn-navy:hover:not(:disabled),
 .fx-glass .btn-key:hover:not(:disabled) {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.19), rgba(255, 255, 255, 0.075));
-  border-color: rgba(255, 255, 255, 0.3);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 55%, rgba(255, 255, 255, 0.16));
+  border-color: rgba(255, 255, 255, 0.43);
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.28),
-    0 5px 14px rgba(0, 0, 0, 0.14);
+    inset 0 1px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
+    0 7px 22px -10px rgba(0, 0, 0, 0.4);
 }
 
 .fx-glass .btn-ghost:active:not(:disabled),
 .fx-glass .btn-navy:active:not(:disabled),
 .fx-glass .btn-key:active:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.12);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.13);
 }
 
-/* Readable fallback for browsers without backdrop-filter support. */
 @supports not ((backdrop-filter: blur(1px))) {
   .fx-glass .panel { background: rgba(18, 29, 52, 0.94); }
-  .fx-glass .panel-solid { background: rgba(12, 20, 37, 0.97); }
-  .fx-glass .inset-field { background: rgba(8, 15, 31, 0.88); }
+  .fx-glass .btn-ghost,
+  .fx-glass .btn-navy,
+  .fx-glass .btn-key,
+  .fx-glass .inset-field { background: rgba(29, 42, 63, 0.88); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fx-glass .panel { transition: none; }
+  .fx-glass .panel,
+  .fx-glass .btn-ghost,
+  .fx-glass .btn-navy,
+  .fx-glass .btn-key,
+  .fx-glass .inset-field { transition: none; }
 }
