@@ -31,7 +31,7 @@ jobs:
       - name: Build Next.js standalone app
         run: npm run build:app
       - name: Build unpacked Portable Windows application
-        run: npx electron-builder --win --x64 dir --publish never
+        run: npx electron-builder --win --x64 --dir --publish never
       - name: Verify and package the complete Portable folder
         shell: pwsh
         run: |
