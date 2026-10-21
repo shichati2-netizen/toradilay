@@ -355,15 +355,39 @@ export async function scrapeFolder(
   return { ok, folders, files, authMode: ok ? "public" : undefined, authError };
 }
 
-/** חיפוש תיקיית תלמיד לפי ת.ז.: התאמה מלאה, התחלה, או הכלה */
+/** מנרמל שם לצורך התאמה גם כשהתיקייה כוללת רווחים, מקפים או סוגריים. */
+export function normalizeFolderName(value: string): string {
+  return value.normalize("NFKC").toLocaleLowerCase("he-IL").replace(/[^\\p{L}\\p{N}]/gu, "");
+}
+
+/** חיפוש תיקיית תלמיד: קודם תעודת זהות, אחר כך השם שנשמר בקובץ הרישומים המקומי. */
 export function matchStudentFolder(
   folders: KioskFolder[],
   cleanId: string,
+  studentName?: string,
 ): KioskFolder | undefined {
-  return (
+  const byId =
     folders.find((f) => f.name.trim() === cleanId) ||
     folders.find((f) => f.name.trim().startsWith(cleanId)) ||
-    folders.find((f) => f.name.includes(cleanId))
+    folders.find((f) => f.name.includes(cleanId));
+  if (byId) return byId;
+
+  const parts = String(studentName ?? "").trim().split(/\\s+/).filter(Boolean);
+  const nameKeys = [...new Set([
+    normalizeFolderName(studentName ?? ""),
+    normalizeFolderName(parts.slice().reverse().join(" ")),
+  ])].filter((key) => key.length >= 4);
+
+  if (nameKeys.length === 0) return undefined;
+  return (
+    folders.find((folder) => {
+      const key = normalizeFolderName(folder.name);
+      return nameKeys.some((candidate) => key === candidate);
+    }) ||
+    folders.find((folder) => {
+      const key = normalizeFolderName(folder.name);
+      return nameKeys.some((candidate) => key.includes(candidate));
+    })
   );
 }
 
