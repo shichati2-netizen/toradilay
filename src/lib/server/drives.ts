@@ -185,7 +185,7 @@ export async function searchLocalFolder(
         dirs.find((entry) => entry.name.trim().startsWith(cleanId)) ||
         dirs.find((entry) => entry.name.includes(cleanId));
 
-      const nameParts = String(studentName ?? "").trim().split(/\\s+/).filter(Boolean);
+      const nameParts = String(studentName ?? "").trim().split(/\s+/).filter(Boolean);
       const nameKeys = [...new Set([
         normalizeFolderName(studentName ?? ""),
         normalizeFolderName(nameParts.slice().reverse().join(" ")),
