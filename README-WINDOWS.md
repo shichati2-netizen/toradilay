@@ -4,8 +4,7 @@
 
 ## קובץ ההורדה
 
-תהליך הבנייה מפרסם **קובץ ZIP יחיד**: `ToraDelia-Kiosk-Windows.zip`.
-בתוך ה-ZIP נמצא קובץ אחד בלבד: `ToraDelia-Kiosk.exe` — גרסת Portable.
+תהליך הבנייה מפרסם **קובץ יחיד**: `ToraDelia-Kiosk.exe` — גרסת Portable להפעלה ישירה, ללא מתקין וללא ZIP.
 
 ## הפעלה ללא התקנת מסד נתונים
 
