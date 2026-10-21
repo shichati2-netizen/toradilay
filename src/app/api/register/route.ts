@@ -1,16 +1,12 @@
 import { getStoredConfig } from "@/lib/server/settings";
-import {
-  NOT_CONFIGURED_MESSAGE,
-  registerStudent,
-  resolveTarget,
-  validateRegistration,
-} from "@/lib/server/sheets";
+import { appendLocalRegistration } from "@/lib/server/registrations";
+import { validateRegistration } from "@/lib/server/sheets";
 import { logActivity } from "@/lib/server/activity";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** רישום תלמיד חדש לגיליון Google Sheets */
+/** רישום תלמיד חדש לקובץ CSV מקומי, ללא צורך בחיבור ל-Google. */
 export async function POST(req: Request) {
   let raw: unknown = null;
   try {
@@ -28,26 +24,24 @@ export async function POST(req: Request) {
   if (!cfg.registrationEnabled) {
     return Response.json({ success: false, error: "הרישום מהעמדה כבוי בהגדרות" }, { status: 403 });
   }
-  const target = await resolveTarget();
-  if (!target) {
-    return Response.json(
-      { success: false, error: NOT_CONFIGURED_MESSAGE, code: "NOT_CONFIGURED" },
-      { status: 409 },
-    );
-  }
 
   const fullName = `${v.payload.firstName} ${v.payload.lastName}`;
   try {
-    const result = await registerStudent(target, v.payload);
+    const result = appendLocalRegistration(v.payload);
     await logActivity({
       type: "register",
       studentId: v.payload.idNumber,
       fileName: fullName,
-      detail: `ועד ${v.payload.vaad} · ${result.updatedRange ?? target.method}`,
+      detail: `ועד ${v.payload.vaad} · CSV שורה ${result.rowNumber}`,
     });
-    return Response.json({ success: true, message: result.message, updatedRange: result.updatedRange });
+    return Response.json({
+      success: true,
+      message: "הרישום נשמר בקובץ המקומי",
+      filePath: result.filePath,
+      rowNumber: result.rowNumber,
+    });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "אירעה שגיאה בעת שמירת הנתונים בגיליון";
+    const message = err instanceof Error ? err.message : "אירעה שגיאה בעת שמירת הרישום בקובץ המקומי";
     await logActivity({
       type: "register",
       studentId: v.payload.idNumber,
@@ -55,6 +49,6 @@ export async function POST(req: Request) {
       success: false,
       detail: message,
     });
-    return Response.json({ success: false, error: message }, { status: 502 });
+    return Response.json({ success: false, error: message }, { status: 500 });
   }
 }
