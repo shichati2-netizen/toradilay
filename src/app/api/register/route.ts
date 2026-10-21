@@ -1,6 +1,6 @@
 import { getStoredConfig } from "@/lib/server/settings";
 import { appendLocalRegistration } from "@/lib/server/registrations";
-import { validateRegistration } from "@/lib/server/sheets";
+import { validateRegistration } from "@/lib/server/registration-validation";
 import { logActivity } from "@/lib/server/activity";
 
 export const dynamic = "force-dynamic";
