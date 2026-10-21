@@ -353,11 +353,9 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
               <Row label="תעודת זהות" col="C" value={idNumber.trim()} mono />
               <Row label="מספר ועד" col="D" value={vaad.trim()} mono />
             </div>
-            {status?.localFilePath && (
-              <p className="break-all text-[11px] text-slate-400">
-                קובץ לשמירה: <span className="font-mono" dir="ltr">{status.localFilePath}</span>
-              </p>
-            )}
+            <p className="break-all text-[11px] text-slate-400">
+              קובץ לשמירה: <span className="font-mono" dir="ltr">Documents\\ToraDelia-Registrations.csv</span>
+            </p>
             {error && (
               <div className="flex items-center gap-2 rounded-xl border border-red-400/40 bg-red-500/15 p-3 text-sm text-red-100">
                 <AlertCircle className="h-4 w-4 shrink-0 text-red-300" />
