@@ -243,7 +243,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
               רישום תלמיד חדש
             </h3>
             <p className="text-xs text-slate-400">
-              הזנת פרטים לקובץ הרישומים במחשב
+              הזנת פרטים להוספה ל-Google Sheets
             </p>
           </div>
         </div>
@@ -401,7 +401,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
             {notConfigured && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/35 bg-amber-400/[0.08] p-3 text-xs leading-relaxed text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                הרישום יתווסף ל-Google Sheets באמצעות חשבון השירות, ובנוסף יישמר CSV מקומי לחיפוש שמות.
+                כדי לרשום תלמידים יש להגדיר חשבון שירות ומזהה Google Sheets באזור הניהול.
               </div>
             )}
 
