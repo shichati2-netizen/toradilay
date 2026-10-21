@@ -62,6 +62,7 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     sheetsWebhookUrl: "",
     googleOAuthClient: null,
     googleAccount: null,
+    googleServiceAccountJson: null,
     ...(patch as Partial<StoredConfig>),
   };
   await mergeLocalSettings(
@@ -83,6 +84,10 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       sheetsWebhookUrl: normalizeWebhookUrl(raw.sheetsWebhookUrl),
       googleOAuthClient: normalizeOAuthClient(raw.googleOAuthClient),
       googleAccount: normalizeGoogleAccount(raw.googleAccount),
+      googleServiceAccountJson:
+        typeof raw.googleServiceAccountJson === "string" && raw.googleServiceAccountJson.trim()
+          ? raw.googleServiceAccountJson
+          : null,
     };
   } catch (err) {
     console.error("[settings] failed to load, using defaults:", err);
@@ -92,6 +97,7 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       sheetsWebhookUrl: "",
       googleOAuthClient: null,
       googleAccount: null,
+      googleServiceAccountJson: null,
     };
   }
 }
@@ -103,12 +109,14 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     sheetsWebhookUrl: _hook,
     googleOAuthClient: _oauth,
     googleAccount: _account,
+    googleServiceAccountJson: _serviceAccountJson,
     ...config
   } = await getStoredConfig();
   void _pin;
   void _hook;
   void _oauth;
   void _account;
+  void _serviceAccountJson;
   return config;
 }
 
@@ -173,6 +181,11 @@ export async function saveGoogleOAuthClient(
 
   await mergeStoredFields({ googleOAuthClient: normalized });
   return normalized;
+}
+
+/** שמירת JSON של חשבון שירות מקומי, בלי לחשוף אותו ללקוח. */
+export async function saveGoogleServiceAccountJson(json: string | null): Promise<void> {
+  await mergeStoredFields({ googleServiceAccountJson: json });
 }
 
 /** שמירה או ניתוק של חשבון ה-Google המחובר */
