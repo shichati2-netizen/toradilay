@@ -1,3 +1,4 @@
+import { clearDriveCaches } from "@/lib/server/drive";
 import { checkAdmin } from "@/lib/server/guard";
 import { buildGoogleAuthStatus } from "@/lib/server/google-oauth";
 import { loadServiceAccount, parseServiceAccountJson } from "@/lib/server/sheets";
@@ -20,6 +21,7 @@ export async function POST(req: Request) {
 
     if (body.clear) {
       await saveGoogleServiceAccountJson(null);
+      clearDriveCaches();
       const active = loadServiceAccount();
       return Response.json({
         ok: true,
@@ -47,6 +49,7 @@ export async function POST(req: Request) {
 
     // שומרים רק את השדות הדרושים לאימות, ולא את כל המטא-נתונים בקובץ המקורי.
     await saveGoogleServiceAccountJson(JSON.stringify(account));
+    clearDriveCaches();
     const active = loadServiceAccount();
     return Response.json({
       ok: true,
