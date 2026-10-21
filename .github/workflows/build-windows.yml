@@ -80,6 +80,6 @@ jobs:
             ## גרסת Windows — Portable בלבד
             הורד והפעל את **ToraDelia-Kiosk.exe** ישירות. אין מתקין ואין צורך בחילוץ ZIP.
             ההגדרות ויומן הפעילות נשמרים מקומית בפרופיל המשתמש. אין צורך ב-PostgreSQL או בקובץ app.env כדי להפעיל את האפליקציה.
-          files: dist-electron/ToraDelia-Kiosk-Windows.zip
+          files: dist-electron/ToraDelia-Kiosk.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
