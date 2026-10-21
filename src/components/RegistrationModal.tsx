@@ -428,7 +428,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={inputClass}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה A בקובץ CSV
+                  עמודה A ב-Sheets
                 </span>
               </label>
               <label className="block">
@@ -447,7 +447,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={inputClass}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה B בקובץ CSV
+                  עמודה B ב-Sheets
                 </span>
               </label>
             </div>
@@ -479,7 +479,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   )}
                 </div>
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  עמודה C בקובץ CSV
+                  עמודה C ב-Sheets
                 </span>
               </label>
               <label className="block">
@@ -501,7 +501,7 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                   className={`${inputClass} text-left font-mono`}
                 />
                 <span className="mt-1 block text-[10px] text-slate-500">
-                  להכניס מספר (1, 2, 3...) · עמודה D בקובץ CSV
+                  להכניס מספר (1, 2, 3...) · עמודה D ב-Sheets
                 </span>
               </label>
             </div>
@@ -534,11 +534,11 @@ function RegistrationDialog({ initialId, onClose, onRegistered }: DialogProps) {
                 ) : (
                   <UserPlus className="h-4 w-4" />
                 )}
-                {busy ? "בודק בקובץ..." : "המשך לאישור הרישום"}
+                {busy ? "בודק ב-Sheets..." : "המשך לאישור הרישום"}
               </FxButton>
             </div>
             <p className="text-center text-[11px] text-slate-500">
-              שם: {fullName || "—"} · הרישום נשמר במחשב בקובץ CSV
+              שם: {fullName || "—"} · הרישום יתווסף ל-Sheets
             </p>
           </form>
         )}
