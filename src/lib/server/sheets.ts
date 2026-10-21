@@ -206,7 +206,7 @@ async function sheetsRequest<T>(
     }
     if (res.status === 403) {
       throw new Error(
-        `אין הרשאת עריכה לגיליון (403). ודא שהחשבון ${identity} מורשה לערוך את הגיליון (ושאישרת הרשאת Google Sheets בהתחברות).`,
+        `Google החזירה 403 לחשבון ${identity}. הודעת Google המקורית: ${message}. בדוק את שיתוף הגיליון, הרשאת Editor, הפעלת Google Sheets API, והגנות טווחים.`,
       );
     }
     if (res.status === 404) {
