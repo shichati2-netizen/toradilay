@@ -33,26 +33,37 @@ export function RegistrationTab({
     <div className="space-y-4">
       <ToggleRow
         title="אפשר רישום תלמידים מהעמדה"
-        description="מציג כפתור רישום במסך. כל רישום נשמר בקובץ CSV מקומי במחשב, ללא חיבור ל-Google."
+        description="מציג כפתור רישום במסך. כל רישום נוסף ל-Google Sheets באמצעות חשבון השירות, ונשמר גם ב-CSV המקומי לצורך מיפוי שמות לחיפוש ב-Drive."
         checked={draft.registrationEnabled}
         onChange={(value) => update({ registrationEnabled: value })}
       />
 
       <SectionCard
-        title="קובץ רישום מקומי"
+        title="Google Sheets וגיבוי CSV מקומי"
         icon={<FileSpreadsheet className="h-4 w-4 text-emerald-400" />}
-        hint="כל רישום מוסיף שורה עם שם פרטי, שם משפחה, תעודת זהות, ועד ותאריך ושעה. אפשר לפתוח את קובץ ה-CSV ב-Excel."
+        hint="הרישום הראשי מתווסף לשורת Google Sheets באמצעות חשבון השירות. קובץ ה-CSV במחשב נשמר כגיבוי ומשמש לקישור בין תעודת הזהות לשם התלמיד בחיפוש ב-Drive."
         action={
-          <span className="flex items-center gap-1 rounded-md bg-emerald-400/15 px-2.5 py-1 text-[10px] font-bold text-emerald-200">
+          <span className={`flex items-center gap-1 rounded-md px-2.5 py-1 text-[10px] font-bold ${status?.configured ? "bg-emerald-400/15 text-emerald-200" : "bg-amber-400/15 text-amber-200"}`}>
             <CheckCircle2 className="h-3.5 w-3.5" />
-            פעיל
+            {status?.configured ? "Sheets מוכן" : "נדרשת הגדרה"}
           </span>
         }
       >
         <div className="space-y-3 text-sm text-slate-200">
-          <p>אין צורך להתחבר לחשבון Google, להגדיר גיליון או להפעיל שירות חיצוני.</p>
+          <p>כדי להוסיף נרשמים לגיליון, יש להעלות JSON של חשבון שירות ולהגדיר את מזהה Google Sheets בלשונית "חשבון Google ודרייב". לחשבון השירות חייבת להיות הרשאת עריכה בגיליון.</p>
           <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
-            <div className="mb-1 text-xs font-bold text-slate-400">מיקום קובץ הרישום</div>
+            <div className="mb-1 text-xs font-bold text-slate-400">מזהה הגיליון השמור</div>
+            <div className="break-all font-mono text-xs text-sky-200" dir="ltr">
+              {status?.spreadsheetId || "לא הוגדר"}
+            </div>
+            {status?.serviceAccountEmail && (
+              <div className="mt-2 text-xs text-slate-300">
+                חשבון שירות: <span dir="ltr" className="font-mono text-emerald-200">{status.serviceAccountEmail}</span>
+              </div>
+            )}
+          </div>
+          <div className="rounded-xl border border-white/10 bg-white/[0.04] p-3">
+            <div className="mb-1 text-xs font-bold text-slate-400">מיקום גיבוי ה-CSV המקומי</div>
             <div className="break-all font-mono text-xs text-emerald-200" dir="ltr">
               {status?.localFilePath ?? "Documents\\ToraDelia-Registrations.csv"}
             </div>
@@ -61,7 +72,7 @@ export function RegistrationTab({
             )}
           </div>
           <p className="text-xs leading-relaxed text-slate-400">
-            הקובץ נשמר במחשב שמריץ את הקיוסק. גבה אותו מדי פעם; החלפת גרסת התוכנה לא אמורה למחוק אותו.
+            הקובץ נשמר במחשב שמריץ את הקיוסק. הוא נדרש גם למיפוי תעודת זהות לשם לצורך חיפוש תיקיות ב-Drive; גבה אותו מדי פעם.
           </p>
         </div>
       </SectionCard>
