@@ -29,6 +29,7 @@ export function NumericKeypad({
           key={d}
           variant="key"
           sound="key"
+          liquidWobble
           disabled={disabled}
           onMouseDown={keep}
           onClick={() => onDigit(d)}
@@ -53,6 +54,7 @@ export function NumericKeypad({
       <FxButton
         variant="key"
         sound="key"
+        liquidWobble
         disabled={disabled}
         onMouseDown={keep}
         onClick={() => onDigit("0")}

@@ -144,8 +144,10 @@ export function applyLiquidGlassRefraction(root: HTMLElement, intensity: number)
           observer.disconnect();
           observers.delete(element);
           element.removeAttribute("data-liquid-glass-refraction");
-          element.style.removeProperty("backdrop-filter");
-          element.style.removeProperty("-webkit-backdrop-filter");
+          if (element instanceof HTMLElement) {
+            element.style.removeProperty("backdrop-filter");
+            element.style.removeProperty("-webkit-backdrop-filter");
+          }
         }
       }
     }
@@ -158,8 +160,10 @@ export function applyLiquidGlassRefraction(root: HTMLElement, intensity: number)
     for (const [element, observer] of observers) {
       observer.disconnect();
       element.removeAttribute("data-liquid-glass-refraction");
-      element.style.removeProperty("backdrop-filter");
-      element.style.removeProperty("-webkit-backdrop-filter");
+      if (element instanceof HTMLElement) {
+        element.style.removeProperty("backdrop-filter");
+        element.style.removeProperty("-webkit-backdrop-filter");
+      }
     }
     observers.clear();
   };

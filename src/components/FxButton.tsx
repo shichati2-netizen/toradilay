@@ -35,6 +35,8 @@ interface FxButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   /** ברק רץ. ברירת מחדל: פעיל בכפתורי זהב וירוק */
   shimmer?: boolean;
   sound?: SoundKind | "none";
+  /** Brief liquid-material wobble on click, only while Liquid Glass is enabled. */
+  liquidWobble?: boolean;
 }
 
 /**
@@ -46,6 +48,7 @@ export const FxButton = forwardRef<HTMLButtonElement, FxButtonProps>(
       variant = "ghost",
       shimmer,
       sound = "click",
+      liquidWobble = false,
       className = "",
       onClick,
       onPointerDown,
@@ -75,6 +78,20 @@ export const FxButton = forwardRef<HTMLButtonElement, FxButtonProps>(
 
     const handleClick = (e: MouseEvent<HTMLButtonElement>) => {
       if (sound !== "none") playSound(sound);
+
+      // Restart the short squish/refraction animation even on rapid repeated taps.
+      if (liquidWobble && on("glass") && !e.currentTarget.disabled) {
+        const button = e.currentTarget;
+        button.classList.remove("liquid-wobble");
+        void button.offsetWidth;
+        button.classList.add("liquid-wobble");
+        button.addEventListener(
+          "animationend",
+          () => button.classList.remove("liquid-wobble"),
+          { once: true },
+        );
+      }
+
       onClick?.(e);
     };
 
