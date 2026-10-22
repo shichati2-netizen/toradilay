@@ -78,8 +78,7 @@
           ]
         }
       ]
-    },
-    "artifactName": "ToraDelia-Kiosk-v${version}.${ext}"
+    }
   },
   "version": "1.0.0"
 }
