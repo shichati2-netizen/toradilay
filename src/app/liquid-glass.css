@@ -18,18 +18,18 @@
 .kiosk-root.fx-glass > header > div:first-child,
 .kiosk-root.fx-glass > footer {
   background:
-    linear-gradient(150deg, rgba(255, 255, 255, 0.27) 0%, rgba(255, 255, 255, 0.09) 22%, rgba(255, 255, 255, 0.025) 58%, rgba(255, 255, 255, 0.12) 100%);
-  border-color: rgba(255, 255, 255, 0.29);
+    linear-gradient(150deg, rgba(255, 255, 255, calc(0.27 * var(--liquid-glass-opacity, 0.22))) 0%, rgba(255, 255, 255, calc(0.09 * var(--liquid-glass-opacity, 0.22))) 22%, rgba(255, 255, 255, calc(0.025 * var(--liquid-glass-opacity, 0.22))) 58%, rgba(255, 255, 255, calc(0.12 * var(--liquid-glass-opacity, 0.22))) 100%);
+  border-color: rgba(255, 255, 255, calc(0.29 * var(--liquid-glass-opacity, 0.22)));
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.08),
-    inset 1px 0 0 rgba(255, 255, 255, 0.12),
-    inset -1px 0 0 rgba(255, 255, 255, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, calc(0.5 * var(--liquid-glass-opacity, 0.22))),
+    inset 0 -1px 0 rgba(255, 255, 255, calc(0.08 * var(--liquid-glass-opacity, 0.22))),
+    inset 1px 0 0 rgba(255, 255, 255, calc(0.12 * var(--liquid-glass-opacity, 0.22))),
+    inset -1px 0 0 rgba(255, 255, 255, calc(0.07 * var(--liquid-glass-opacity, 0.22))),
     0 5px 18px -9px rgba(0, 0, 0, 0.35);
   -webkit-backdrop-filter: blur(8px) saturate(175%);
   backdrop-filter: blur(8px) saturate(175%);
   background-clip: padding-box;
-  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: background-color 180ms ease, border-color 180ms ease, box-shadow 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .fx-glass .btn-ghost,
@@ -61,8 +61,9 @@
 .fx-glass .btn-ghost:active:not(:disabled),
 .fx-glass .btn-navy:active:not(:disabled),
 .fx-glass .btn-key:active:not(:disabled) {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.13);
+  transform: scale(1.035) translateY(-1px);
+  background: linear-gradient(145deg, rgba(255, 255, 255, calc(0.14 * var(--liquid-glass-opacity, 0.22))), rgba(255, 255, 255, calc(0.06 * var(--liquid-glass-opacity, 0.22))));
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.13), 0 6px 16px -10px rgba(0, 0, 0, 0.65);
 }
 
 @supports not ((backdrop-filter: blur(1px))) {

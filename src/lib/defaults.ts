@@ -29,6 +29,7 @@ export const FULL_EFFECTS: EffectsConfig = {
   particlesDensity: 45,
   soundVolume: 40,
   glassIntensity: 88,
+  glassTransparency: 78,
 };
 
 export const DEFAULT_CONFIG: KioskConfig = {
@@ -44,7 +45,7 @@ export const DEFAULT_CONFIG: KioskConfig = {
   autoDetectRemovableDrive: true,
   limitToDEOnly: false,
   kioskLockFullscreen: false,
-  registrationEnabled: true,
+  registrationEnabled: false,
   spreadsheetId: DEFAULT_SPREADSHEET_ID,
   effects: FULL_EFFECTS,
 };
@@ -239,6 +240,7 @@ export function normalizeEffects(raw: unknown): EffectsConfig {
     particlesDensity: num(r.particlesDensity, d.particlesDensity, 10, 120),
     soundVolume: num(r.soundVolume, d.soundVolume, 0, 100),
     glassIntensity: num(r.glassIntensity, d.glassIntensity, 0, 100),
+    glassTransparency: num(r.glassTransparency, d.glassTransparency, 0, 100),
   };
 }
 

@@ -100,6 +100,7 @@ function createWindow(url) {
   mainWindow = new BrowserWindow({
     width: 1366, height: 850, minWidth: 1024, minHeight: 640,
     show: false, backgroundColor: "#071124", title: "תורה דיליה",
+    icon: path.join(app.getAppPath(), "182b1da6-2942-43c4-8971-c140c46ee0b8.jfif"),
     autoHideMenuBar: true,
     webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
   });

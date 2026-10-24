@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   title: "קיוסק הדפסת קבצים - תורה דיליה",
   description:
     "עמדת קיוסק להדפסה והעתקה ישירה של קבצי וורד לפי תעודת זהות מגוגל דרייב",
-  icons: { icon: "/favicon.svg", apple: "/favicon.svg" },
+  icons: { icon: "/182b1da6-2942-43c4-8971-c140c46ee0b8.jfif", apple: "/182b1da6-2942-43c4-8971-c140c46ee0b8.jfif" },
 };
 
 export const viewport: Viewport = {

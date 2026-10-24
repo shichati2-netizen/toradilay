@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, Expand, FileText, Loader2, Printer, Usb } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, Printer, Usb } from "lucide-react";
 import { motion } from "motion/react";
 import type { KioskFile } from "@/lib/types";
 import { useFx } from "@/lib/client/fx";
@@ -38,7 +38,6 @@ export function FileCard({
   isPrinted,
   onPrint,
   onCopy,
-  onOpen,
 }: {
   file: KioskFile;
   index: number;
@@ -49,7 +48,6 @@ export function FileCard({
   isPrinted: boolean;
   onPrint: (f: KioskFile) => void;
   onCopy: (f: KioskFile) => void;
-  onOpen: (f: KioskFile) => void;
 }) {
   const { on } = useFx();
   const stagger = on("stagger");
@@ -84,11 +82,9 @@ export function FileCard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onOpen(file)}
-          className="group relative mb-3.5 h-64 w-full cursor-pointer overflow-hidden rounded-xl ring-1 ring-white/10 transition hover:ring-gold-400/60"
-          aria-label={`תצוגה מלאה של ${title}`}
+        <div
+          className="relative mb-3.5 h-64 w-full overflow-hidden rounded-xl ring-1 ring-white/10"
+          aria-label={`תצוגה מקדימה של ${title}`}
         >
           <DocPreview fileId={file.id} />
           <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
@@ -105,13 +101,7 @@ export function FileCard({
               </span>
             )}
           </div>
-          <div className="absolute inset-0 z-10 flex items-end justify-center bg-gradient-to-t from-navy-950/70 via-transparent to-transparent pb-3 opacity-0 transition group-hover:opacity-100 group-focus-visible:opacity-100">
-            <span className="flex items-center gap-1.5 rounded-full bg-navy-900/90 px-3 py-1.5 text-xs font-bold text-gold-200 ring-1 ring-gold-400/40">
-              <Expand className="h-3.5 w-3.5" />
-              תצוגה מלאה
-            </span>
-          </div>
-        </button>
+        </div>
 
         <div className="mt-auto grid grid-cols-[1fr_1.45fr] gap-2.5">
           <FxButton

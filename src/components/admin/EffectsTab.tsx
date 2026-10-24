@@ -139,9 +139,14 @@ export function EffectsTab({
                         value={effects.glassIntensity}
                         onChange={(v) => set("glassIntensity", v)}
                       />
-                      <p className="text-[11px] leading-relaxed text-slate-400">
-                        שולט בשקיפות ובנוכחות של חומר הזכוכית בלבד. האפקט משתמש בטשטוש וברקע שמתחת למשטח, ללא פסי אור נעים מעל הכפתורים.
-                      </p>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="text-xs font-semibold text-slate-200">שקיפות הכפתורים</div>
+                          <div className="font-mono text-xs font-bold text-sky-200">{effects.glassTransparency}%</div>
+                        </div>
+                        <Slider label="שקיפות בסגנון iPhone — טיפה על משטח" min={0} max={100} step={1} value={effects.glassTransparency} onChange={(v) => set("glassTransparency", v)} />
+                        <p className="text-[11px] leading-relaxed text-slate-400">קבע כמה הרקע ייראה דרך הכפתורים. ככל שהערך גבוה יותר, המשטח שקוף ועדין יותר; בלחיצה הכפתור מתכווץ ומתעוות לרגע כמו טיפת נוזל.</p>
+                      </div>
                     </div>
                   )}
                   {m.key === "sounds" && effects.sounds && (

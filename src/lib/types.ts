@@ -35,8 +35,10 @@ export interface EffectsConfig {
   particlesDensity: number;
   /** עוצמת צלילים באחוזים (0–100) */
   soundVolume: number;
-  /** עוצמת השתקפויות הזכוכית (0–100) */
+  /** עוצמת השתקפויות ושבירת האור של הזכוכית (0–100) */
   glassIntensity: number;
+  /** שקיפות הכפתורים בסגנון Liquid Glass (0–100; גבוה = שקוף יותר) */
+  glassTransparency: number;
 }
 
 export interface KioskConfig {
