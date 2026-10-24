@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Clock, FolderCheck, Usb, UserPlus } from "lucide-react";
+import { Clock, Fingerprint, FolderCheck, Usb } from "lucide-react";
 import type { KioskConfig } from "@/lib/types";
 import { TorahLogo } from "./TorahLogo";
 import { FxButton } from "./FxButton";
@@ -76,15 +76,15 @@ export function Header({
             )}
           </div>
 
-          {config.registrationEnabled && onOpenRegistration && (
+          {onOpenRegistration && (
             <FxButton
               variant="emerald"
               onClick={onOpenRegistration}
               className="h-10 px-4 text-xs"
-              title="רישום תלמיד חדש בגיליון Google Sheets"
+              title="חיפוש קוד אישי לפי תעודת זהות ושם"
             >
-              <UserPlus className="h-4 w-4" />
-              <span>רישום תלמיד</span>
+              <Fingerprint className="h-4 w-4" />
+              <span>חיפוש קוד אישי</span>
             </FxButton>
           )}
         </div>

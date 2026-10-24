@@ -1,7 +1,7 @@
-import { appendLocalRegistration } from "@/lib/server/registrations";
+import { appendLocalRegistration, findLocalRegistration } from "@/lib/server/registrations";
 import { logActivity } from "@/lib/server/activity";
 import { validateRegistration } from "@/lib/server/registration-validation";
-import { resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
+import { checkExistingRegistration, resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
 import { getStoredConfig } from "@/lib/server/settings";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +27,11 @@ export async function POST(req: Request) {
   }
 
   const fullName = `${v.payload.firstName} ${v.payload.lastName}`;
+  const activeRegistrations = (globalThis as typeof globalThis & { __kioskRegistrationInFlight?: Set<string> }).__kioskRegistrationInFlight ??= new Set<string>();
+  if (activeRegistrations.has(v.payload.idNumber)) {
+    return Response.json({ success: false, duplicate: true, error: "מתבצעת כבר פעולה עבור תעודת זהות זו. לא נוצר רישום כפול." }, { status: 409 });
+  }
+  activeRegistrations.add(v.payload.idNumber);
   try {
     const target = await resolveTarget();
     if (!target || target.method !== "service-account") {
@@ -48,6 +53,19 @@ export async function POST(req: Request) {
         },
         { status: 400 },
       );
+    }
+
+    const existing = await checkExistingRegistration(target, v.payload.idNumber);
+    if (existing.exists) {
+      return Response.json({ success: false, duplicate: true, studentName: existing.studentName, error: "תעודת הזהות כבר רשומה. לא הוספנו שורה נוספת." }, { status: 409 });
+    }
+    try {
+      const local = findLocalRegistration(v.payload.idNumber);
+      if (local.exists) {
+        return Response.json({ success: false, duplicate: true, studentName: local.studentName, error: "תעודת הזהות כבר קיימת בגיבוי המקומי. לא הוספנו שורה נוספת." }, { status: 409 });
+      }
+    } catch (err) {
+      console.warn("[register] local CSV duplicate check failed:", err);
     }
 
     // קודם כותבים לגיליון; במקרה של כשל גישה אין להציג לתלמיד רישום שהצליח רק מקומית.
@@ -99,5 +117,7 @@ export async function POST(req: Request) {
       },
       { status: 502 },
     );
+  } finally {
+    activeRegistrations.delete(v.payload.idNumber);
   }
 }

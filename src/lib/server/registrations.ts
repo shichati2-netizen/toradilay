@@ -86,6 +86,8 @@ export function readLocalRegistrations(): LocalRegistrationRecord[] {
 export function findLocalRegistration(idNumber: string): {
   exists: boolean;
   studentName?: string;
+  firstName?: string;
+  lastName?: string;
   rowNumber?: number;
 } {
   const cleanId = idNumber.replace(/\D/g, "");
@@ -94,6 +96,8 @@ export function findLocalRegistration(idNumber: string): {
   return {
     exists: true,
     studentName: `${match.firstName} ${match.lastName}`.trim() || undefined,
+    firstName: match.firstName,
+    lastName: match.lastName,
     rowNumber: match.rowNumber,
   };
 }

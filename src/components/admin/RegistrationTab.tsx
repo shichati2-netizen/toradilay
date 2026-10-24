@@ -33,7 +33,7 @@ export function RegistrationTab({
     <div className="space-y-4">
       <ToggleRow
         title="אפשר רישום תלמידים מהעמדה"
-        description="מציג כפתור רישום במסך. כל רישום נוסף ל-Google Sheets באמצעות חשבון השירות, ונשמר גם ב-CSV המקומי לצורך מיפוי שמות לחיפוש ב-Drive."
+        description="מאפשר להוסיף רשומות חדשות לגיליון. חיפוש קוד אישי לרשומות קיימות נשאר זמין גם כשהוספת רשומות כבויה."
         checked={draft.registrationEnabled}
         onChange={(value) => update({ registrationEnabled: value })}
       />

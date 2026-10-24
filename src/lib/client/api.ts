@@ -162,6 +162,8 @@ export async function fetchRegistrationStatus(pin?: string): Promise<Registratio
 export async function checkRegistration(idNumber: string): Promise<{
   exists: boolean;
   studentName?: string;
+  firstName?: string;
+  lastName?: string;
   rowNumber?: number;
   error?: string;
   code?: string;
@@ -180,7 +182,7 @@ export async function checkRegistration(idNumber: string): Promise<{
 
 export async function registerStudentApi(
   payload: RegistrationPayload,
-): Promise<{ success: boolean; message?: string; error?: string; code?: string }> {
+): Promise<{ success: boolean; duplicate?: boolean; studentName?: string; message?: string; error?: string; code?: string }> {
   try {
     const res = await fetch("/api/register", {
       method: "POST",
@@ -369,5 +371,39 @@ export async function disconnectGoogleAccountApi(
     return await json(res);
   } catch {
     return { ok: false, error: "שגיאת תקשורת" };
+  }
+}
+
+
+export interface PersonalCodeLookupResult {
+  found: boolean;
+  registeredName?: string;
+  sheetTitle?: string;
+  tabName?: string;
+  rowNumber?: number;
+  registrationRowNumber?: number;
+  headers?: string[];
+  values?: string[];
+  error?: string;
+  code?: string;
+}
+
+export async function lookupPersonalCode(
+  idNumber: string,
+  firstName: string,
+  lastName: string,
+): Promise<PersonalCodeLookupResult> {
+  try {
+    const res = await fetch("/api/personal-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idNumber, firstName, lastName }),
+      cache: "no-store",
+    });
+    const data = await json<PersonalCodeLookupResult>(res);
+    if (!res.ok && !data.error) return { found: false, error: "החיפוש נכשל. אנא נסה שוב." };
+    return data;
+  } catch {
+    return { found: false, error: "שגיאת תקשורת בחיפוש הקוד האישי." };
   }
 }

@@ -1,6 +1,5 @@
 import { findLocalRegistration } from "@/lib/server/registrations";
 import { checkExistingRegistration, resolveTarget } from "@/lib/server/sheets";
-import { getStoredConfig } from "@/lib/server/settings";
 
 export const dynamic = "force-dynamic";
 
@@ -16,11 +15,6 @@ export async function POST(req: Request) {
 
   if (!/^\d{5,9}$/.test(idNumber)) {
     return Response.json({ error: "מספר תעודת זהות לא תקין", code: "INVALID_ID" }, { status: 400 });
-  }
-
-  const cfg = await getStoredConfig();
-  if (!cfg.registrationEnabled) {
-    return Response.json({ error: "הרישום מהעמדה כבוי בהגדרות", code: "DISABLED" }, { status: 403 });
   }
 
   try {

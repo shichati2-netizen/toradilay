@@ -244,20 +244,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     window.dispatchEvent(new Event("kiosk:refocus"));
   }, []);
 
-  const handleRegistered = useCallback(
-    (id: string, name: string) => {
-      addToast({
-        type: "success",
-        title: "הרישום בוצע בהצלחה",
-        message: `התלמיד "${name}" (ת.ז. ${id}) נרשם בגיליון Google Sheets בהצלחה`,
-      });
-      // איתור אוטומטי של תיקיית התלמיד שנרשם (ומסך ההקלדה מציג את הספרות שלו)
-      window.dispatchEvent(new CustomEvent("kiosk:set-id", { detail: id }));
-      void handleSearch(id);
-    },
-    [addToast, handleSearch],
-  );
-
   /* ------------------------------ יציאה ------------------------------ */
 
   const handleConfirmExit = useCallback(() => {
@@ -450,8 +436,8 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         <RegistrationModal
           open={registerOpen}
           initialId={registerInitialId}
+          registrationEnabled={active.registrationEnabled}
           onClose={closeRegistration}
-          onRegistered={handleRegistered}
         />
 
         <Toasts toasts={toasts} onDismiss={removeToast} />
