@@ -30,6 +30,9 @@ export const FULL_EFFECTS: EffectsConfig = {
   soundVolume: 40,
   glassIntensity: 88,
   glassTransparency: 78,
+  glassShape: 72,
+  glassPrecision: 78,
+  glassGel: 68,
 };
 
 export const DEFAULT_CONFIG: KioskConfig = {
@@ -241,6 +244,9 @@ export function normalizeEffects(raw: unknown): EffectsConfig {
     soundVolume: num(r.soundVolume, d.soundVolume, 0, 100),
     glassIntensity: num(r.glassIntensity, d.glassIntensity, 0, 100),
     glassTransparency: num(r.glassTransparency, d.glassTransparency, 0, 100),
+    glassShape: num(r.glassShape, d.glassShape, 0, 100),
+    glassPrecision: num(r.glassPrecision, d.glassPrecision, 0, 100),
+    glassGel: num(r.glassGel, d.glassGel, 0, 100),
   };
 }
 

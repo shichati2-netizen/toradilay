@@ -80,7 +80,8 @@ export const FxButton = forwardRef<HTMLButtonElement, FxButtonProps>(
       if (sound !== "none") playSound(sound);
 
       // Restart the short squish/refraction animation even on rapid repeated taps.
-      if (liquidWobble && on("glass") && !e.currentTarget.disabled) {
+      const hasGlassSurface = e.currentTarget.matches(".btn-ghost, .btn-navy, .btn-key");
+      if ((liquidWobble || hasGlassSurface) && on("glass") && !e.currentTarget.disabled) {
         const button = e.currentTarget;
         button.classList.remove("liquid-wobble");
         void button.offsetWidth;

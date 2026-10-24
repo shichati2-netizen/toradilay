@@ -39,6 +39,12 @@ export interface EffectsConfig {
   glassIntensity: number;
   /** שקיפות הכפתורים בסגנון Liquid Glass (0–100; גבוה = שקוף יותר) */
   glassTransparency: number;
+  /** עיגול פינות המשטח הזכוכיתי (0–100) */
+  glassShape: number;
+  /** חדות ודיוק שפת השבירה (0–100) */
+  glassPrecision: number;
+  /** ג׳ליות: עוצמת ההתכווצות והנדנוד בלחיצה (0–100) */
+  glassGel: number;
 }
 
 export interface KioskConfig {

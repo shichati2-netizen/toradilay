@@ -16,6 +16,7 @@ type DisplacementOptions = {
   depth: number;
   strength: number;
   chromaticAberration: number;
+  precision: number;
 };
 
 const filterCache = new Map<string, string>();
@@ -32,7 +33,7 @@ function svgData(svg: string): string {
   return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
 }
 
-function getDisplacementMap({ height, width, radius, depth }: DisplacementOptions): string {
+function getDisplacementMap({ height, width, radius, depth, precision }: DisplacementOptions): string {
   const top = Math.max(0, Math.min(48, Math.ceil((radius / Math.max(height, 1)) * 15)));
   const left = Math.max(0, Math.min(48, Math.ceil((radius / Math.max(width, 1)) * 15)));
   const innerHeight = Math.max(1, height - 2 * depth);
@@ -47,7 +48,7 @@ function getDisplacementMap({ height, width, radius, depth }: DisplacementOption
       </linearGradient>
     </defs>
     <rect width="${width}" height="${height}" fill="#808080"/>
-    <g filter="blur(2px)">
+    <g filter="blur(${Math.max(0.5, 2 - precision * 0.015).toFixed(2)}px)">
       <rect width="${width}" height="${height}" fill="#000080"/>
       <rect width="${width}" height="${height}" fill="url(#Y)"/>
       <rect width="${width}" height="${height}" fill="url(#X)"/>
@@ -60,7 +61,7 @@ function getDisplacementMap({ height, width, radius, depth }: DisplacementOption
 
 function getDisplacementFilter(options: DisplacementOptions): string {
   const { height, width, strength, chromaticAberration } = options;
-  const key = [height, width, options.radius, options.depth, strength, chromaticAberration].join(":");
+  const key = [height, width, options.radius, options.depth, strength, chromaticAberration, options.precision].join(":");
   const cached = filterCache.get(key);
   if (cached) return cached;
 
@@ -96,7 +97,7 @@ function supportsBackdropFilterUrl(): boolean {
   return standard || webkit;
 }
 
-export function applyLiquidGlassRefraction(root: HTMLElement, intensity: number): () => void {
+export function applyLiquidGlassRefraction(root: HTMLElement, intensity: number, shapePrecision = 78): () => void {
   if (!supportsBackdropFilterUrl() || typeof ResizeObserver === "undefined") return () => {};
 
   const observers = new Map<Element, ResizeObserver>();
@@ -112,10 +113,11 @@ export function applyLiquidGlassRefraction(root: HTMLElement, intensity: number)
     const computed = getComputedStyle(element);
     const parsedRadius = Number.parseFloat(computed.borderTopLeftRadius) || 0;
     const radius = Math.round(Math.min(parsedRadius, Math.min(width, height) / 2));
-    const depth = Math.max(2, Math.min(8, Math.round(Math.min(width, height) * 0.09)));
+    const precision = Math.max(0, Math.min(100, shapePrecision));
+    const depth = Math.max(2, Math.min(8, Math.round(Math.min(width, height) * (0.09 - precision * 0.00055))));
     const strength = Math.round(18 + Math.max(0, Math.min(100, intensity)) * 0.18);
     const chromaticAberration = Math.max(0.5, Math.min(1.35, intensity / 75));
-    const url = getDisplacementFilter({ height, width, radius, depth, strength, chromaticAberration });
+    const url = getDisplacementFilter({ height, width, radius, depth, strength, chromaticAberration, precision });
     const value = `blur(1px) ${url} blur(4px) saturate(180%) brightness(1.035)`;
     element.style.setProperty("backdrop-filter", value);
     element.style.setProperty("-webkit-backdrop-filter", value);

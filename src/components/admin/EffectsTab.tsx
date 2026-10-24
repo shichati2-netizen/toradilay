@@ -145,7 +145,20 @@ export function EffectsTab({
                           <div className="font-mono text-xs font-bold text-sky-200">{effects.glassTransparency}%</div>
                         </div>
                         <Slider label="שקיפות בסגנון iPhone — טיפה על משטח" min={0} max={100} step={1} value={effects.glassTransparency} onChange={(v) => set("glassTransparency", v)} />
-                        <p className="text-[11px] leading-relaxed text-slate-400">קבע כמה הרקע ייראה דרך הכפתורים. ככל שהערך גבוה יותר, המשטח שקוף ועדין יותר; בלחיצה הכפתור מתכווץ ומתעוות לרגע כמו טיפת נוזל.</p>
+                        <p className="text-[11px] leading-relaxed text-slate-400">קבע כמה הרקע ייראה דרך הכפתורים. ככל שהערך גבוה יותר, המשטח שקוף ועדין יותר.</p>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-4"><div className="text-xs font-semibold text-slate-200">צורת הכפתור ועיגול הפינות</div><div className="font-mono text-xs font-bold text-sky-200">{effects.glassShape}%</div></div>
+                        <Slider label="צורה: פינות חדות עד משטח מעוגל" min={0} max={100} step={1} value={effects.glassShape} onChange={(v) => set("glassShape", v)} />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-4"><div className="text-xs font-semibold text-slate-200">דיוק שפת הזכוכית</div><div className="font-mono text-xs font-bold text-sky-200">{effects.glassPrecision}%</div></div>
+                        <Slider label="דיוק קווי השבירה והקצוות" min={0} max={100} step={1} value={effects.glassPrecision} onChange={(v) => set("glassPrecision", v)} />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between gap-4"><div className="text-xs font-semibold text-slate-200">רמת הג׳ליות</div><div className="font-mono text-xs font-bold text-sky-200">{effects.glassGel}%</div></div>
+                        <Slider label="תגובה בלחיצה: קשיחה עד נוזלית וג׳לית" min={0} max={100} step={1} value={effects.glassGel} onChange={(v) => set("glassGel", v)} />
+                        <p className="text-[11px] leading-relaxed text-slate-400">ערך גבוה יוצר התכווצות עמוקה יותר, שינוי צורה גדול יותר וזמן התאוששות ארוך יותר בלחיצה על כפתורי הזכוכית.</p>
                       </div>
                     </div>
                   )}

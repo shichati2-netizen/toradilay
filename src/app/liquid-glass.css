@@ -38,6 +38,11 @@
   overflow: hidden;
   isolation: isolate;
 }
+.fx-glass .btn-ghost,
+.fx-glass .btn-navy,
+.fx-glass .btn-key {
+  border-radius: var(--liquid-glass-radius, 1rem);
+}
 
 .fx-glass .inset-field {
   border-radius: 1rem;
@@ -85,11 +90,15 @@
 
 /* A number-key tap makes the glass lens itself squish and wobble.
    This is a short physical-material response, not a light beam or glow above the key. */
+.fx-glass .btn-ghost.liquid-wobble,
+.fx-glass .btn-navy.liquid-wobble,
 .fx-glass .btn-key.liquid-wobble {
   transform-origin: 50% 50%;
-  animation: liquid-key-wobble 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: liquid-key-wobble var(--liquid-gel-duration, 560ms) cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, border-radius, filter;
 }
+.fx-glass .btn-ghost.liquid-wobble::before,
+.fx-glass .btn-navy.liquid-wobble::before,
 .fx-glass .btn-key.liquid-wobble::before {
   content: "";
   position: absolute;
@@ -104,47 +113,51 @@
     rgba(255, 255, 255, 0) 72%
   );
   opacity: 0;
-  animation: liquid-key-pressure 560ms ease-out both;
+  animation: liquid-key-pressure var(--liquid-gel-duration, 560ms) ease-out both;
 }
 @keyframes liquid-key-wobble {
   0% {
     transform: perspective(500px) scale(1, 1) rotateX(0) rotateY(0);
-    border-radius: 1rem;
+    border-radius: var(--liquid-glass-radius, 1rem);
     filter: saturate(1);
   }
   16% {
-    transform: perspective(500px) scale(1.045, 0.94) rotateX(-4deg) rotateY(3deg);
-    border-radius: 1.15rem 0.9rem 1.05rem 0.95rem;
-    filter: saturate(1.22);
+    transform: perspective(500px) scale(var(--liquid-gel-x1, 1.045), var(--liquid-gel-y1, 0.94)) rotateX(var(--liquid-gel-rx1, -4deg)) rotateY(var(--liquid-gel-ry1, 3deg));
+    border-radius: var(--liquid-glass-radius-a, 1.15rem 0.9rem 1.05rem 0.95rem);
+    filter: saturate(var(--liquid-gel-sat1, 1.22));
   }
   34% {
-    transform: perspective(500px) scale(0.965, 1.045) rotateX(3deg) rotateY(-2.5deg);
-    border-radius: 0.9rem 1.12rem 0.92rem 1.1rem;
-    filter: saturate(1.12);
+    transform: perspective(500px) scale(var(--liquid-gel-x2, 0.965), var(--liquid-gel-y2, 1.045)) rotateX(var(--liquid-gel-rx2, 3deg)) rotateY(var(--liquid-gel-ry2, -2.5deg));
+    border-radius: var(--liquid-glass-radius-b, 0.9rem 1.12rem 0.92rem 1.1rem);
+    filter: saturate(var(--liquid-gel-sat2, 1.12));
   }
   52% {
-    transform: perspective(500px) scale(1.02, 0.985) rotateX(-1.5deg) rotateY(1.2deg);
-    border-radius: 1.05rem 0.97rem 1.08rem 0.94rem;
-    filter: saturate(1.06);
+    transform: perspective(500px) scale(var(--liquid-gel-x3, 1.02), var(--liquid-gel-y3, 0.985)) rotateX(var(--liquid-gel-rx3, -1.5deg)) rotateY(var(--liquid-gel-ry3, 1.2deg));
+    border-radius: var(--liquid-glass-radius-c, 1.05rem 0.97rem 1.08rem 0.94rem);
+    filter: saturate(var(--liquid-gel-sat3, 1.06));
   }
   72% {
-    transform: perspective(500px) scale(0.995, 1.008) rotateX(0.4deg) rotateY(-0.3deg);
-    border-radius: 0.99rem 1.02rem 1rem 0.98rem;
-    filter: saturate(1.02);
+    transform: perspective(500px) scale(var(--liquid-gel-x4, 0.995), var(--liquid-gel-y4, 1.008)) rotateX(var(--liquid-gel-rx4, 0.4deg)) rotateY(var(--liquid-gel-ry4, -0.3deg));
+    border-radius: var(--liquid-glass-radius-d, 0.99rem 1.02rem 1rem 0.98rem);
+    filter: saturate(var(--liquid-gel-sat4, 1.02));
   }
   100% {
     transform: perspective(500px) scale(1, 1) rotateX(0) rotateY(0);
-    border-radius: 1rem;
+    border-radius: var(--liquid-glass-radius, 1rem);
     filter: saturate(1);
   }
 }
 @keyframes liquid-key-pressure {
-  0% { opacity: 0.8; transform: scale(0.65); }
-  32% { opacity: 0.36; transform: scale(1.04); }
+  0% { opacity: var(--liquid-gel-glint-start, 0.8); transform: scale(0.65); }
+  32% { opacity: var(--liquid-gel-glint-mid, 0.36); transform: scale(1.04); }
   100% { opacity: 0; transform: scale(1.2); }
 }
 @media (prefers-reduced-motion: reduce) {
+  .fx-glass .btn-ghost.liquid-wobble,
+  .fx-glass .btn-navy.liquid-wobble,
   .fx-glass .btn-key.liquid-wobble,
+  .fx-glass .btn-ghost.liquid-wobble::before,
+  .fx-glass .btn-navy.liquid-wobble::before,
   .fx-glass .btn-key.liquid-wobble::before {
     animation-duration: 1ms;
   }

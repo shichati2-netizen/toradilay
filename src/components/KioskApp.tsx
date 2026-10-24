@@ -63,8 +63,8 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     if (!effects.master || !effects.glass || effects.glassIntensity <= 0) return;
     const root = document.querySelector<HTMLElement>(".kiosk-root");
     if (!root) return;
-    return applyLiquidGlassRefraction(root, effects.glassIntensity);
-  }, [effects.master, effects.glass, effects.glassIntensity]);
+    return applyLiquidGlassRefraction(root, effects.glassIntensity, effects.glassPrecision);
+  }, [effects.master, effects.glass, effects.glassIntensity, effects.glassPrecision]);
 
   // מצב מסכים
   const [view, setView] = useState<"id-entry" | "student-files">("id-entry");
@@ -320,6 +320,8 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   /* ------------------------------ תצוגה ------------------------------ */
 
   const targetPath = `${active.targetDriveLetter}:\\${active.targetFolderName}`;
+  const glassRadius = 5 + (effects.glassShape / 100) * 19;
+  const gel = effects.glassGel / 100;
   const busy =
     printingId !== null || copyingId !== null || isCopyingAll || adminOpen;
 
@@ -331,6 +333,34 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           "--kiosk-background-color": active.backgroundColor,
           "--liquid-glass-intensity": effects.glassIntensity / 100,
           "--liquid-glass-opacity": 1 - effects.glassTransparency / 100,
+          "--liquid-glass-radius": `${glassRadius}px`,
+          "--liquid-glass-radius-a": `${glassRadius * (1 + 0.15 * gel)}px ${glassRadius * (1 - 0.1 * gel)}px ${glassRadius * (1 + 0.05 * gel)}px ${glassRadius * (1 - 0.05 * gel)}px`,
+          "--liquid-glass-radius-b": `${glassRadius * (1 - 0.1 * gel)}px ${glassRadius * (1 + 0.12 * gel)}px ${glassRadius * (1 - 0.08 * gel)}px ${glassRadius * (1 + 0.1 * gel)}px`,
+          "--liquid-glass-radius-c": `${glassRadius * (1 + 0.05 * gel)}px ${glassRadius * (1 - 0.03 * gel)}px ${glassRadius * (1 + 0.08 * gel)}px ${glassRadius * (1 - 0.06 * gel)}px`,
+          "--liquid-glass-radius-d": `${glassRadius * (1 - 0.01 * gel)}px ${glassRadius * (1 + 0.02 * gel)}px ${glassRadius}px ${glassRadius * (1 - 0.02 * gel)}px`,
+          "--liquid-gel-duration": `${350 + effects.glassGel * 2.1}ms`,
+          "--liquid-gel-x1": (1 + 0.045 * gel).toFixed(3),
+          "--liquid-gel-y1": (1 - 0.06 * gel).toFixed(3),
+          "--liquid-gel-rx1": `${-4 * gel}deg`,
+          "--liquid-gel-ry1": `${3 * gel}deg`,
+          "--liquid-gel-x2": (1 - 0.035 * gel).toFixed(3),
+          "--liquid-gel-y2": (1 + 0.045 * gel).toFixed(3),
+          "--liquid-gel-rx2": `${3 * gel}deg`,
+          "--liquid-gel-ry2": `${-2.5 * gel}deg`,
+          "--liquid-gel-x3": (1 + 0.02 * gel).toFixed(3),
+          "--liquid-gel-y3": (1 - 0.015 * gel).toFixed(3),
+          "--liquid-gel-rx3": `${-1.5 * gel}deg`,
+          "--liquid-gel-ry3": `${1.2 * gel}deg`,
+          "--liquid-gel-x4": (1 - 0.005 * gel).toFixed(3),
+          "--liquid-gel-y4": (1 + 0.008 * gel).toFixed(3),
+          "--liquid-gel-rx4": `${0.4 * gel}deg`,
+          "--liquid-gel-ry4": `${-0.3 * gel}deg`,
+          "--liquid-gel-sat1": (1 + 0.22 * gel).toFixed(2),
+          "--liquid-gel-sat2": (1 + 0.12 * gel).toFixed(2),
+          "--liquid-gel-sat3": (1 + 0.06 * gel).toFixed(2),
+          "--liquid-gel-sat4": (1 + 0.02 * gel).toFixed(2),
+          "--liquid-gel-glint-start": (0.12 + 0.68 * gel).toFixed(2),
+          "--liquid-gel-glint-mid": (0.04 + 0.32 * gel).toFixed(2),
         } as CSSProperties}
       >
         <Background />
