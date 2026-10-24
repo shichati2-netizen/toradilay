@@ -22,7 +22,6 @@ import { FxButton } from "./FxButton";
 import { Header } from "./Header";
 import { IdEntryScreen } from "./IdEntryScreen";
 import { PathLabel } from "./PathLabel";
-import { PreviewModal } from "./PreviewModal";
 import { RegistrationModal } from "./RegistrationModal";
 import { StudentFilesScreen } from "./StudentFilesScreen";
 import { TorahLogo } from "./TorahLogo";
@@ -81,7 +80,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [exitOpen, setExitOpen] = useState(false);
   const [isShuttingDown, setIsShuttingDown] = useState(false);
   const [isShutDown, setIsShutDown] = useState(false);
-  const [previewFile, setPreviewFile] = useState<KioskFile | null>(null);
 
   // רישום תלמיד (Google Sheets)
   const [registerOpen, setRegisterOpen] = useState(false);
@@ -147,7 +145,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     setView("id-entry");
     setFolder(null);
     setFiles([]);
-    setPreviewFile(null);
     setErrorMessage(null);
   }, []);
 
@@ -324,7 +321,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
   const targetPath = `${active.targetDriveLetter}:\\${active.targetFolderName}`;
   const busy =
-    printingId !== null || copyingId !== null || isCopyingAll || previewFile !== null || adminOpen;
+    printingId !== null || copyingId !== null || isCopyingAll || adminOpen;
 
   return (
     <FxProvider effects={effects}>
@@ -333,6 +330,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         style={{
           "--kiosk-background-color": active.backgroundColor,
           "--liquid-glass-intensity": effects.glassIntensity / 100,
+          "--liquid-glass-opacity": 1 - effects.glassTransparency / 100,
         } as CSSProperties}
       >
         <Background />
@@ -381,7 +379,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     onPrint={handlePrint}
                     onCopy={handleCopy}
                     onCopyAll={handleCopyAll}
-                    onOpen={setPreviewFile}
                   />
                 </ScreenFrame>
               )
@@ -406,14 +403,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           />
         </footer>
 
-        <PreviewModal
-          file={previewFile}
-          onClose={() => setPreviewFile(null)}
-          onPrint={handlePrint}
-          onCopy={handleCopy}
-          isPrinting={previewFile !== null && printingId === previewFile.id}
-          isCopying={previewFile !== null && copyingId === previewFile.id}
-        />
 
         <AdminPanel
           open={adminOpen}

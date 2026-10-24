@@ -72,7 +72,6 @@ export function StudentFilesScreen({
   onPrint,
   onCopy,
   onCopyAll,
-  onOpen,
 }: {
   folder: KioskFolder;
   files: KioskFile[];
@@ -91,7 +90,6 @@ export function StudentFilesScreen({
   onPrint: (f: KioskFile) => void;
   onCopy: (f: KioskFile) => void;
   onCopyAll: () => void;
-  onOpen: (f: KioskFile) => void;
 }) {
   const [timeLeft, setTimeLeft] = useState(autoLogoutSeconds);
   const deadline = useRef(0);
@@ -202,7 +200,6 @@ export function StudentFilesScreen({
               isPrinted={printedFileIds.has(file.id)}
               onPrint={onPrint}
               onCopy={onCopy}
-              onOpen={onOpen}
             />
           ))}
         </div>
