@@ -6,8 +6,8 @@ export const maxDuration = 60;
 function normalizeHeader(value: unknown): string {
   return String(value ?? "")
     .normalize("NFKC")
-    .replace(/[\\u0591-\\u05C7]/g, "")
-    .replace(/[^\\p{L}\\p{N}]/gu, "")
+    .replace(/[\u0591-\u05C7]/g, "")
+    .replace(/[^\p{L}\p{N}]/gu, "")
     .toLocaleLowerCase("he-IL");
 }
 
@@ -18,7 +18,7 @@ function normalizeHeader(value: unknown): string {
 export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { firstName?: string; lastName?: string };
-    const firstName = String(body.firstName ?? "").trim().replace(/\\s+/g, " ").slice(0, 60);
+    const firstName = String(body.firstName ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
     const lastName = String(body.lastName ?? "").trim().replace(/\\s+/g, " ").slice(0, 60);
 
     if (firstName.length < 2 || lastName.length < 2) {
