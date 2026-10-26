@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   try {
     const body = (await req.json()) as { firstName?: string; lastName?: string };
     const firstName = String(body.firstName ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
-    const lastName = String(body.lastName ?? "").trim().replace(/\\s+/g, " ").slice(0, 60);
+    const lastName = String(body.lastName ?? "").trim().replace(/\s+/g, " ").slice(0, 60);
 
     if (firstName.length < 2 || lastName.length < 2) {
       return Response.json(
