@@ -39,7 +39,7 @@ export function RegistrationTab({
       />
 
       <SectionCard
-        title="Google Sheets וגיבוי CSV מקומי"
+        title="רישום וחיפוש ב-Google Sheets"
         icon={<FileSpreadsheet className="h-4 w-4 text-emerald-400" />}
         hint="הרישום הראשי מתווסף לשורת Google Sheets באמצעות חשבון השירות. קובץ ה-CSV במחשב נשמר כגיבוי ומשמש לקישור בין תעודת הזהות לשם התלמיד בחיפוש ב-Drive."
         action={

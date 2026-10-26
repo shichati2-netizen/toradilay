@@ -327,7 +327,7 @@ export async function getSheetInfo(t: SheetsTarget): Promise<SheetInfo> {
   try {
     const values = await sheetsRequest<{ values?: unknown[][] }>(
       t,
-      `/values/${encodeURIComponent(`${firstSheetTitle}!A1:A5000`)}`,
+      `/values/${encodeURIComponent(sheetRange(firstSheetTitle, "A1:A5000"))}`,
     );
     rowCount = Math.max(0, (values.values?.length ?? 0) - 1);
   } catch {
@@ -335,6 +335,99 @@ export async function getSheetInfo(t: SheetsTarget): Promise<SheetInfo> {
   }
 
   return { title: data.properties?.title || "גיליון רישום", firstSheetTitle, sheets, rowCount };
+}
+
+
+function sheetRange(title: string, range: string): string {
+  return "'" + title.replace(/'/g, "''") + "'!" + range;
+}
+
+type SheetPurpose = "registration" | "codes";
+interface SheetHeaderLocation {
+  spreadsheetTitle: string;
+  title: string;
+  headerRowIndex: number;
+  headers: string[];
+  firstNameColumn?: number;
+  lastNameColumn?: number;
+  idColumn?: number;
+  vaadColumn?: number;
+  dateColumn?: number;
+  nameColumn?: number;
+}
+
+function findHeaderLocation(
+  spreadsheetTitle: string,
+  title: string,
+  rows: unknown[][],
+  purpose: SheetPurpose,
+): SheetHeaderLocation | null {
+  const normalizeHeader = (value: unknown) => normalizePersonName(value);
+  for (let rowIndex = 0; rowIndex < Math.min(rows.length, 12); rowIndex++) {
+    const rawHeaders = rows[rowIndex] ?? [];
+    const headers = rawHeaders.map((value) => String(value ?? "").trim());
+    const normalized = rawHeaders.map(normalizeHeader);
+    const find = (...candidates: string[]) =>
+      normalized.findIndex((value) => candidates.some((candidate) => value === candidate || value.includes(candidate)));
+    if (purpose === "registration") {
+      const firstNameColumn = find("שםפרטי", "firstname", "givenname");
+      const lastNameColumn = find("שםמשפחה", "lastname", "surname");
+      const idColumn = find("תעודתזהות", "מספרזהות", "מספרתעודתזהות", "תז");
+      if (firstNameColumn >= 0 && lastNameColumn >= 0 && idColumn >= 0) {
+        return {
+          spreadsheetTitle, title, headerRowIndex: rowIndex, headers,
+          firstNameColumn, lastNameColumn, idColumn,
+          vaadColumn: find("ועד", "מספרועד"),
+          dateColumn: find("תאריךרישום", "תאריך"),
+        };
+      }
+    } else {
+      const nameColumn = normalized.findIndex((value) =>
+        value === "שם" || value === "שםמלא" || value === "שםהתלמיד" || value === "studentname" || value === "fullname",
+      );
+      const institutionColumn = find("קודמוסד", "institutioncode");
+      const phonePasswordColumn = find("סיסמתמרכז", "סיסמתמרכזייה", "phonepassword");
+      if (nameColumn >= 0 && institutionColumn >= 0 && phonePasswordColumn >= 0) {
+        return { spreadsheetTitle, title, headerRowIndex: rowIndex, headers, nameColumn };
+      }
+    }
+  }
+  return null;
+}
+
+async function findSheetHeaderLocation(t: SheetsTarget, purpose: SheetPurpose): Promise<SheetHeaderLocation> {
+  if (t.method === "webhook") {
+    throw new Error("הפעולה הזו דורשת גישה ישירה ל-Google Sheets API דרך חשבון Google מורשה.");
+  }
+  const info = await getSheetInfo(t);
+  const tabs = info.sheets.length ? info.sheets : [info.firstSheetTitle];
+  for (const title of tabs) {
+    const data = await sheetsRequest<{ values?: unknown[][] }>(
+      t,
+      "/values/" + encodeURIComponent(sheetRange(title, "A1:ZZ12")),
+    );
+    const location = findHeaderLocation(info.title, title, data.values ?? [], purpose);
+    if (location) return location;
+  }
+  if (purpose === "registration") {
+    throw new Error('לא נמצאה לשונית רישום עם כותרות "שם פרטי", "שם משפחה" ו"תעודת זהות". ודא שהכותרות קיימות בגיליון הרישום.');
+  }
+  throw new Error('לא נמצאה לשונית קודים עם הכותרות "שם", "קוד מוסד" ו"סיסמת מרכזייה".');
+}
+
+function columnLabel(index: number): string {
+  let n = index + 1;
+  let label = "";
+  while (n > 0) {
+    const remainder = (n - 1) % 26;
+    label = String.fromCharCode(65 + remainder) + label;
+    n = Math.floor((n - 1) / 26);
+  }
+  return label;
+}
+
+function cleanIdCell(value: unknown): string {
+  return String(value ?? "").trim().replace(/^'/, "").replace(/\D/g, "");
 }
 
 export interface ExistingRegistration {
@@ -350,7 +443,7 @@ export async function checkExistingRegistration(
   t: SheetsTarget,
   idNumber: string,
 ): Promise<ExistingRegistration> {
-  const cleanId = idNumber.trim();
+  const cleanId = String(idNumber).replace(/\D/g, "");
   if (t.method === "webhook") {
     const d = await webhookCall<ExistingRegistration>(t.webhookUrl, {
       action: "check",
@@ -366,30 +459,24 @@ export async function checkExistingRegistration(
     };
   }
 
-  const info = await getSheetInfo(t);
+  const location = await findSheetHeaderLocation(t, "registration");
   const data = await sheetsRequest<{ values?: unknown[][] }>(
     t,
-    `/values/${encodeURIComponent(`${info.firstSheetTitle}!A1:D5000`)}`,
+    "/values/" + encodeURIComponent(sheetRange(location.title, "A1:ZZ10000")),
   );
   const rows = data.values ?? [];
-  for (let i = 0; i < rows.length; i++) {
+  for (let i = location.headerRowIndex + 1; i < rows.length; i++) {
     const row = rows[i] ?? [];
-    const colC = String(row[2] ?? "").trim().replace(/^'/, "");
-    const colB = String(row[1] ?? "").trim();
-    if (colC === cleanId) {
-      const firstName = String(row[0] ?? "").trim();
-      const lastName = colB;
-      const name = `${firstName} ${lastName}`.trim();
-      return { exists: true, studentName: name || undefined, firstName: firstName || undefined, lastName: lastName || undefined, rowNumber: i + 1 };
-    }
-    if (colB === cleanId) {
-      return {
-        exists: true,
-        studentName: String(row[0] ?? "").trim() || undefined,
-        firstName: String(row[0] ?? "").trim() || undefined,
-        rowNumber: i + 1,
-      };
-    }
+    if (cleanIdCell(row[location.idColumn!]) !== cleanId) continue;
+    const firstName = String(row[location.firstNameColumn!] ?? "").trim().replace(/^'/, "");
+    const lastName = String(row[location.lastNameColumn!] ?? "").trim().replace(/^'/, "");
+    return {
+      exists: true,
+      studentName: (firstName + " " + lastName).trim() || undefined,
+      firstName: firstName || undefined,
+      lastName: lastName || undefined,
+      rowNumber: i + 1,
+    };
   }
   return { exists: false };
 }
@@ -413,7 +500,7 @@ export async function registerStudent(
   p: RegistrationPayload,
 ): Promise<AppendResult> {
   const timestamp = israelTimestamp();
-  const fullName = `${p.firstName} ${p.lastName}`;
+  const fullName = p.firstName + " " + p.lastName;
 
   if (t.method === "webhook") {
     const d = await webhookCall<{ success?: boolean; updatedRange?: string }>(t.webhookUrl, {
@@ -429,52 +516,99 @@ export async function registerStudent(
     if (!d.success) throw new Error("ה-Apps Script לא אישר את הרישום");
     return {
       success: true,
-      message: `התלמיד "${fullName}" נרשם בהצלחה בגיליון Google Sheets`,
+      message: 'התלמיד "' + fullName + '" נרשם בהצלחה בגיליון Google Sheets',
       updatedRange: d.updatedRange,
     };
   }
 
-  const info = await getSheetInfo(t);
-  const sheet = info.firstSheetTitle;
+  const location = await findSheetHeaderLocation(t, "registration");
+  const range = sheetRange(location.title, "A1:ZZ10000");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    t,
+    "/values/" + encodeURIComponent(range),
+  );
+  const rows = data.values ?? [];
+  const idColumn = location.idColumn!;
+  const firstColumn = location.firstNameColumn!;
+  const lastColumn = location.lastNameColumn!;
+  const vaadColumn = location.vaadColumn;
+  const dateColumn = location.dateColumn;
+  const cleanId = String(p.idNumber).replace(/\D/g, "");
 
-  // כותרות אם הגיליון ריק
-  try {
-    const headRange = `${sheet}!A1:E1`;
-    const head = await sheetsRequest<{ values?: unknown[][] }>(
-      t,
-      `/values/${encodeURIComponent(headRange)}`,
-    );
-    if (!head.values || head.values.length === 0 || (head.values[0] ?? []).length === 0) {
+  // If the ID has an incomplete row, complete it instead of adding a duplicate.
+  for (let i = location.headerRowIndex + 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    if (cleanIdCell(row[idColumn]) !== cleanId) continue;
+    const rowNumber = i + 1;
+    const oldFirst = String(row[firstColumn] ?? "").trim();
+    const oldLast = String(row[lastColumn] ?? "").trim();
+    const normalize = (value: string) => normalizePersonName(value);
+    if (oldFirst && oldLast) {
+      throw new Error("תעודת הזהות כבר רשומה בשם " + (oldFirst + " " + oldLast).trim() + ". לא נוצר רישום כפול.");
+    }
+    if (oldFirst && normalize(oldFirst) !== normalize(p.firstName)) {
+      throw new Error("תעודת הזהות קיימת עם שם פרטי אחר. יש לבדוק את הרשומה לפני שינוי.");
+    }
+    if (oldLast && normalize(oldLast) !== normalize(p.lastName)) {
+      throw new Error("תעודת הזהות קיימת עם שם משפחה אחר. יש לבדוק את הרשומה לפני שינוי.");
+    }
+    const updates: Array<{ col: number; value: string }> = [];
+    if (!oldFirst) updates.push({ col: firstColumn, value: p.firstName });
+    if (!oldLast) updates.push({ col: lastColumn, value: p.lastName });
+    if (vaadColumn !== undefined && !String(row[vaadColumn] ?? "").trim()) {
+      updates.push({ col: vaadColumn, value: String(p.vaad) });
+    }
+    if (dateColumn !== undefined && !String(row[dateColumn] ?? "").trim()) {
+      updates.push({ col: dateColumn, value: timestamp });
+    }
+    for (const update of updates) {
+      const cellRange = sheetRange(location.title, columnLabel(update.col) + rowNumber);
       await sheetsRequest(
         t,
-        `/values/${encodeURIComponent(headRange)}?valueInputOption=USER_ENTERED`,
+        "/values/" + encodeURIComponent(cellRange) + "?valueInputOption=RAW",
         {
           method: "PUT",
-          body: JSON.stringify({ range: headRange, majorDimension: "ROWS", values: [SHEET_HEADERS] }),
+          body: JSON.stringify({ range: cellRange, majorDimension: "ROWS", values: [[update.value]] }),
         },
       );
     }
-  } catch (err) {
-    console.warn("[sheets] could not verify headers:", err);
+    const maxUpdatedCol = Math.max(...updates.map((u) => u.col), idColumn);
+    return {
+      success: true,
+      message: 'הושלמה רשומת התלמיד "' + fullName + '" בגיליון הרישום הקיים',
+      updatedRange: location.title + "!A" + rowNumber + ":" + columnLabel(maxUpdatedCol) + rowNumber,
+    };
   }
 
-  const range = `${sheet}!A:E`;
+  const maxColumn = Math.max(
+    firstColumn, lastColumn, idColumn,
+    vaadColumn ?? -1, dateColumn ?? -1,
+  );
+  const values = Array.from({ length: maxColumn + 1 }, () => "");
+  values[firstColumn] = p.firstName;
+  values[lastColumn] = p.lastName;
+  values[idColumn] = p.idNumber;
+  if (vaadColumn !== undefined) values[vaadColumn] = String(p.vaad);
+  if (dateColumn !== undefined) values[dateColumn] = timestamp;
+
+  // Append below the detected registration header; never append to the code tab.
+  const appendRange = sheetRange(location.title, "A" + (location.headerRowIndex + 2) + ":ZZ");
   const result = await sheetsRequest<{ updates?: { updatedRange?: string } }>(
     t,
-    `/values/${encodeURIComponent(range)}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`,
+    "/values/" + encodeURIComponent(appendRange) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
     {
       method: "POST",
       body: JSON.stringify({
-        range,
+        range: appendRange,
         majorDimension: "ROWS",
-        values: [[p.firstName, p.lastName, p.idNumber, p.vaad, timestamp]],
+        values: [values],
       }),
     },
   );
 
   return {
     success: true,
-    message: `התלמיד "${fullName}" נרשם בהצלחה בגיליון Google Sheets`,
+    message: 'התלמיד "' + fullName + '" נרשם בהצלחה בגיליון הרישום',
     updatedRange: result.updates?.updatedRange,
   };
 }
@@ -524,18 +658,6 @@ function normalizePersonName(value: unknown): string {
     .trim();
 }
 
-function columnLabel(index: number): string {
-  let n = index + 1;
-  let label = "";
-  while (n > 0) {
-    const remainder = (n - 1) % 26;
-    label = String.fromCharCode(65 + remainder) + label;
-    n = Math.floor((n - 1) / 26);
-  }
-  return label;
-}
-
-/** קורא את כל הערכים בשורה התואמת לשם הפרטי ולשם המשפחה. */
 export async function findPersonalCodeRowByName(
   firstName: string,
   lastName: string,
@@ -548,88 +670,54 @@ export async function findPersonalCodeRowByName(
     throw new Error("אין חיבור Google פעיל לקריאת גיליון החיפוש. יש להגדיר חשבון שירות ולשתף איתו את הגיליון השני.");
   }
 
-  const info = await getSheetInfo(target);
+  const location = await findSheetHeaderLocation(target, "codes");
   const data = await sheetsRequest<{ values?: unknown[][] }>(
     target,
-    "/values/" + encodeURIComponent(info.firstSheetTitle + "!A1:ZZ10000"),
+    "/values/" + encodeURIComponent(sheetRange(location.title, "A1:ZZ10000")),
   );
   const rows = data.values ?? [];
+  const headers = location.headers;
   const blank: PersonalCodeSheetRow = {
     found: false,
-    sheetTitle: info.title,
-    tabName: info.firstSheetTitle,
-    headers: [],
+    sheetTitle: location.spreadsheetTitle,
+    tabName: location.title,
+    headers,
     values: [],
   };
-  if (!rows.length) return blank;
 
-  const normHeaders = (row: unknown[]) => row.map((value) => normalizePersonName(value));
-  const isFirstHeader = (h: string) =>
-    h.includes("שםפרטי") || h === "פרטי" || h.includes("firstname") || h === "givenname";
-  const isLastHeader = (h: string) =>
-    h.includes("שםמשפחה") || h === "משפחה" || h.includes("lastname") || h.includes("surname");
-  const isFullNameHeader = (h: string) =>
-    h.includes("שםמלא") || h.includes("שםהתלמיד") || h.includes("שםבחור") ||
-    h.includes("fullname") || h.includes("studentname") || h === "שם";
-
-  let headerIndex = 0;
-  let firstNameColumn = -1;
-  let lastNameColumn = -1;
-  let fullNameColumn = -1;
-  for (let ri = 0; ri < Math.min(rows.length, 10); ri++) {
-    const hs = normHeaders(rows[ri] ?? []);
-    const fi = hs.findIndex(isFirstHeader);
-    const li = hs.findIndex(isLastHeader);
-    const ni = hs.findIndex(isFullNameHeader);
-    if ((fi >= 0 && li >= 0) || ni >= 0) {
-      headerIndex = ri;
-      firstNameColumn = fi;
-      lastNameColumn = li;
-      fullNameColumn = ni;
-      break;
-    }
-  }
-  const headerRow = rows[headerIndex] ?? [];
-  const headers = headerRow.map((value, i) => String(value ?? "").trim() || ("עמודה " + columnLabel(i)));
-  const wantedFirst = normalizePersonName(firstName);
-  const wantedLast = normalizePersonName(lastName);
-  if (!wantedFirst || !wantedLast) {
+  const nameTokens = (value: unknown): string[] =>
+    String(value ?? "")
+      .normalize("NFKC")
+      .toLocaleLowerCase("he-IL")
+      .replace(/[\u0591-\u05C7]/g, "")
+      .replace(/[״׳"'.,\-_/\\()[\]{}:;]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(" ")
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "he"));
+  const expected = nameTokens(firstName + " " + lastName).join("|");
+  if (!nameTokens(firstName).length || !nameTokens(lastName).length) {
     throw new Error("חובה להזין שם פרטי ושם משפחה כדי לחפש קוד אישי.");
   }
-  const wantedFull = wantedFirst + wantedLast;
-  const wantedReverse = wantedLast + wantedFirst;
 
-  for (let ri = headerIndex + 1; ri < rows.length; ri++) {
-    const row = rows[ri] ?? [];
-    const cell = (i: number) => normalizePersonName(row[i]);
-    let match = false;
-    if (firstNameColumn >= 0 && lastNameColumn >= 0) {
-      match = cell(firstNameColumn) === wantedFirst && cell(lastNameColumn) === wantedLast;
-    } else if (fullNameColumn >= 0) {
-      const full = cell(fullNameColumn);
-      match = full === wantedFull || full === wantedReverse;
-    } else {
-      const cells = row.map(normalizePersonName).filter(Boolean);
-      const hasFirst = cells.includes(wantedFirst);
-      const hasLast = cells.includes(wantedLast);
-      const hasFull = cells.some((value) => value === wantedFull || value === wantedReverse);
-      match = hasFull || (hasFirst && hasLast);
-    }
-    if (!match) continue;
-
+  for (let i = location.headerRowIndex + 1; i < rows.length; i++) {
+    const row = rows[i] ?? [];
+    // The code tab stores the full name in one cell and may list family name first.
+    if (nameTokens(row[location.nameColumn!]).join("|") !== expected) continue;
     const width = Math.max(headers.length, row.length);
-    const completedHeaders = Array.from({ length: width }, (_, i) =>
-      headers[i] || ("עמודה " + columnLabel(i)),
+    const completedHeaders = Array.from({ length: width }, (_, index) =>
+      headers[index] || ("עמודה " + columnLabel(index)),
     );
-    const values = Array.from({ length: width }, (_, i) => String(row[i] ?? "").trim());
+    const values = Array.from({ length: width }, (_, index) => String(row[index] ?? "").trim());
     return {
       found: true,
-      sheetTitle: info.title,
-      tabName: info.firstSheetTitle,
-      rowNumber: ri + 1,
+      sheetTitle: location.spreadsheetTitle,
+      tabName: location.title,
+      rowNumber: i + 1,
       headers: completedHeaders,
       values,
     };
   }
-  return { ...blank, headers: headers.map((h, i) => h || ("עמודה " + columnLabel(i))) };
+  return { ...blank, headers: headers.map((value, index) => value || ("עמודה " + columnLabel(index))) };
 }

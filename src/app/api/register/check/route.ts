@@ -1,5 +1,5 @@
 import { findLocalRegistration } from "@/lib/server/registrations";
-import { checkExistingRegistration, resolveTarget } from "@/lib/server/sheets";
+import { checkExistingRegistration, PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, resolveTarget } from "@/lib/server/sheets";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const target = await resolveTarget();
+    const target = await resolveTarget({ spreadsheetId: PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, webhookUrl: "" });
     if (!target || target.method !== "service-account" || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
       return Response.json(
         {

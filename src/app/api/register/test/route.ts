@@ -1,6 +1,5 @@
 import { checkAdmin } from "@/lib/server/guard";
-import { extractGoogleId, normalizeWebhookUrl } from "@/lib/defaults";
-import { getSheetInfo, resolveTarget } from "@/lib/server/sheets";
+import { getSheetInfo, PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, resolveTarget } from "@/lib/server/sheets";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -18,17 +17,11 @@ export async function POST(req: Request) {
       return Response.json({ error: check.error }, { status: check.status });
     }
 
-    const spreadsheetId = extractGoogleId(String(body.spreadsheetId ?? "")).replace(
-      /[^A-Za-z0-9_-]/g,
-      "",
-    );
-    if (spreadsheetId.length < 10) {
-      return Response.json({ ok: false, error: "מזהה גיליון לא תקין" });
-    }
-
+    // Registration and personal-code lookup share the workbook supplied for this feature.
+    const spreadsheetId = PERSONAL_CODE_LOOKUP_SPREADSHEET_ID;
     const target = await resolveTarget({
       spreadsheetId,
-      webhookUrl: normalizeWebhookUrl(body.webhookUrl),
+      webhookUrl: "",
     });
     if (!target || target.method !== "service-account") {
       return Response.json({

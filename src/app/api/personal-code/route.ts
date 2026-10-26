@@ -1,10 +1,9 @@
-import { findLocalRegistration } from "@/lib/server/registrations";
 import {
   checkExistingRegistration,
   findPersonalCodeRowByName,
+  PERSONAL_CODE_LOOKUP_SPREADSHEET_ID,
   resolveTarget,
 } from "@/lib/server/sheets";
-import { getStoredConfig } from "@/lib/server/settings";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -37,33 +36,16 @@ export async function POST(req: Request) {
       return Response.json({ found: false, error: "נא להזין שם פרטי ושם משפחה כפי שנרשמו." }, { status: 400 });
     }
 
-    const cfg = await getStoredConfig();
-    const registrationTarget = await resolveTarget();
+    const registrationTarget = await resolveTarget({ spreadsheetId: PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, webhookUrl: "" });
     if (!registrationTarget || registrationTarget.method !== "service-account" ||
-        !/^[A-Za-z0-9_-]{10,}$/.test(cfg.spreadsheetId)) {
+        !/^[A-Za-z0-9_-]{10,}$/.test(PERSONAL_CODE_LOOKUP_SPREADSHEET_ID)) {
       return Response.json({
         found: false,
         error: "החיפוש אינו מוגדר. יש להגדיר חשבון שירות ולשתף אותו גם בגיליון הרישום וגם בגיליון הנתונים.",
       }, { status: 503 });
     }
 
-    let registered = await checkExistingRegistration(registrationTarget, idNumber);
-    if (!registered.exists) {
-      try {
-        const local = findLocalRegistration(idNumber);
-        if (local.exists) {
-          registered = {
-            exists: true,
-            studentName: local.studentName,
-            firstName: local.firstName,
-            lastName: local.lastName,
-            rowNumber: local.rowNumber,
-          };
-        }
-      } catch (err) {
-        console.warn("[personal-code] local CSV fallback failed:", err);
-      }
-    }
+    const registered = await checkExistingRegistration(registrationTarget, idNumber);
     if (!registered.exists) {
       return Response.json({
         found: false,

@@ -108,9 +108,9 @@ export function appendLocalRegistration(payload: RegistrationPayload): {
   registeredAt: string;
 } {
   const file = ensureFile();
-  const registeredAt = new Date().toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
   const currentRows = readLocalRegistrations();
-  const rowNumber = currentRows.length + 2;
+  const existing = currentRows.find((row) => row.idNumber === String(payload.idNumber).replace(/\D/g, ""));
+  const registeredAt = existing?.registeredAt || new Date().toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
   const cells = [
     csvCell(payload.firstName),
     csvCell(payload.lastName),
@@ -118,6 +118,16 @@ export function appendLocalRegistration(payload: RegistrationPayload): {
     csvCell(payload.vaad),
     csvCell(registeredAt),
   ];
+
+  if (existing) {
+    const content = fs.readFileSync(file, "utf8").replace(/^\uFEFF/, "");
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    lines[existing.rowNumber - 1] = cells.join(",");
+    fs.writeFileSync(file, "\uFEFF" + lines.join("\r\n") + "\r\n", "utf8");
+    return { filePath: file, rowNumber: existing.rowNumber, registeredAt };
+  }
+
+  const rowNumber = currentRows.length + 2;
   fs.appendFileSync(file, cells.join(",") + "\r\n", "utf8");
   return { filePath: file, rowNumber, registeredAt };
 }

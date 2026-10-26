@@ -1,7 +1,7 @@
-import { appendLocalRegistration, findLocalRegistration } from "@/lib/server/registrations";
+import { appendLocalRegistration } from "@/lib/server/registrations";
 import { logActivity } from "@/lib/server/activity";
 import { validateRegistration } from "@/lib/server/registration-validation";
-import { checkExistingRegistration, resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
+import { checkExistingRegistration, PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
 import { getStoredConfig } from "@/lib/server/settings";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   }
   activeRegistrations.add(v.payload.idNumber);
   try {
-    const target = await resolveTarget();
+    const target = await resolveTarget({ spreadsheetId: PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, webhookUrl: "" });
     if (!target || target.method !== "service-account") {
       return Response.json(
         {
@@ -56,18 +56,9 @@ export async function POST(req: Request) {
     }
 
     const existing = await checkExistingRegistration(target, v.payload.idNumber);
-    if (existing.exists) {
-      return Response.json({ success: false, duplicate: true, studentName: existing.studentName, error: "תעודת הזהות כבר רשומה. לא הוספנו שורה נוספת." }, { status: 409 });
+    if (existing.exists && existing.firstName?.trim() && existing.lastName?.trim()) {
+      return Response.json({ success: false, duplicate: true, studentName: existing.studentName, firstName: existing.firstName, lastName: existing.lastName, error: "תעודת הזהות כבר רשומה. לא הוספנו שורה נוספת." }, { status: 409 });
     }
-    try {
-      const local = findLocalRegistration(v.payload.idNumber);
-      if (local.exists) {
-        return Response.json({ success: false, duplicate: true, studentName: local.studentName, error: "תעודת הזהות כבר קיימת בגיבוי המקומי. לא הוספנו שורה נוספת." }, { status: 409 });
-      }
-    } catch (err) {
-      console.warn("[register] local CSV duplicate check failed:", err);
-    }
-
     // קודם כותבים לגיליון; במקרה של כשל גישה אין להציג לתלמיד רישום שהצליח רק מקומית.
     const sheetResult = await appendToGoogleSheets(target, v.payload);
 

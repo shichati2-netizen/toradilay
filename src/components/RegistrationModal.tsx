@@ -24,7 +24,7 @@ import { fireConfetti, useFx } from "@/lib/client/fx";
 import { playSound } from "@/lib/client/sound";
 import { FxButton } from "./FxButton";
 
-type Step = "form" | "confirm" | "result";
+type Step = "id" | "name" | "result";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-white/15 bg-navy-950/60 px-3.5 text-base text-white placeholder-slate-500 outline-none transition focus:border-gold-400 focus:ring-2 focus:ring-gold-400/25";
@@ -69,11 +69,13 @@ export function RegistrationModal({
 
 function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogProps) {
   const { on } = useFx();
-  const [step, setStep] = useState<Step>("form");
+  const [step, setStep] = useState<Step>("id");
+  const [idNumber, setIdNumber] = useState(() => initialId.replace(/\D/g, "").slice(0, 9));
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [idNumber, setIdNumber] = useState(() => initialId.replace(/\D/g, "").slice(0, 9));
   const [vaad, setVaad] = useState("1");
+  const [completeExisting, setCompleteExisting] = useState(false);
+  const [namePrompt, setNamePrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<RegistrationStatus | null>(null);
@@ -82,13 +84,13 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
 
   useEffect(() => {
     let cancelled = false;
-    fetchRegistrationStatus().then((s) => !cancelled && setStatus(s));
+    fetchRegistrationStatus().then((value) => { if (!cancelled) setStatus(value); });
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !busy) onClose();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -99,7 +101,15 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
     playSound("error");
   };
 
-  const validate = () => {
+  const validateId = () => {
+    if (!/^\d{5,9}$/.test(idNumber.trim())) {
+      fail("נא להזין תחילה תעודת זהות תקינה, בת 5 עד 9 ספרות.");
+      return false;
+    }
+    return true;
+  };
+
+  const validateName = () => {
     if (firstName.trim().length < 2) {
       fail("נא להזין שם פרטי כפי שרשום בגיליון.");
       return false;
@@ -108,21 +118,17 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
       fail("נא להזין שם משפחה כפי שרשום בגיליון.");
       return false;
     }
-    if (!/^\d{5,9}$/.test(idNumber.trim())) {
-      fail("נא להזין תעודת זהות תקינה, בת 5 עד 9 ספרות.");
-      return false;
-    }
-    if (registrationEnabled && (!/^\d{1,2}$/.test(vaad.trim()) || Number(vaad) < 1 || Number(vaad) > 99)) {
+    if (!/^\d{1,2}$/.test(vaad.trim()) || Number(vaad) < 1 || Number(vaad) > 99) {
       fail("נא להזין מספר ועד תקין בין 1 ל־99.");
       return false;
     }
     return true;
   };
 
-  const runLookup = async (message: string) => {
+  const showLookup = async (first: string, last: string, message: string) => {
     setBusy(true);
     setError(null);
-    const result = await lookupPersonalCode(idNumber.trim(), firstName.trim(), lastName.trim());
+    const result = await lookupPersonalCode(idNumber.trim(), first.trim(), last.trim());
     setLookup(result);
     setResultMessage(message);
     setStep("result");
@@ -137,9 +143,9 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
 
   const proceed = async () => {
     setError(null);
-    if (!validate()) return;
+    if (!validateId()) return;
     if (status && !status.configured) {
-      fail("החיבור לגיליון הרישום אינו מוגדר. יש לפנות למנהל המערכת.");
+      fail("החיבור ל-Google Sheets אינו מוגדר. יש לפנות למנהל כדי להגדיר חשבון שירות ולשתף אותו עם הגיליון.");
       return;
     }
 
@@ -151,70 +157,87 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
       return;
     }
 
-    if (result.exists) {
-      await runLookup("תעודת הזהות כבר רשומה. לא נוספה שורה כפולה; נבדקת כעת התאמת השם והמידע בגיליון השני.");
+    if (result.exists && result.source === "sheets" && result.firstName?.trim() && result.lastName?.trim()) {
+      setFirstName(result.firstName);
+      setLastName(result.lastName);
+      await showLookup(
+        result.firstName,
+        result.lastName,
+        "נמצאה תעודת הזהות בגיליון הרישום. מחפשים את השם בגיליון הקודים.",
+      );
       return;
     }
 
     if (!registrationEnabled) {
-      fail("תעודת הזהות לא נמצאה בגיליון הרישום, והוספת רישומים חדשים כבויה בהגדרות מנהל.");
+      fail("תעודת הזהות לא נמצאה עם שם מלא בגיליון הרישום. כדי להוסיף או להשלים שם, יש להפעיל רישום חדש בהגדרות הניהול.");
       return;
     }
 
-    setStep("confirm");
+    const missingNameInExistingRow = Boolean(result.exists && result.source === "sheets");
+    setCompleteExisting(missingNameInExistingRow);
+    setNamePrompt(
+      missingNameInExistingRow
+        ? "תעודת הזהות קיימת בגיליון הרישום אבל חסר בה שם. הזן את השם כדי להשלים את אותה שורה, בלי ליצור כפילות."
+        : result.exists && result.source === "local-csv"
+          ? "נמצא גיבוי מקומי בלבד. הזן את השם כדי לרשום את תעודת הזהות בגיליון הרישום עצמו."
+          : "תעודת הזהות לא נמצאה בגיליון הרישום. הזן את השם כדי להוסיף אותה, ואז המערכת תחפש בגיליון הקודים.",
+    );
+    setStep("name");
     playSound("click");
   };
 
-  const submit = async () => {
-    setBusy(true);
+  const submitName = async () => {
     setError(null);
-    const res = await registerStudentApi({
+    if (!validateId() || !validateName()) return;
+    if (!registrationEnabled) {
+      fail("רישום חדש כבוי בהגדרות המנהל.");
+      return;
+    }
+
+    setBusy(true);
+    const saved = await registerStudentApi({
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       idNumber: idNumber.trim(),
       vaad: Number(vaad.trim()),
     });
-
-    if (res.duplicate) {
-      const result = await lookupPersonalCode(idNumber.trim(), firstName.trim(), lastName.trim());
-      setLookup(result);
-      setResultMessage("תעודת הזהות כבר קיימת. לא הוספנו רישום כפול.");
-      setStep("result");
+    if (!saved.success && !saved.duplicate) {
       setBusy(false);
-      if (result.found) playSound("success");
-      else playSound("error");
+      fail(saved.error || "לא ניתן לשמור את השם בגיליון הרישום.");
       return;
     }
 
-    if (!res.success) {
-      setBusy(false);
-      setStep("form");
-      fail(res.error || "שמירת פרטי התלמיד נכשלה.");
+    // Re-read the registration sheet so the lookup uses its canonical name, never the unverified input.
+    const confirmed = await checkRegistration(idNumber.trim());
+    if (confirmed.exists && confirmed.source === "sheets" && confirmed.firstName?.trim() && confirmed.lastName?.trim()) {
+      setFirstName(confirmed.firstName);
+      setLastName(confirmed.lastName);
+      const message = saved.duplicate
+        ? "תעודת הזהות כבר רשומה. לא נוצר רישום כפול; נעשה שימוש בשם שבגיליון הרישום."
+        : completeExisting
+          ? "השם הושלם בשורה הקיימת בגיליון הרישום."
+          : "הפרטים נשמרו בגיליון הרישום. כעת מחפשים את השם בגיליון הקודים.";
+      await showLookup(confirmed.firstName, confirmed.lastName, message);
       return;
     }
 
-    const result = await lookupPersonalCode(idNumber.trim(), firstName.trim(), lastName.trim());
-    setLookup(result);
-    setResultMessage("פרטי התלמיד נשמרו בגיליון הרישום. בוצע חיפוש של השם בגיליון הנתונים השני.");
-    setStep("result");
     setBusy(false);
-    playSound(result.found ? "success" : "click");
-    if (result.found && on("confetti")) fireConfetti({ x: 0.5, y: 0.5 });
+    fail(confirmed.error || "השמירה לא אומתה בגיליון הרישום. לא ממשיכים לחיפוש הקוד.");
   };
 
   const reset = () => {
-    setStep("form");
+    setStep("id");
+    setIdNumber("");
     setFirstName("");
     setLastName("");
-    setIdNumber("");
     setVaad("1");
+    setCompleteExisting(false);
+    setNamePrompt("");
     setBusy(false);
     setError(null);
     setLookup(null);
     setResultMessage("");
   };
-
-  const showProblem = lookup && !lookup.found ? lookup.error || "לא נמצאה שורה תואמת בגיליון הנתונים השני." : null;
 
   return (
     <>
@@ -225,7 +248,7 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
           </div>
           <div>
             <h3 className="font-serif text-xl font-black text-white">חיפוש קוד אישי</h3>
-            <p className="text-xs text-slate-400">הזן תעודת זהות ושם לחיפוש הרשומה בגיליון הנתונים</p>
+            <p className="text-xs text-slate-400">מתחילים בתעודת זהות וממשיכים לפי גיליון הרישום</p>
           </div>
         </div>
         <FxButton variant="ghost" onClick={onClose} disabled={busy} className="h-10 w-10 !rounded-xl" aria-label="סגירה">
@@ -234,39 +257,33 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-5">
-        {step === "form" && (
-          <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); void proceed(); }}>
+        {step === "id" && (
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void proceed(); }}>
             {status && !status.configured && (
               <div className="flex items-start gap-2.5 rounded-xl border border-amber-400/35 bg-amber-400/[0.08] p-3 text-xs leading-relaxed text-amber-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
-                יש להגדיר גישה לגיליון הרישום ולגיליון הנתונים השני באזור הניהול.
+                יש להגדיר גישה לחשבון השירות ולגיליון הרישום והקודים באזור הניהול.
               </div>
             )}
             <div className="flex items-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] px-3 py-2 text-xs font-medium text-sky-100">
               <Search className="h-4 w-4 shrink-0 text-sky-300" />
-              בדיקת תעודת הזהות מונעת רישום כפול, והשם חייב להתאים לרשומה הקיימת.
-            </div>
-            <div className="grid gap-3.5 sm:grid-cols-2">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-bold text-slate-300">שם פרטי <span className="text-red-400">*</span></span>
-                <input autoFocus type="text" value={firstName} onChange={(e) => { setFirstName(e.target.value); setError(null); }} placeholder="לדוגמה: ישראל" maxLength={60} className={inputClass} />
-              </label>
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-bold text-slate-300">שם משפחה <span className="text-red-400">*</span></span>
-                <input type="text" value={lastName} onChange={(e) => { setLastName(e.target.value); setError(null); }} placeholder="לדוגמה: כהן" maxLength={60} className={inputClass} />
-              </label>
+              תחילה נבדוק את תעודת הזהות בגיליון הרישום. אם יש שם, נחפש את הקוד בלי לבקש את השם שוב.
             </div>
             <label className="block">
               <span className="mb-1.5 block text-xs font-bold text-slate-300">תעודת זהות <span className="text-red-400">*</span></span>
-              <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={9} value={idNumber} onChange={(e) => { setIdNumber(e.target.value.replace(/\D/g, "")); setError(null); }} placeholder="הזן 5–9 ספרות" dir="ltr" className={inputClass + " text-left font-mono tracking-[0.25em]"} />
+              <input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={9}
+                value={idNumber}
+                onChange={(event) => { setIdNumber(event.target.value.replace(/\D/g, "")); setError(null); }}
+                placeholder="הזן 5–9 ספרות"
+                dir="ltr"
+                className={inputClass + " text-left font-mono tracking-[0.25em]"}
+              />
             </label>
-            {registrationEnabled && (
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-bold text-slate-300">מספר ועד <span className="text-red-400">*</span></span>
-                <input type="number" min={1} max={99} value={vaad} onChange={(e) => { setVaad(e.target.value); setError(null); }} className={inputClass} />
-                <span className="mt-1 block text-[10px] text-slate-500">נדרש רק אם תעודת הזהות אינה רשומה ויש להוסיף רשומה חדשה.</span>
-              </label>
-            )}
             {error && (
               <div className="flex items-start gap-2 rounded-xl border border-red-400/40 bg-red-500/15 p-3 text-sm text-red-100">
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
@@ -275,33 +292,50 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
             )}
             <FxButton variant="gold" type="submit" disabled={busy} className="h-12 w-full text-base">
               {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Search className="h-5 w-5" />}
-              {busy ? "בודק ומחפש..." : "חפש קוד אישי"}
+              {busy ? "בודק בגיליון הרישום..." : "המשך"}
             </FxButton>
           </form>
         )}
 
-        {step === "confirm" && (
-          <div className="space-y-4">
-            <div className="rounded-2xl border border-gold-400/30 bg-gold-400/[0.07] p-4 text-sm leading-relaxed text-gold-100">
-              תעודת הזהות אינה קיימת בגיליון הרישום. אם תאשר, תישמר שורה חדשה עם השם, תעודת הזהות ומספר הוועד; לאחר מכן יחפש המערכת את השם בגיליון הנתונים השני. אם לא תימצא התאמה, הרישום יישמר אך לא יוצגו פרטי שורה.
+        {step === "name" && (
+          <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void submitName(); }}>
+            <div className="flex items-start gap-2.5 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] p-3 text-sm leading-relaxed text-sky-100">
+              <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" />
+              <span>{namePrompt}</span>
             </div>
-            <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
-              <div className="flex items-center gap-2 text-sm font-bold text-white"><UserRound className="h-4 w-4 text-sky-300" />פרטי הרישום</div>
-              <div className="mt-3 grid gap-2 text-sm">
-                <div className="flex justify-between gap-3"><span className="text-slate-400">שם מלא</span><span className="font-bold text-white">{firstName.trim()} {lastName.trim()}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-400">תעודת זהות</span><span dir="ltr" className="font-mono font-bold text-white">{idNumber}</span></div>
-                <div className="flex justify-between gap-3"><span className="text-slate-400">ועד</span><span className="font-mono font-bold text-white">{vaad}</span></div>
+            <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2">
+              <span className="text-xs text-slate-400">תעודת זהות</span>
+              <span className="font-mono font-bold text-white" dir="ltr">{idNumber}</span>
+            </div>
+            <div className="grid gap-3.5 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-slate-300">שם פרטי <span className="text-red-400">*</span></span>
+                <input autoFocus type="text" value={firstName} onChange={(event) => { setFirstName(event.target.value); setError(null); }} placeholder="לדוגמה: יעקב יוסף" maxLength={60} className={inputClass} />
+              </label>
+              <label className="block">
+                <span className="mb-1.5 block text-xs font-bold text-slate-300">שם משפחה <span className="text-red-400">*</span></span>
+                <input type="text" value={lastName} onChange={(event) => { setLastName(event.target.value); setError(null); }} placeholder="לדוגמה: אבאייב" maxLength={60} className={inputClass} />
+              </label>
+            </div>
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-bold text-slate-300">ועד <span className="text-red-400">*</span></span>
+              <input type="number" min={1} max={99} value={vaad} onChange={(event) => { setVaad(event.target.value); setError(null); }} className={inputClass} />
+              <span className="mt-1 block text-[10px] text-slate-500">נדרש רק עבור רשומה חדשה או שורה שחסר בה ועד.</span>
+            </label>
+            {error && (
+              <div className="flex items-start gap-2 rounded-xl border border-red-400/40 bg-red-500/15 p-3 text-sm text-red-100">
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+                <span>{error}</span>
               </div>
-            </div>
-            {error && <p className="text-sm text-red-200">{error}</p>}
+            )}
             <div className="grid gap-2 sm:grid-cols-2">
-              <FxButton variant="ghost" onClick={() => setStep("form")} className="h-12">חזרה לעריכה</FxButton>
-              <FxButton variant="emerald" onClick={() => void submit()} disabled={busy} className="h-12">
+              <FxButton variant="ghost" onClick={() => { setError(null); setStep("id"); }} className="h-12" disabled={busy}>חזרה לתעודת זהות</FxButton>
+              <FxButton variant="emerald" type="submit" className="h-12" disabled={busy}>
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-                {busy ? "שומר ומחפש..." : "שמור וחפש קוד אישי"}
+                {busy ? "שומר ומחפש..." : completeExisting ? "השלם שם וחפש קוד" : "רשום וחפש קוד אישי"}
               </FxButton>
             </div>
-          </div>
+          </form>
         )}
 
         {step === "result" && (
@@ -309,11 +343,11 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
             <div className="flex items-start gap-3 rounded-2xl border border-sky-400/25 bg-sky-400/[0.07] p-4">
               <FileSpreadsheet className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" />
               <div className="min-w-0">
-                <h4 className="font-bold text-white">{lookup?.found ? "נמצאה רשומה בגיליון הנתונים" : "תוצאת חיפוש קוד אישי"}</h4>
+                <h4 className="font-bold text-white">{lookup?.found ? "נמצאה רשומה בגיליון הקודים" : "תוצאת חיפוש קוד אישי"}</h4>
                 <p className="mt-1 text-sm leading-relaxed text-slate-300">{resultMessage}</p>
                 {lookup?.found && (
                   <p className="mt-1 text-xs text-slate-400">
-                    {lookup.sheetTitle || "גיליון הנתונים"} · {lookup.tabName || "גיליון ראשון"} · שורה {lookup.rowNumber}
+                    {lookup.sheetTitle || "גיליון הקודים"} · {lookup.tabName || "לשונית הקודים"} · שורה {lookup.rowNumber}
                   </p>
                 )}
               </div>
@@ -332,7 +366,7 @@ function PersonalCodeDialog({ initialId, registrationEnabled, onClose }: DialogP
               </div>
             ) : (
               <div className="rounded-xl border border-amber-400/25 bg-amber-400/[0.06] p-4 text-sm leading-relaxed text-amber-100">
-                {showProblem || "לא נמצאה שורה תואמת בגיליון הנתונים השני."}
+                {lookup?.error || "לא נמצאה שורה תואמת בגיליון הקודים."}
               </div>
             )}
             <FxButton variant="gold" onClick={reset} className="h-12 w-full">

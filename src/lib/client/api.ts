@@ -165,6 +165,7 @@ export async function checkRegistration(idNumber: string): Promise<{
   firstName?: string;
   lastName?: string;
   rowNumber?: number;
+  source?: "sheets" | "local-csv";
   error?: string;
   code?: string;
 }> {
@@ -182,7 +183,7 @@ export async function checkRegistration(idNumber: string): Promise<{
 
 export async function registerStudentApi(
   payload: RegistrationPayload,
-): Promise<{ success: boolean; duplicate?: boolean; studentName?: string; message?: string; error?: string; code?: string }> {
+): Promise<{ success: boolean; duplicate?: boolean; studentName?: string; firstName?: string; lastName?: string; message?: string; error?: string; code?: string }> {
   try {
     const res = await fetch("/api/register", {
       method: "POST",

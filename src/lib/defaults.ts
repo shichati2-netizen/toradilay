@@ -1,7 +1,7 @@
 import type { EffectKey, EffectsConfig, KioskConfig, StoredConfig } from "./types";
 
 export const DEFAULT_ROOT_FOLDER_ID = "1CXFm0VyVtSZIqONXJYMmIu0hJyxUqj2B";
-export const DEFAULT_SPREADSHEET_ID = "1Mh8zGnHK-3PXq8uCP2Rbse7l2TId2F7rxc-wtYyGBkE";
+export const DEFAULT_SPREADSHEET_ID = "1USjVzJgyDmHfaAnN6MYJ9qrqlh3qhWclgdJ1LDF7UTk";
 export const DEFAULT_ADMIN_PIN = "545454545";
 
 /** מחלץ מזהה גיליון/תיקייה מתוך קישור מלא של Google, או מחזיר את הקלט כפי שהוא */
