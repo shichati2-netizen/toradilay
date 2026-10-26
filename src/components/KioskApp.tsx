@@ -273,9 +273,14 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     setPreview(null);
   }, []);
 
-  // קיצור מקלדת לפתיחת הניהול
+  // קיצורי מקלדת לפתיחת הניהול: F8 או Ctrl+Alt+A.
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
+      if (e.key === "F8") {
+        e.preventDefault();
+        setAdminOpen(true);
+        return;
+      }
       if (e.ctrlKey && e.altKey && e.key.toLowerCase() === "a") {
         e.preventDefault();
         setAdminOpen(true);
@@ -351,12 +356,13 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
       >
         <Background />
 
-        {/* פיקסל סודי בפינה השמאלית העליונה לפתיחת הניהול */}
+        {/* אזור לחיצה סודי זעיר לפתיחת הניהול; אפשר גם לפתוח עם F8 */}
         <button
           type="button"
           onClick={() => setAdminOpen(true)}
           aria-label="ניהול"
-          className="fixed left-0 top-0 z-[55] h-14 w-14 cursor-default opacity-0"
+          title=""
+          className="fixed left-0 top-0 z-[55] h-[3px] w-[3px] cursor-default opacity-0"
         />
 
         <Header config={active} onOpenRegistration={() => openRegistration("")} />

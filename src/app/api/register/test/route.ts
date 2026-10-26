@@ -1,5 +1,6 @@
+import { extractGoogleId } from "@/lib/defaults";
 import { checkAdmin } from "@/lib/server/guard";
-import { getSheetInfo, PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, resolveTarget } from "@/lib/server/sheets";
+import { getSheetInfo, resolveTarget } from "@/lib/server/sheets";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -17,8 +18,12 @@ export async function POST(req: Request) {
       return Response.json({ error: check.error }, { status: check.status });
     }
 
-    // Registration and personal-code lookup share the workbook supplied for this feature.
-    const spreadsheetId = PERSONAL_CODE_LOOKUP_SPREADSHEET_ID;
+    // Test the spreadsheet ID currently entered in the admin form. If blank,
+    // fall back to the ID already stored in settings.
+    const enteredId = typeof body.spreadsheetId === "string"
+      ? extractGoogleId(body.spreadsheetId).replace(/[^A-Za-z0-9_-]/g, "")
+      : "";
+    const spreadsheetId = /^[A-Za-z0-9_-]{10,}$/.test(enteredId) ? enteredId : undefined;
     const target = await resolveTarget({
       spreadsheetId,
       webhookUrl: "",

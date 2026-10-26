@@ -1,7 +1,7 @@
 import { appendLocalRegistration } from "@/lib/server/registrations";
 import { logActivity } from "@/lib/server/activity";
 import { validateRegistration } from "@/lib/server/registration-validation";
-import { checkExistingRegistration, PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
+import { checkExistingRegistration, resolveTarget, registerStudent as appendToGoogleSheets } from "@/lib/server/sheets";
 import { getStoredConfig } from "@/lib/server/settings";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +33,7 @@ export async function POST(req: Request) {
   }
   activeRegistrations.add(v.payload.idNumber);
   try {
-    const target = await resolveTarget({ spreadsheetId: PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, webhookUrl: "" });
+    const target = await resolveTarget({ webhookUrl: "" });
     if (!target || target.method !== "service-account") {
       return Response.json(
         {

@@ -1,7 +1,6 @@
 import {
   checkExistingRegistration,
   findPersonalCodeRowByName,
-  PERSONAL_CODE_LOOKUP_SPREADSHEET_ID,
   resolveTarget,
 } from "@/lib/server/sheets";
 
@@ -36,9 +35,9 @@ export async function POST(req: Request) {
       return Response.json({ found: false, error: "נא להזין שם פרטי ושם משפחה כפי שנרשמו." }, { status: 400 });
     }
 
-    const registrationTarget = await resolveTarget({ spreadsheetId: PERSONAL_CODE_LOOKUP_SPREADSHEET_ID, webhookUrl: "" });
+    const registrationTarget = await resolveTarget({ webhookUrl: "" });
     if (!registrationTarget || registrationTarget.method !== "service-account" ||
-        !/^[A-Za-z0-9_-]{10,}$/.test(PERSONAL_CODE_LOOKUP_SPREADSHEET_ID)) {
+        !/^[A-Za-z0-9_-]{10,}$/.test(registrationTarget.spreadsheetId)) {
       return Response.json({
         found: false,
         error: "החיפוש אינו מוגדר. יש להגדיר חשבון שירות ולשתף אותו גם בגיליון הרישום וגם בגיליון הנתונים.",
