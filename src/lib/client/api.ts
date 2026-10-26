@@ -378,19 +378,16 @@ export async function disconnectGoogleAccountApi(
 
 export interface PersonalCodeLookupResult {
   found: boolean;
-  registeredName?: string;
-  sheetTitle?: string;
-  tabName?: string;
-  rowNumber?: number;
-  registrationRowNumber?: number;
-  headers?: string[];
-  values?: string[];
+  matchedName?: string;
+  personalCode?: string;
   error?: string;
   code?: string;
 }
 
+/**
+ * מחפש לפי שם בלבד. תעודת זהות לא נשלחת לפונקציה או לשרת.
+ */
 export async function lookupPersonalCode(
-  idNumber: string,
   firstName: string,
   lastName: string,
 ): Promise<PersonalCodeLookupResult> {
@@ -398,7 +395,7 @@ export async function lookupPersonalCode(
     const res = await fetch("/api/personal-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idNumber, firstName, lastName }),
+      body: JSON.stringify({ firstName, lastName }),
       cache: "no-store",
     });
     const data = await json<PersonalCodeLookupResult>(res);

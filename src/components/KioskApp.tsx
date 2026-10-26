@@ -442,7 +442,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         <RegistrationModal
           open={registerOpen}
           initialId={registerInitialId}
-          registrationEnabled={active.registrationEnabled}
           onClose={closeRegistration}
         />
 
