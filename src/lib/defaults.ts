@@ -2,6 +2,8 @@ import type { EffectKey, EffectsConfig, KioskConfig, StoredConfig } from "./type
 
 export const DEFAULT_ROOT_FOLDER_ID = "1CXFm0VyVtSZIqONXJYMmIu0hJyxUqj2B";
 export const DEFAULT_SPREADSHEET_ID = "1USjVzJgyDmHfaAnN6MYJ9qrqlh3qhWclgdJ1LDF7UTk";
+// The codes workbook URL previously supplied by the user; kept separate from registration.
+export const DEFAULT_PERSONAL_CODE_SPREADSHEET_ID = "1USjVzJgyDmHfaAnN6MYJ9qrqlh3qhWclgdJ1LDF7UTk";
 export const DEFAULT_ADMIN_PIN = "545454545";
 
 /** מחלץ מזהה גיליון/תיקייה מתוך קישור מלא של Google, או מחזיר את הקלט כפי שהוא */
@@ -50,6 +52,7 @@ export const DEFAULT_CONFIG: KioskConfig = {
   kioskLockFullscreen: false,
   registrationEnabled: false,
   spreadsheetId: DEFAULT_SPREADSHEET_ID,
+  personalCodeSpreadsheetId: DEFAULT_PERSONAL_CODE_SPREADSHEET_ID,
   effects: FULL_EFFECTS,
 };
 
@@ -286,6 +289,9 @@ export function normalizeConfig(raw: unknown): KioskConfig {
       /[^A-Za-z0-9_-]/g,
       "",
     ) || d.spreadsheetId,
+    personalCodeSpreadsheetId: extractGoogleId(
+      str(r.personalCodeSpreadsheetId, DEFAULT_PERSONAL_CODE_SPREADSHEET_ID, 200),
+    ).replace(/[^A-Za-z0-9_-]/g, "") || DEFAULT_PERSONAL_CODE_SPREADSHEET_ID,
     effects: normalizeEffects(r.effects),
   };
 }

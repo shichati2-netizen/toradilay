@@ -662,9 +662,12 @@ export async function findPersonalCodeRowByName(
   firstName: string,
   lastName: string,
 ): Promise<PersonalCodeSheetRow> {
-  // Use the workbook selected in settings so registration and code lookup always
-  // point to the same workbook, including when the administrator changes its ID.
-  const target = await resolveTarget({ webhookUrl: "" });
+  // Code lookup has its own workbook setting, independent of the registration sheet.
+  const config = await getStoredConfig();
+  const target = await resolveTarget({
+    spreadsheetId: config.personalCodeSpreadsheetId,
+    webhookUrl: "",
+  });
   if (!target || target.method === "webhook") {
     throw new Error("אין חיבור Google פעיל לקריאת גיליון החיפוש. יש להגדיר חשבון שירות ולשתף איתו את הגיליון השני.");
   }

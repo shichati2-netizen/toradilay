@@ -65,6 +65,8 @@ export interface KioskConfig {
   registrationEnabled: boolean;
   /** מזהה גיליון Google Sheets לרישום תלמידים */
   spreadsheetId: string;
+  /** מזהה נפרד של גיליון Google Sheets שמכיל קודים אישיים */
+  personalCodeSpreadsheetId: string;
   effects: EffectsConfig;
 }
 

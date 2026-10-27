@@ -31,6 +31,8 @@ export function GoogleTab({
   const [result, setResult] = useState<TestResult | null>(null);
   const [sheetTestBusy, setSheetTestBusy] = useState(false);
   const [sheetTestResult, setSheetTestResult] = useState<Awaited<ReturnType<typeof testSheetsConnection>> | null>(null);
+  const [codeSheetTestBusy, setCodeSheetTestBusy] = useState(false);
+  const [codeSheetTestResult, setCodeSheetTestResult] = useState<Awaited<ReturnType<typeof testSheetsConnection>> | null>(null);
   const [serviceAccountJson, setServiceAccountJson] = useState("");
   const [savingServiceAccount, setSavingServiceAccount] = useState(false);
   const [serviceAccountError, setServiceAccountError] = useState<string | null>(null);
@@ -90,10 +92,19 @@ export function GoogleTab({
     setTesting(false);
   };
 
-  const handleSpreadsheetIdChange = (raw: string) => {
+  const extractSpreadsheetId = (raw: string) => {
     const match = raw.match(/spreadsheets\/d\/([A-Za-z0-9_-]{10,})/);
-    update({ spreadsheetId: match ? match[1] : raw.trim() });
+    return match ? match[1] : raw.trim();
+  };
+
+  const handleSpreadsheetIdChange = (raw: string) => {
+    update({ spreadsheetId: extractSpreadsheetId(raw) });
     setSheetTestResult(null);
+  };
+
+  const handlePersonalCodeSpreadsheetIdChange = (raw: string) => {
+    update({ personalCodeSpreadsheetId: extractSpreadsheetId(raw) });
+    setCodeSheetTestResult(null);
   };
 
   const runSheetTest = async () => {
@@ -104,6 +115,17 @@ export function GoogleTab({
       setSheetTestResult(response);
     } finally {
       setSheetTestBusy(false);
+    }
+  };
+
+  const runCodeSheetTest = async () => {
+    setCodeSheetTestBusy(true);
+    setCodeSheetTestResult(null);
+    try {
+      const response = await testSheetsConnection(pin, draft.personalCodeSpreadsheetId.trim(), "");
+      setCodeSheetTestResult(response);
+    } finally {
+      setCodeSheetTestBusy(false);
     }
   };
 
@@ -199,6 +221,46 @@ export function GoogleTab({
               className={`${inputClass} font-mono text-left`}
             />
           </Field>
+          <div className="mt-4 rounded-xl border border-sky-400/25 bg-sky-400/[0.06] p-3.5">
+            <div className="mb-2 text-sm font-bold text-white">גיליון הקודים האישיים</div>
+            <p className="mb-3 text-xs leading-relaxed text-slate-300">
+              זהו הגיליון שבו מחפשים לפי השם ומציגים רק את הערך שבעמודת „סיסמת מרכזייה”. אפשר להדביק כאן קישור מלא או מזהה.
+            </p>
+            <Field label="כתובת גיליון הקודים (או מזהה)">
+              <input
+                type="text"
+                dir="ltr"
+                value={draft.personalCodeSpreadsheetId}
+                onChange={(e) => handlePersonalCodeSpreadsheetIdChange(e.target.value)}
+                placeholder="הדבק קישור או מזהה של גיליון הקודים"
+                className={`${inputClass} font-mono text-left`}
+              />
+            </Field>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <FxButton
+                variant="navy"
+                onClick={() => void runCodeSheetTest()}
+                disabled={codeSheetTestBusy || !draft.personalCodeSpreadsheetId.trim()}
+                className="h-11 px-4 text-sm"
+              >
+                {codeSheetTestBusy ? <Loader2 className="keep-anim h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
+                בדיקת גישה לגיליון הקודים
+              </FxButton>
+            </div>
+            {codeSheetTestResult && (
+              <div className={`mt-3 rounded-xl border p-3 text-xs ${codeSheetTestResult.ok ? "border-emerald-400/35 bg-emerald-400/[0.08] text-emerald-100" : "border-red-400/35 bg-red-400/[0.08] text-red-100"}`}>
+                {codeSheetTestResult.ok ? (
+                  <>
+                    <div className="font-bold">הגישה לגיליון הקודים תקינה: {codeSheetTestResult.title}</div>
+                    <div className="mt-1">לשוניות: {codeSheetTestResult.sheets?.join(", ") || "לא נמצאו"}</div>
+                  </>
+                ) : (
+                  <div role="alert">{codeSheetTestResult.error || "בדיקת הגישה לגיליון הקודים נכשלה."}</div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap gap-2">
             <FxButton
               variant="navy"
@@ -223,7 +285,7 @@ export function GoogleTab({
             </div>
           )}
           <p className="text-xs leading-relaxed text-slate-400">
-            חשוב: יש לשתף את גיליון ה-Sheets עם כתובת האימייל של חשבון השירות ולהעניק הרשאת עריכה. אחרי שינוי מזהה הגיליון, לחץ על "שמירת שינויים" בתחתית הניהול כדי שהרישומים ישתמשו במזהה השמור. חיפוש ב-Drive ממשיך להשתמש בחיבור הקיים.
+            חשוב: שתף את שני הגיליונות עם כתובת האימייל של חשבון השירות. לאחר שינוי אחד המזהים, לחץ על "שמירת שינויים" בתחתית הניהול. חיפוש קוד אישי משתמש בכתובת גיליון הקודים; רישום תלמידים משתמש בכתובת גיליון הרישום. חיפוש ב-Drive ממשיך להשתמש בחיבור הקיים.
           </p>
         </div>
       </SectionCard>
