@@ -133,7 +133,7 @@ function PersonalCodeDialog({ initialId, onClose }: DialogProps) {
           <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); void search(); }}>
             <div className="flex items-start gap-2.5 rounded-xl border border-sky-400/20 bg-sky-400/[0.07] p-3 text-sm leading-relaxed text-sky-100">
               <UserRound className="mt-0.5 h-5 w-5 shrink-0 text-sky-300" />
-              <span>ממלאים את הפרטים, והמערכת מחפשת בגיליון הקודים לפי השם בלבד. תעודת הזהות נועדה לטופס בלבד ואינה נשלחת או נשמרת.</span>
+              <span>ממלאים את הפרטים, והמערכת מחפשת בגיליון הקודים לפי השם הפרטי ושם המשפחה.</span>
             </div>
 
             <label className="block">
@@ -143,7 +143,7 @@ function PersonalCodeDialog({ initialId, onClose }: DialogProps) {
                 type="text"
                 value={firstName}
                 onChange={(event) => { setFirstName(event.target.value); setLookup(null); setError(null); }}
-                placeholder="לדוגמה: יעקב יוסף"
+                placeholder="לדוגמה: יעקב"
                 maxLength={60}
                 autoComplete="given-name"
                 className={inputClass}
@@ -156,7 +156,7 @@ function PersonalCodeDialog({ initialId, onClose }: DialogProps) {
                 type="text"
                 value={lastName}
                 onChange={(event) => { setLastName(event.target.value); setLookup(null); setError(null); }}
-                placeholder="לדוגמה: אבאייב"
+                placeholder="לדוגמה: כהן"
                 maxLength={60}
                 autoComplete="family-name"
                 className={inputClass}
@@ -172,12 +172,11 @@ function PersonalCodeDialog({ initialId, onClose }: DialogProps) {
                 maxLength={9}
                 value={idNumber}
                 onChange={(event) => { setIdNumber(event.target.value.replace(/\D/g, "").slice(0, 9)); setError(null); }}
-                placeholder="הזן 5–9 ספרות"
+                placeholder="לדוגמה: 215000000"
                 autoComplete="off"
                 dir="ltr"
                 className={inputClass + " text-left font-mono tracking-[0.25em]"}
               />
-              <span className="mt-1 block text-[10px] text-slate-500">השדה לא נשמר ולא נשלח לחיפוש.</span>
             </label>
 
             {error && (
