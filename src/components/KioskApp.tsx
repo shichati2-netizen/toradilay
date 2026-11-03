@@ -58,6 +58,42 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const effects = active.effects;
   const animated = effects.master && effects.pageTransitions;
 
+  // Pause decorative work after a short period without user input.
+  const [isIdle, setIsIdle] = useState(true);
+  useEffect(() => {
+    let idleTimer: number | null = null;
+
+    const markActive = () => {
+      setIsIdle(false);
+      if (idleTimer !== null) window.clearTimeout(idleTimer);
+      idleTimer = window.setTimeout(() => setIsIdle(true), 8000);
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        if (idleTimer !== null) window.clearTimeout(idleTimer);
+        idleTimer = null;
+        setIsIdle(true);
+      } else {
+        markActive();
+      }
+    };
+
+    const activityEvents = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+    for (const eventName of activityEvents) {
+      window.addEventListener(eventName, markActive, { passive: true });
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      if (idleTimer !== null) window.clearTimeout(idleTimer);
+      for (const eventName of activityEvents) {
+        window.removeEventListener(eventName, markActive);
+      }
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
+
   // True optical refraction belongs on controls/navigation, not every content card.
   useEffect(() => {
     if (!effects.master || !effects.glass || effects.glassIntensity <= 0) return;
@@ -319,7 +355,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   return (
     <FxProvider effects={effects}>
       <div
-        className={`kiosk-root ${effectClasses(effects)} ${effects.glass && effects.glassIntensity > 0 ? "liquid-glass-motion" : ""} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
+        className={`kiosk-root ${isIdle ? "is-idle" : ""} ${effectClasses(effects)} ${effects.glass && effects.glassIntensity > 0 ? "liquid-glass-motion" : ""} relative flex h-dvh flex-col overflow-hidden text-slate-100`}
         style={{
           "--kiosk-background-color": active.backgroundColor,
           "--liquid-glass-intensity": effects.glassIntensity / 100,
@@ -354,7 +390,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           "--liquid-gel-glint-mid": (0.04 + 0.32 * gel).toFixed(2),
         } as CSSProperties}
       >
-        <Background />
+        <Background idle={isIdle} />
 
         {/* אזור לחיצה סודי זעיר לפתיחת הניהול; אפשר גם לפתוח עם F8 */}
         <button

@@ -6,8 +6,6 @@ const net = require("node:net");
 
 process.env.NODE_ENV = "production";
 process.env.NEXT_TELEMETRY_DISABLED = "1";
-app.disableHardwareAcceleration();
-app.commandLine.appendSwitch("disable-gpu");
 app.commandLine.appendSwitch("disable-dev-shm-usage");
 
 let mainWindow = null;
@@ -102,7 +100,12 @@ function createWindow(url) {
     show: false, backgroundColor: "#071124", title: "תורה דיליה",
     icon: path.join(app.getAppPath(), "182b1da6-2942-43c4-8971-c140c46ee0b8.jfif"),
     autoHideMenuBar: true,
-    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true }
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      backgroundThrottling: true,
+    }
   });
   mainWindow.once("ready-to-show", () => { mainWindow.show(); mainWindow.focus(); });
 

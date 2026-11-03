@@ -559,6 +559,32 @@ select {
 }
 
 /* ------------------------------------------------------------------ */
+/* מצב מנוחה חסכוני: משהה אנימציות דקורטיביות ומפשט את הזכוכית          */
+/* ------------------------------------------------------------------ */
+
+.kiosk-root.is-idle .aurora i,
+.kiosk-root.is-idle .logo-ring,
+.kiosk-root.is-idle .logo-halo,
+.kiosk-root.is-idle .logo-float,
+.kiosk-root.is-idle .fx-shimmer .text-gold-gradient,
+.kiosk-root.is-idle .fx-shimmer .btn-shimmer::after,
+.kiosk-root.is-idle .fx-glowInput .beam::before,
+.kiosk-root.is-idle .animate-ping {
+  animation-play-state: paused !important;
+}
+
+/* Expensive SVG displacement is replaced by a light blur while idle. */
+.kiosk-root.is-idle [data-liquid-glass-refraction="true"] {
+  backdrop-filter: blur(2px) saturate(125%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(125%) !important;
+}
+
+.kiosk-root.is-idle.fx-glass .panel {
+  backdrop-filter: blur(10px) saturate(125%);
+  -webkit-backdrop-filter: blur(10px) saturate(125%);
+}
+
+/* ------------------------------------------------------------------ */
 /* מסגרות זמן                                                          */
 /* ------------------------------------------------------------------ */
 

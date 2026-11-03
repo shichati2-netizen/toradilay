@@ -3,74 +3,113 @@
 import { useEffect, useRef } from "react";
 import { useFx } from "@/lib/client/fx";
 
-function Particles({ count }: { count: number }) {
+type Particle = {
+  x: number;
+  y: number;
+  r: number;
+  vx: number;
+  vy: number;
+  alpha: number;
+};
+
+function Particles({ count, idle }: { count: number; idle: boolean }) {
   const ref = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = ref.current;
-    const ctx = canvas?.getContext("2d");
+    const ctx = canvas?.getContext("2d", { alpha: true, desynchronized: true });
     if (!canvas || !ctx) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    // Keep the canvas close to CSS resolution; oversized backing stores cost CPU/GPU.
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.25);
     let w = 0;
     let h = 0;
-    let raf = 0;
+    let timer: number | null = null;
+
+    const particles: Particle[] = [];
 
     const resize = () => {
-      w = canvas.clientWidth;
-      h = canvas.clientHeight;
+      w = Math.max(1, canvas.clientWidth);
+      h = Math.max(1, canvas.clientHeight);
       canvas.width = Math.round(w * dpr);
       canvas.height = Math.round(h * dpr);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    };
-    resize();
 
-    const make = () => ({
-      x: Math.random() * w,
-      y: Math.random() * h,
-      r: 0.6 + Math.random() * 1.8,
-      vy: 0.12 + Math.random() * 0.34,
-      vx: (Math.random() - 0.5) * 0.14,
-      tw: Math.random() * Math.PI * 2,
-      ts: 0.012 + Math.random() * 0.02,
-      a: 0.25 + Math.random() * 0.5,
-    });
-    const ps = Array.from({ length: count }, make);
-
-    const tick = () => {
-      if (document.hidden) {
-        raf = requestAnimationFrame(tick);
-        return;
-      }
-      ctx.clearRect(0, 0, w, h);
-      for (const p of ps) {
-        p.y -= p.vy;
-        p.tw += p.ts;
-        p.x += p.vx + Math.sin(p.tw) * 0.08;
-        if (p.y < -12) {
-          p.y = h + 12;
-          p.x = Math.random() * w;
+      if (!particles.length) {
+        for (let i = 0; i < Math.min(count, 80); i++) {
+          particles.push({
+            x: Math.random() * w,
+            y: Math.random() * h,
+            r: 0.6 + Math.random() * 1.2,
+            vx: (Math.random() - 0.5) * 0.12,
+            vy: 0.08 + Math.random() * 0.18,
+            alpha: 0.22 + Math.random() * 0.38,
+          });
         }
-        const alpha = p.a * (0.55 + 0.45 * Math.sin(p.tw * 2));
-        const R = p.r * 4;
-        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, R);
-        g.addColorStop(0, `rgba(243,220,138,${alpha.toFixed(3)})`);
-        g.addColorStop(1, "rgba(243,220,138,0)");
-        ctx.fillStyle = g;
+      } else {
+        for (const p of particles) {
+          p.x = Math.min(p.x, w);
+          p.y = Math.min(p.y, h);
+        }
+      }
+    };
+
+    // Simple circles avoid allocating dozens of radial gradients on every frame.
+    const draw = (advance: boolean) => {
+      ctx.clearRect(0, 0, w, h);
+      for (const p of particles) {
+        if (advance) {
+          p.y -= p.vy;
+          p.x += p.vx;
+          if (p.y < -4) {
+            p.y = h + 4;
+            p.x = Math.random() * w;
+          }
+          if (p.x < -4) p.x = w + 4;
+          if (p.x > w + 4) p.x = -4;
+        }
+        ctx.fillStyle = `rgba(243,220,138,${p.alpha})`;
         ctx.beginPath();
-        ctx.arc(p.x, p.y, R, 0, Math.PI * 2);
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
         ctx.fill();
       }
-      raf = requestAnimationFrame(tick);
     };
-    raf = requestAnimationFrame(tick);
 
-    window.addEventListener("resize", resize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
+    const stop = () => {
+      if (timer !== null) {
+        window.clearTimeout(timer);
+        timer = null;
+      }
+      draw(false);
     };
-  }, [count]);
+
+    const tick = () => {
+      timer = null;
+      if (idle || document.hidden) return;
+      draw(true);
+      // 20 FPS is enough for ambient particles and much cheaper than 60 FPS.
+      timer = window.setTimeout(tick, 50);
+    };
+
+    const sync = () => {
+      if (idle || document.hidden) {
+        stop();
+        return;
+      }
+      if (timer === null) tick();
+    };
+
+    resize();
+    sync();
+    window.addEventListener("resize", resize, { passive: true });
+    document.addEventListener("visibilitychange", sync);
+
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [count, idle]);
 
   return <canvas ref={ref} className="absolute inset-0 h-full w-full" />;
 }
@@ -100,7 +139,7 @@ function Spotlight() {
       window.clearTimeout(hideTimer);
       hideTimer = window.setTimeout(
         () => el.classList.remove("is-visible"),
-        e.pointerType === "mouse" ? 5000 : 1100,
+        e.pointerType === "mouse" ? 1800 : 900,
       );
     };
 
@@ -117,8 +156,8 @@ function Spotlight() {
   return <div ref={ref} className="spotlight" />;
 }
 
-/** כל שכבות הרקע. כל אחת מופעלת/מכובה בנפרד מההגדרות */
-export function Background() {
+/** Background layers. Animations pause while the kiosk is idle or hidden. */
+export function Background({ idle = false }: { idle?: boolean }) {
   const { on, fx } = useFx();
 
   return (
@@ -131,7 +170,7 @@ export function Background() {
           <i />
         </div>
       )}
-      {on("particles") && <Particles count={fx.particlesDensity} />}
+      {on("particles") && <Particles count={fx.particlesDensity} idle={idle} />}
       {on("spotlight") && <Spotlight />}
     </div>
   );
