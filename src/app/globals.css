@@ -566,9 +566,9 @@ select {
 .kiosk-root.is-idle .logo-ring,
 .kiosk-root.is-idle .logo-halo,
 .kiosk-root.is-idle .logo-float,
-.kiosk-root.is-idle .fx-shimmer .text-gold-gradient,
-.kiosk-root.is-idle .fx-shimmer .btn-shimmer::after,
-.kiosk-root.is-idle .fx-glowInput .beam::before,
+.kiosk-root.is-idle.fx-shimmer .text-gold-gradient,
+.kiosk-root.is-idle.fx-shimmer .btn-shimmer::after,
+.kiosk-root.is-idle.fx-glowInput .beam::before,
 .kiosk-root.is-idle .animate-ping {
   animation-play-state: paused !important;
 }
