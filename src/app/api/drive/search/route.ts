@@ -39,6 +39,46 @@ export async function POST(req: Request) {
     console.warn("[search] local registration lookup failed:", err);
   }
 
+  // מצב מקומי: חיפוש בלעדי בתיקייה שנבחרה בהגדרות, ללא גישה ל-Google Drive.
+  if (cfg.localSearchEnabled) {
+    if (!cfg.localSearchPath) {
+      return Response.json({
+        found: false,
+        error: "LOCAL_FOLDER_NOT_CONFIGURED",
+        message: "מצב חיפוש מקומי מופעל, אך עדיין לא נבחרה תיקייה בהגדרות הניהול.",
+      } satisfies SearchResponse, { status: 400 });
+    }
+    try {
+      const local = await searchLocalFolder(studentId, cfg, studentName);
+      if (local) {
+        await logActivity({
+          type: "search",
+          studentId,
+          detail: `נמצאה תיקייה בתיקייה המקומית · ${local.files.length} קבצים`,
+        });
+        return Response.json({
+          found: true,
+          folder: { id: local.folderName, name: local.folderName },
+          files: local.files,
+          source: "local",
+        } satisfies SearchResponse);
+      }
+      await logActivity({ type: "miss", studentId, success: false, detail: "לא נמצאה תיקייה במיקום המקומי שנבחר" });
+      return Response.json({
+        found: false,
+        error: "FOLDER_NOT_FOUND",
+        message: `לא נמצאה תיקיית תלמיד עבור "${studentId}" בתיקייה המקומית שנבחרה.`,
+      } satisfies SearchResponse);
+    } catch (err) {
+      console.error("[search] selected local folder failed:", err);
+      return Response.json({
+        found: false,
+        error: "LOCAL_FOLDER_ERROR",
+        message: "לא ניתן לקרוא את התיקייה המקומית שנבחרה. בדוק שהיא קיימת ושיש לתוכנה הרשאת גישה.",
+      } satisfies SearchResponse, { status: 500 });
+    }
+  }
+
   // 1. חיפוש ב-Google Drive: קודם ת.ז., ואז השם שנשמר בקובץ המקומי.
   const root = await scrapeFolder(cfg.rootFolderId);
   const match = matchStudentFolder(root.folders, studentId, studentName);
