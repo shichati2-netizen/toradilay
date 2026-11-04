@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const http = require("node:http");
@@ -93,6 +93,17 @@ function waitForServer(url, maxAttempts = 100) {
   });
 }
 
+ipcMain.handle("toradelia:select-folder", async () => {
+  if (!mainWindow) return { canceled: true };
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: "בחירת תיקיית תלמידים",
+    properties: ["openDirectory"],
+  });
+  return result.canceled || !result.filePaths[0]
+    ? { canceled: true }
+    : { canceled: false, path: result.filePaths[0] };
+});
+
 function createWindow(url) {
   Menu.setApplicationMenu(null);
   mainWindow = new BrowserWindow({
@@ -104,6 +115,7 @@ function createWindow(url) {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
+      preload: path.join(app.getAppPath(), "electron", "preload.cjs"),
       backgroundThrottling: true,
     }
   });
