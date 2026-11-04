@@ -75,6 +75,8 @@ type TargetCfg = Pick<
   | "fallbackDriveCount"
   | "autoDetectRemovableDrive"
   | "limitToDEOnly"
+  | "localSearchEnabled"
+  | "localSearchPath"
 >;
 
 function candidateDrives(cfg: TargetCfg): string[] {
@@ -164,7 +166,10 @@ export async function searchLocalFolder(
   const folder = cfg.targetFolderName;
   const candidatePaths: string[] = [];
 
-  if (isWindows) {
+  // במצב חיפוש מקומי מפורש סורקים רק את התיקייה שנבחרה, בלי לפנות ל-Google Drive או לכוננים אחרים.
+  if (cfg.localSearchEnabled) {
+    if (cfg.localSearchPath) candidatePaths.push(path.resolve(cfg.localSearchPath));
+  } else if (isWindows) {
     for (const d of candidateDrives(cfg)) {
       candidatePaths.push(`${d}:\\${folder}`, `${d}:\\`);
     }
