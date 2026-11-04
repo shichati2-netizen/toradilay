@@ -46,6 +46,8 @@ export const DEFAULT_CONFIG: KioskConfig = {
   autoLogoutSeconds: 60,
   targetDriveLetter: "D",
   targetFolderName: "תורה דיליה",
+  localSearchEnabled: false,
+  localSearchPath: "",
   fallbackDriveCount: 5,
   autoDetectRemovableDrive: true,
   limitToDEOnly: false,
@@ -277,6 +279,8 @@ export function normalizeConfig(raw: unknown): KioskConfig {
       /[\\/:*?"<>|]/g,
       "",
     ),
+    localSearchEnabled: bool(r.localSearchEnabled, d.localSearchEnabled),
+    localSearchPath: typeof r.localSearchPath === "string" ? r.localSearchPath.trim().slice(0, 1000) : d.localSearchPath,
     fallbackDriveCount: num(r.fallbackDriveCount, d.fallbackDriveCount, 0, 20),
     autoDetectRemovableDrive: bool(
       r.autoDetectRemovableDrive,
