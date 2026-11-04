@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertCircle, CheckCircle2, Layers, RefreshCw, Sparkles, Usb } from "lucide-react";
+import { AlertCircle, CheckCircle2, FolderOpen, Layers, RefreshCw, Sparkles, Usb } from "lucide-react";
 import { getDriveSequence } from "@/lib/defaults";
 import type { KioskConfig, RemovableDrive } from "@/lib/types";
 import { fetchRemovableDrives } from "@/lib/client/api";
@@ -20,6 +20,21 @@ export function DriveTab({
   const [drives, setDrives] = useState<RemovableDrive[]>([]);
   const [isWindows, setIsWindows] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [pickingFolder, setPickingFolder] = useState(false);
+
+  const chooseLocalFolder = useCallback(async () => {
+    const desktop = (window as Window & {
+      toradeliaDesktop?: { selectFolder: () => Promise<{ canceled: boolean; path?: string }> };
+    }).toradeliaDesktop;
+    if (!desktop) return;
+    setPickingFolder(true);
+    try {
+      const result = await desktop.selectFolder();
+      if (!result.canceled && result.path) update({ localSearchPath: result.path });
+    } finally {
+      setPickingFolder(false);
+    }
+  }, [update]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -42,6 +57,40 @@ export function DriveTab({
 
   return (
     <div className="space-y-4">
+      <SectionCard
+        title="מקור חיפוש קבצי תלמידים"
+        icon={<FolderOpen className="h-4 w-4 text-sky-300" />}
+        hint="אפשר להמשיך להשתמש ב-Google Drive, או לבחור תיקייה מקומית שבה נמצאות תיקיות התלמידים."
+      >
+        <div className="space-y-3">
+          <ToggleRow
+            title="חיפוש קבצים מתיקייה במחשב"
+            description="כאשר האפשרות מופעלת, החיפוש יתבצע רק בתיקייה שנבחרה כאן ולא יפנה ל-Google Drive."
+            checked={draft.localSearchEnabled}
+            onChange={(v) => update({ localSearchEnabled: v })}
+          />
+          {draft.localSearchEnabled && (
+            <div className="space-y-2 rounded-xl border border-sky-400/20 bg-sky-400/[0.05] p-3">
+              <button
+                type="button"
+                onClick={chooseLocalFolder}
+                disabled={pickingFolder}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-sky-300/30 bg-sky-300/10 px-4 py-2.5 text-sm font-bold text-sky-100 transition hover:bg-sky-300/20 disabled:opacity-50"
+              >
+                <FolderOpen className="h-4 w-4" />
+                {pickingFolder ? "פותח בחירת תיקייה..." : "בחירת תיקייה במחשב"}
+              </button>
+              <div className="break-all rounded-lg bg-black/20 p-2.5 text-xs text-slate-300" dir="ltr">
+                {draft.localSearchPath || "עדיין לא נבחרה תיקייה"}
+              </div>
+              {!draft.localSearchPath && (
+                <p className="text-xs text-amber-200">יש לבחור את התיקייה שבתוכה נמצאות תיקיות התלמידים.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
       {!isWindows && (
         <div className="flex items-start gap-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.08] p-3.5 text-xs leading-relaxed text-amber-100">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
