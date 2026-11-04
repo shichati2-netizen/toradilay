@@ -57,6 +57,10 @@ export interface KioskConfig {
   autoLogoutSeconds: number;
   targetDriveLetter: string;
   targetFolderName: string;
+  /** הפעלת חיפוש בלעדי בתיקייה מקומית שנבחרה */
+  localSearchEnabled: boolean;
+  /** נתיב תיקיית השורש שבה נמצאות תיקיות התלמידים */
+  localSearchPath: string;
   fallbackDriveCount: number;
   autoDetectRemovableDrive: boolean;
   limitToDEOnly: boolean;
