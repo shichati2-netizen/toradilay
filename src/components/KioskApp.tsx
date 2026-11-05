@@ -96,14 +96,15 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
   // True optical refraction belongs on controls/navigation, not every content card.
   useEffect(() => {
-    if (!effects.master || !effects.glass || effects.glassIntensity <= 0) return;
+    if (isIdle || !effects.master || !effects.glass || effects.glassIntensity <= 0) return;
     const root = document.querySelector<HTMLElement>(".kiosk-root");
     if (!root) return;
     return applyLiquidGlassRefraction(root, effects.glassIntensity, effects.glassPrecision);
-  }, [effects.master, effects.glass, effects.glassIntensity, effects.glassPrecision]);
+  }, [isIdle, effects.master, effects.glass, effects.glassIntensity, effects.glassPrecision]);
 
   // מצב מסכים
   const [view, setView] = useState<"id-entry" | "student-files">("id-entry");
+  const [portalOpen, setPortalOpen] = useState(false);
   const [folder, setFolder] = useState<KioskFolder | null>(null);
   const [files, setFiles] = useState<KioskFile[]>([]);
   const [source, setSource] = useState<"drive" | "local" | undefined>();
@@ -401,7 +402,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           className="fixed left-0 top-0 z-[55] h-[3px] w-[3px] cursor-default opacity-0"
         />
 
-        <Header config={active} onOpenRegistration={() => openRegistration("")} />
+        <Header config={active} onOpenRegistration={() => openRegistration("")} portalOpen={portalOpen} onTogglePortal={() => setPortalOpen((open) => !open)} />
 
         <main className="relative z-10 flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden">
           <AnimatePresence mode="wait" initial={false}>
