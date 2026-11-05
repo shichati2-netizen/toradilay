@@ -36,9 +36,25 @@ function isTrustedAuthUrl(target) {
   }
 }
 
+function isPortalUrl(target) {
+  try {
+    const url = new URL(target);
+    const host = url.hostname.toLowerCase();
+    return url.protocol === "https:" && [
+      "matara.pro",
+      "www.matara.pro",
+      "rishumon.net",
+      "www.rishumon.net",
+      "tora.irom.co.il",
+    ].includes(host);
+  } catch {
+    return false;
+  }
+}
+
 function isAllowedPopupUrl(target) {
   return target === "about:blank" || target.startsWith("about:blank#") ||
-    isLocalAppUrl(target) || isTrustedAuthUrl(target);
+    isLocalAppUrl(target) || isTrustedAuthUrl(target) || isPortalUrl(target);
 }
 
 function loadUserEnvironment() {
