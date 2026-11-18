@@ -67,9 +67,9 @@ function allowedExtensions(kind: TranscriptionKind): Set<string> {
   return kind === "audio" ? AUDIO_EXTENSIONS : PDF_EXTENSIONS;
 }
 
-function safeRoot(letter: string): string {
+function safeRoot(letter: string, verifiedDrives: Array<{ letter: string; name: string }>): string {
   const clean = letter.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-  const drive = detectTranscriptionUsbDrives().find((item) => item.letter === clean);
+  const drive = verifiedDrives.find((item) => item.letter === clean);
   if (!isWindows || !drive) throw new Error("הכונן אינו מזוהה כדיסק נשלף מחובר.");
   return clean + ":\\";
 }
@@ -108,7 +108,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
     };
   }
 
-  const root = safeRoot(driveLetter);
+  const root = safeRoot(driveLetter, drives);
   const current = resolveBrowsePath(root, relativePath);
   const folders: Array<{ name: string; relativePath: string }> = [];
   const files: Array<{ token: string; name: string; size: number; modifiedAt: string }> = [];
