@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import nodemailer from "nodemailer";
 import { getStoredConfig } from "@/lib/server/settings";
-import { readSelectedTranscriptionFiles, type TranscriptionKind } from "@/lib/server/transcription-files";
+import { consumeTranscriptionFileTokens, readSelectedTranscriptionFiles, type TranscriptionKind } from "@/lib/server/transcription-files";
 import { addTranscriptionRequest, type TranscriptionModel } from "@/lib/server/transcription-store";
 import { logActivity } from "@/lib/server/activity";
 
@@ -86,6 +86,7 @@ export async function POST(req: Request) {
       attachments,
     });
 
+    consumeTranscriptionFileTokens(body.fileTokens);
     const record = {
       id: requestId,
       studentId,

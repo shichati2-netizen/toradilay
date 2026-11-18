@@ -158,6 +158,9 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
   if (totalBytes > MAX_SELECTED_BYTES) {
     throw new Error("הגודל הכולל של הקבצים חורג מ-20MB. יש לפצל למספר שליחות.");
   }
-  for (const token of seen) tokens.delete(token);
   return selected;
+}
+
+export function consumeTranscriptionFileTokens(fileTokens: string[]): void {
+  for (const token of fileTokens) tokens.delete(token);
 }
