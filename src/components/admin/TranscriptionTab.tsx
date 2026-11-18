@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Mail, Mic, Save, ShieldCheck } from "lucide-react";
+import { Check, Loader2, Mail, Mic, PenLine, Save, ShieldCheck } from "lucide-react";
 import type { TranscriptionSettings, TranscriptionSettingsInput } from "@/lib/types";
 import { fetchTranscriptionSettingsApi, saveTranscriptionSettingsApi } from "@/lib/client/api";
 import { Field, SectionCard, ToggleRow, inputClass } from "./ui";
@@ -9,20 +9,18 @@ import { Field, SectionCard, ToggleRow, inputClass } from "./ui";
 const EMPTY: TranscriptionSettings = {
   enabled: false,
   allowedStudentIds: [],
-  modelOneEmail: "",
-  modelTwoEmail: "",
-  smtpHost: "",
-  smtpPort: 587,
-  smtpUser: "",
-  smtpFrom: "",
-  replyStatusUrl: "",
-  smtpPasswordConfigured: false,
+  audioModelOneEmail: "",
+  audioModelTwoEmail: "",
+  handwritingModelOneEmail: "",
+  handwritingModelTwoEmail: "",
+  appsScriptUrl: "",
+  appsScriptTokenConfigured: false,
 };
 
 export function TranscriptionTab({ pin }: { pin: string }) {
   const [settings, setSettings] = useState<TranscriptionSettings>(EMPTY);
   const [allowedIdsText, setAllowedIdsText] = useState("");
-  const [smtpPassword, setSmtpPassword] = useState("");
+  const [appsScriptToken, setAppsScriptToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,14 +53,12 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     const input: TranscriptionSettingsInput = {
       enabled: settings.enabled,
       allowedStudentIds: allowedIdsText.split(/[\s,;]+/).map((value) => value.replace(/\D/g, "")).filter((value) => value.length === 9),
-      modelOneEmail: settings.modelOneEmail,
-      modelTwoEmail: settings.modelTwoEmail,
-      smtpHost: settings.smtpHost,
-      smtpPort: settings.smtpPort,
-      smtpUser: settings.smtpUser,
-      smtpFrom: settings.smtpFrom,
-      replyStatusUrl: settings.replyStatusUrl,
-      smtpPassword: smtpPassword || undefined,
+      audioModelOneEmail: settings.audioModelOneEmail,
+      audioModelTwoEmail: settings.audioModelTwoEmail,
+      handwritingModelOneEmail: settings.handwritingModelOneEmail,
+      handwritingModelTwoEmail: settings.handwritingModelTwoEmail,
+      appsScriptUrl: settings.appsScriptUrl,
+      appsScriptToken: appsScriptToken || undefined,
     };
     const result = await saveTranscriptionSettingsApi(pin, input);
     setSaving(false);
@@ -72,7 +68,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     }
     setSettings(result.settings);
     setAllowedIdsText(result.settings.allowedStudentIds.join("\n"));
-    setSmtpPassword("");
+    setAppsScriptToken("");
     setSaved(true);
   };
 
@@ -112,68 +108,72 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       </SectionCard>
 
       <SectionCard
-        title="כתובות שני המודלים"
-        icon={<Mail className="h-4 w-4 text-sky-300" />}
-        hint="בחלון השליחה המשתמש יבחר מודל 1 או מודל 2. הבחירה קובעת לאיזו כתובת תישלח הבקשה."
+        title="כתובות תמלול קולי"
+        icon={<Mic className="h-4 w-4 text-sky-300" />}
+        hint="הכתובות כאן משמשות רק לבקשות תמלול קולי. אפשר להגדיר יעד נפרד לכל מודל."
       >
         <div className="grid gap-3 md:grid-cols-2">
-          <Field label="כתובת דואר – מודל 1">
-            <input type="email" value={settings.modelOneEmail} onChange={(event) => update({ modelOneEmail: event.target.value })} placeholder="model1@example.com" className={inputClass} dir="ltr" />
+          <Field label="מודל 1 – תמלול קולי">
+            <input type="email" value={settings.audioModelOneEmail} onChange={(event) => update({ audioModelOneEmail: event.target.value })} placeholder="audio-model1@example.com" className={inputClass} dir="ltr" />
           </Field>
-          <Field label="כתובת דואר – מודל 2">
-            <input type="email" value={settings.modelTwoEmail} onChange={(event) => update({ modelTwoEmail: event.target.value })} placeholder="model2@example.com" className={inputClass} dir="ltr" />
+          <Field label="מודל 2 – תמלול קולי">
+            <input type="email" value={settings.audioModelTwoEmail} onChange={(event) => update({ audioModelTwoEmail: event.target.value })} placeholder="audio-model2@example.com" className={inputClass} dir="ltr" />
           </Field>
         </div>
       </SectionCard>
 
       <SectionCard
-        title="מעקב אחר תשובות התמלול"
+        title="כתובות תמלול כתבי יד"
+        icon={<PenLine className="h-4 w-4 text-rose-300" />}
+        hint="הכתובות כאן נפרדות מתמלול קולי. אפשר להפנות כל מודל לשירות אחר."
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="מודל 1 – תמלול כתבי יד">
+            <input type="email" value={settings.handwritingModelOneEmail} onChange={(event) => update({ handwritingModelOneEmail: event.target.value })} placeholder="handwriting-model1@example.com" className={inputClass} dir="ltr" />
+          </Field>
+          <Field label="מודל 2 – תמלול כתבי יד">
+            <input type="email" value={settings.handwritingModelTwoEmail} onChange={(event) => update({ handwritingModelTwoEmail: event.target.value })} placeholder="handwriting-model2@example.com" className={inputClass} dir="ltr" />
+          </Field>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="שליחה דרך Google Apps Script"
         icon={<Mail className="h-4 w-4 text-emerald-300" />}
-        hint="הדבק כאן את כתובת Web App של סקריפט Google Apps Script שמותקן בחשבון Gmail ומטפל בתשובות המודלים."
+        hint="התוכנה מעבירה את הקבצים לסקריפט. הסקריפט שולח אותם מחשבון Gmail שלו, ללא שרת SMTP בתוכנה."
       >
-        <Field label="כתובת Web App לקבלת סטטוס תמלול">
-          <input
-            type="url"
-            value={settings.replyStatusUrl}
-            onChange={(event) => update({ replyStatusUrl: event.target.value })}
-            placeholder="https://script.google.com/macros/s/.../exec"
-            className={inputClass}
-            dir="ltr"
-          />
-        </Field>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          יש לפרוס את סקריפט ToraDelia כ-Web App עם הרשאת גישה מתאימה, להעתיק את כתובת /exec לכאן ולהפעיל בו טריגר קליטה כל 5 דקות. ללא כתובת זו הבקשות יוצגו כבתהליך, אך המצב לא יתעדכן אוטומטית.
-        </p>
+        <div className="space-y-3">
+          <Field label="כתובת Web App של Google Apps Script">
+            <input type="url" value={settings.appsScriptUrl} onChange={(event) => update({ appsScriptUrl: event.target.value })} placeholder="https://script.google.com/macros/s/.../exec" className={inputClass} dir="ltr" />
+          </Field>
+          <Field label="מפתח חיבור משותף (לפחות 32 תווים)">
+            <input
+              type="password"
+              autoComplete="new-password"
+              value={appsScriptToken}
+              onChange={(event) => { setAppsScriptToken(event.target.value); setSaved(false); }}
+              placeholder={settings.appsScriptTokenConfigured ? "מפתח שמור – השאר ריק כדי לא לשנות" : "הדבק מפתח אקראי ארוך"}
+              className={inputClass}
+              dir="ltr"
+            />
+          </Field>
+          {settings.appsScriptTokenConfigured && (
+            <p className="text-[11px] text-emerald-300">מפתח חיבור כבר שמור ואינו מוצג בחזרה. השאר ריק כדי לשמור אותו.</p>
+          )}
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            יש לשמור את אותו מפתח גם ב-Google Apps Script תחת Project Settings → Script Properties, בשם TOR ADELIA_INTEGRATION_TOKEN. כתובת זו משמשת גם לשליחה וגם לבדיקת תשובות התמלול.
+          </p>
+        </div>
       </SectionCard>
 
       <SectionCard
-        title="הגדרות שליחת דואר (SMTP)"
-        icon={<Mail className="h-4 w-4 text-gold-400" />}
-        hint="נדרש שרת דואר לשליחה אוטומטית. לדוגמה, בחשבון Gmail יש להשתמש בסיסמת אפליקציה ולא בסיסמת הכניסה הרגילה."
+        title="הגבלת שליחה"
+        icon={<ShieldCheck className="h-4 w-4 text-amber-300" />}
+        hint="עד 20 קבצים ובסך הכול 20MB בכל בקשה."
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="שרת SMTP">
-            <input value={settings.smtpHost} onChange={(event) => update({ smtpHost: event.target.value })} placeholder="smtp.gmail.com" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="פורט">
-            <input type="number" min={1} max={65535} value={settings.smtpPort} onChange={(event) => update({ smtpPort: Number(event.target.value) || 587 })} className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="שם משתמש / כתובת חשבון שולח">
-            <input type="email" value={settings.smtpUser} onChange={(event) => update({ smtpUser: event.target.value })} placeholder="sender@example.com" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="כתובת שולח להצגה">
-            <input type="email" value={settings.smtpFrom} onChange={(event) => update({ smtpFrom: event.target.value })} placeholder="זהה לשם המשתמש אם ריק" className={inputClass} dir="ltr" />
-          </Field>
-        </div>
-        <div className="mt-3">
-          <Field label="סיסמת SMTP / סיסמת אפליקציה">
-            <input type="password" autoComplete="new-password" value={smtpPassword} onChange={(event) => { setSmtpPassword(event.target.value); setSaved(false); }} placeholder={settings.smtpPasswordConfigured ? "סיסמה שמורה – השאר ריק כדי לא לשנות" : "הזן סיסמת SMTP"} className={inputClass} dir="ltr" />
-          </Field>
-          {settings.smtpPasswordConfigured && <p className="mt-1 text-[11px] text-emerald-300">סיסמה כבר מוגדרת. היא אינה מוחזרת לממשק הניהול לאחר השמירה.</p>}
-        </div>
-        <div className="mt-3 rounded-xl border border-amber-300/20 bg-amber-300/[0.06] p-3 text-xs leading-relaxed text-amber-100">
-          הגבלת השליחה כרגע היא 20MB בסך הכול לבקשה, עד 20 קבצים. מומלץ לבדוק תחילה עם חשבון דואר ייעודי.
-        </div>
+        <p className="text-xs leading-relaxed text-slate-400">
+          כתובות המודלים ומפתח החיבור נשמרים במחשב העמדה. סיסמאות Gmail אינן נשמרות בתוכנה, ושליחת המייל נעשית מחשבון Google שמפעיל את הסקריפט.
+        </p>
       </SectionCard>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

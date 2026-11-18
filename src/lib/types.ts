@@ -87,29 +87,24 @@ export type TranscriptionModel = "model1" | "model2";
 export interface TranscriptionSettings {
   enabled: boolean;
   allowedStudentIds: string[];
-  modelOneEmail: string;
-  modelTwoEmail: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpFrom: string;
-  smtpPasswordConfigured: boolean;
-  /** Google Apps Script Web App used to poll returned transcription status */
-  replyStatusUrl: string;
+  audioModelOneEmail: string;
+  audioModelTwoEmail: string;
+  handwritingModelOneEmail: string;
+  handwritingModelTwoEmail: string;
+  appsScriptUrl: string;
+  appsScriptTokenConfigured: boolean;
 }
 
 export interface TranscriptionSettingsInput {
   enabled: boolean;
   allowedStudentIds: string[];
-  modelOneEmail: string;
-  modelTwoEmail: string;
-  smtpHost: string;
-  smtpPort: number;
-  smtpUser: string;
-  smtpFrom: string;
-  replyStatusUrl: string;
-  smtpPassword?: string;
-  clearSmtpPassword?: boolean;
+  audioModelOneEmail: string;
+  audioModelTwoEmail: string;
+  handwritingModelOneEmail: string;
+  handwritingModelTwoEmail: string;
+  appsScriptUrl: string;
+  appsScriptToken?: string;
+  clearAppsScriptToken?: boolean;
 }
 
 export interface StoredGoogleAccount {
@@ -137,14 +132,12 @@ export interface StoredConfig extends KioskConfig {
   googleServiceAccountJson?: string | null;
   transcriptionEnabled: boolean;
   transcriptionAllowedStudentIds: string[];
-  transcriptionModelOneEmail: string;
-  transcriptionModelTwoEmail: string;
-  transcriptionSmtpHost: string;
-  transcriptionSmtpPort: number;
-  transcriptionSmtpUser: string;
-  transcriptionSmtpFrom: string;
-  transcriptionSmtpPassword: string;
-  transcriptionReplyStatusUrl: string;
+  transcriptionAudioModelOneEmail: string;
+  transcriptionAudioModelTwoEmail: string;
+  transcriptionHandwritingModelOneEmail: string;
+  transcriptionHandwritingModelTwoEmail: string;
+  transcriptionAppsScriptUrl: string;
+  transcriptionAppsScriptToken: string;
 }
 
 export interface GoogleAuthStatus {

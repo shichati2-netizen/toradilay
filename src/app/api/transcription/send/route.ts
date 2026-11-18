@@ -1,15 +1,50 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import nodemailer from "nodemailer";
 import { getStoredConfig } from "@/lib/server/settings";
 import { consumeTranscriptionFileTokens, readSelectedTranscriptionFiles, type TranscriptionKind } from "@/lib/server/transcription-files";
-import { addTranscriptionRequest, type TranscriptionModel } from "@/lib/server/transcription-store";
+import { addTranscriptionRequest, updateTranscriptionRequestStatus, type TranscriptionModel } from "@/lib/server/transcription-store";
 import { logActivity } from "@/lib/server/activity";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+function getRecipient(
+  config: Awaited<ReturnType<typeof getStoredConfig>>,
+  kind: TranscriptionKind,
+  model: TranscriptionModel,
+): string {
+  if (kind === "audio") {
+    return model === "model1"
+      ? config.transcriptionAudioModelOneEmail
+      : config.transcriptionAudioModelTwoEmail;
+  }
+  return model === "model1"
+    ? config.transcriptionHandwritingModelOneEmail
+    : config.transcriptionHandwritingModelTwoEmail;
+}
+
+function getMimeType(extension: string): string {
+  switch (extension.toLowerCase()) {
+    case ".pdf": return "application/pdf";
+    case ".mp3": return "audio/mpeg";
+    case ".wav": return "audio/wav";
+    case ".m4a": return "audio/mp4";
+    case ".aac": return "audio/aac";
+    case ".ogg": return "audio/ogg";
+    case ".flac": return "audio/flac";
+    case ".wma": return "audio/x-ms-wma";
+    case ".opus": return "audio/opus";
+    case ".amr": return "audio/amr";
+    case ".aiff":
+    case ".aif": return "audio/aiff";
+    default: return "application/octet-stream";
+  }
+}
+
 export async function POST(req: Request) {
+  let requestId = "";
+  let storedRequest = false;
+  let fileTokens: string[] = [];
   try {
     const body = await req.json() as {
       studentId?: string;
@@ -25,6 +60,7 @@ export async function POST(req: Request) {
       body.kind === "audio" ? "audio" : body.kind === "handwriting" ? "handwriting" : null;
     const model: TranscriptionModel | null =
       body.model === "model1" ? "model1" : body.model === "model2" ? "model2" : null;
+    fileTokens = Array.isArray(body.fileTokens) ? body.fileTokens : [];
 
     if (studentId.length !== 9 || !kind || !model || !Array.isArray(body.fileTokens)) {
       return Response.json({ error: "פרטי בקשת התמלול אינם תקינים." }, { status: 400 });
@@ -34,18 +70,17 @@ export async function POST(req: Request) {
     if (!config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
       return Response.json({ error: "החשבון אינו מורשה להשתמש בתמלול." }, { status: 403 });
     }
+    if (!config.transcriptionAppsScriptUrl || !config.transcriptionAppsScriptToken) {
+      return Response.json({ error: "יש להגדיר כתובת Google Apps Script ומפתח חיבור בהגדרות התמלול." }, { status: 400 });
+    }
 
-    const recipient = model === "model1"
-      ? config.transcriptionModelOneEmail
-      : config.transcriptionModelTwoEmail;
+    const recipient = getRecipient(config, kind, model);
     if (!recipient) {
-      return Response.json({ error: "כתובת הדואר של המודל שנבחר עדיין לא הוגדרה בהגדרות." }, { status: 400 });
-    }
-    if (!config.transcriptionSmtpHost || !config.transcriptionSmtpUser || !config.transcriptionSmtpPassword) {
-      return Response.json({ error: "יש להגדיר שרת SMTP, משתמש וסיסמה בהגדרות התמלול לפני שליחת קבצים." }, { status: 400 });
+      const typeName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
+      return Response.json({ error: "כתובת הדואר של " + typeName + " – " + (model === "model1" ? "מודל 1" : "מודל 2") + " עדיין לא הוגדרה." }, { status: 400 });
     }
 
-    const files = readSelectedTranscriptionFiles(body.fileTokens, kind, studentId);
+    const files = readSelectedTranscriptionFiles(fileTokens, kind, studentId);
     const counts = new Map<string, number>();
     const attachments = files.map((file) => {
       const next = (counts.get(file.extension) || 0) + 1;
@@ -53,45 +88,12 @@ export async function POST(req: Request) {
       const suffix = next === 1 ? "" : "-" + String(next);
       return {
         filename: studentId + suffix + file.extension,
-        content: file.buffer,
-        contentType: kind === "handwriting" ? "application/pdf" : undefined,
+        mimeType: getMimeType(file.extension),
+        base64: file.buffer.toString("base64"),
       };
     });
 
-    const requestId = crypto.randomUUID();
-    const modelName = model === "model1" ? "מודל 1" : "מודל 2";
-    const kindName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
-    const transporter = nodemailer.createTransport({
-      host: config.transcriptionSmtpHost,
-      port: config.transcriptionSmtpPort,
-      secure: config.transcriptionSmtpPort === 465,
-      auth: { user: config.transcriptionSmtpUser, pass: config.transcriptionSmtpPassword },
-      connectionTimeout: 15000,
-      greetingTimeout: 15000,
-      socketTimeout: 45000,
-    });
-
-    await transporter.sendMail({
-      from: config.transcriptionSmtpFrom || config.transcriptionSmtpUser,
-      to: recipient,
-      subject: "ToraDelia | " + kindName + " | " + studentId + " | " + requestId,
-      text: [
-        "בקשת תמלול חדשה מתוכנת ToraDelia.",
-        "תעודת זהות: " + studentId,
-        "סוג: " + kindName,
-        "מודל: " + modelName,
-        "מזהה בקשה: " + requestId,
-        "תיקיית יעד ב-Google Drive: " + (body.source === "drive" ? String(body.folderId || "") : ""),
-        "שם תיקיית היעד: " + String(body.folderName || studentId),
-        "הקבצים המצורפים שונו לשמות המבוססים על תעודת הזהות.",
-        "נא להשיב למייל המקורי, להשאיר את מזהה הבקשה בנושא, ולשמור את תעודת הזהות בשם כל קובץ תוצאה.",
-      ].join("\n"),
-      headers: { "X-ToraDelia-Request-Id": requestId },
-      attachments,
-    });
-
-    consumeTranscriptionFileTokens(body.fileTokens);
-    
+    requestId = crypto.randomUUID();
     const requestedFolderName = String(body.folderName || studentId)
       .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
       .trim()
@@ -110,7 +112,10 @@ export async function POST(req: Request) {
         throw new Error("תיקיית היעד אינה נמצאת בתוך תיקיית החיפוש המקומית.");
       }
     }
-    const record = {
+
+    const modelName = model === "model1" ? "מודל 1" : "מודל 2";
+    const kindName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
+    addTranscriptionRequest({
       id: requestId,
       studentId,
       folderId: typeof body.folderId === "string" ? body.folderId.slice(0, 200) : "",
@@ -121,18 +126,66 @@ export async function POST(req: Request) {
       model,
       recipient,
       createdAt: new Date().toISOString(),
-      status: "pending" as const,
+      status: "pending",
       fileNames: attachments.map((item) => item.filename),
-    };
-    addTranscriptionRequest(record);
+    });
+    storedRequest = true;
+
+    const response = await fetch(config.transcriptionAppsScriptUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "send",
+        token: config.transcriptionAppsScriptToken,
+        requestId,
+        studentId,
+        kind,
+        model,
+        recipient,
+        folderId: source === "drive" ? String(body.folderId || "").slice(0, 200) : "",
+        folderName,
+        attachments,
+      }),
+      redirect: "follow",
+      signal: AbortSignal.timeout(55000),
+      cache: "no-store",
+    });
+
+    const responseText = await response.text();
+    let result: { ok?: boolean; error?: string; requestId?: string; duplicate?: boolean };
+    try {
+      result = JSON.parse(responseText) as typeof result;
+    } catch {
+      throw new Error("Google Apps Script החזיר תשובה שאינה JSON. בדוק שה-Web App פורסם ושהכתובת מסתיימת ב-/exec.");
+    }
+
+    if (!response.ok || result.ok !== true) {
+      throw new Error(result.error || "Google Apps Script לא הצליח לשלוח את בקשת התמלול.");
+    }
+    if (result.requestId && result.requestId !== requestId) {
+      throw new Error("מזהה הבקשה שחזר מ-Google Apps Script אינו תואם.");
+    }
+
+    consumeTranscriptionFileTokens(fileTokens);
     await logActivity({
       type: "transcription",
       studentId,
-      detail: kindName + " נשלח ל-" + modelName + " · בקשה " + requestId,
+      detail: kindName + " נשלח דרך Google Apps Script ל-" + modelName + " · בקשה " + requestId,
     });
 
-    return Response.json({ ok: true, requestId, status: "pending", fileNames: record.fileNames });
+    return Response.json({
+      ok: true,
+      requestId,
+      status: "pending",
+      fileNames: attachments.map((item) => item.filename),
+      sentVia: "google-apps-script",
+    });
   } catch (error) {
+    if (storedRequest && requestId) {
+      updateTranscriptionRequestStatus(requestId, "failed", {
+        failureReason: error instanceof Error ? error.message : "שליחת בקשת התמלול נכשלה.",
+      });
+    }
     console.error("[transcription/send] failed:", error);
     return Response.json({
       error: error instanceof Error ? error.message : "שליחת הקבצים לתמלול נכשלה.",

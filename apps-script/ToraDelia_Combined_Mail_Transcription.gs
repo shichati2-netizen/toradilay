@@ -469,8 +469,10 @@ function getOrCreateLabel(name) {
 // 5. להריץ פעם אחת את installTranscriptionReplyTrigger ולאשר הרשאות.
 
 const TRANSCRIPTION_CONFIG = {
-  MODEL_ONE_REPLY_SENDER: 'MODEL-1-REPLY-SENDER@example.com',
-  MODEL_TWO_REPLY_SENDER: 'MODEL-2-REPLY-SENDER@example.com',
+  AUDIO_MODEL_ONE_REPLY_SENDER: 'AUDIO-MODEL-1-REPLY@example.com',
+  AUDIO_MODEL_TWO_REPLY_SENDER: 'AUDIO-MODEL-2-REPLY@example.com',
+  HANDWRITING_MODEL_ONE_REPLY_SENDER: 'HANDWRITING-MODEL-1-REPLY@example.com',
+  HANDWRITING_MODEL_TWO_REPLY_SENDER: 'HANDWRITING-MODEL-2-REPLY@example.com',
 
   LABEL_SAVED: 'תמלול חזר - נשמר',
   LABEL_NO_ID: 'תמלול חזר - ללא תעודת זהות בשם הקובץ',
@@ -497,9 +499,10 @@ function processTranscriptionReplies() {
   try {
     validateTranscriptionConfig_();
 
-    const modelOne = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER);
-    const modelTwo = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER);
-    const senderQuery = ['from:' + modelOne, 'from:' + modelTwo];
+    validateTranscriptionConfig_();
+    const senderQuery = getTranscriptionReplySenders_().map(function(sender) {
+      return 'from:' + sender;
+    });
 
     const labelSaved = getOrCreateLabel(TRANSCRIPTION_CONFIG.LABEL_SAVED);
     const labelNoId = getOrCreateLabel(TRANSCRIPTION_CONFIG.LABEL_NO_ID);
@@ -637,6 +640,140 @@ function processTranscriptionReplies() {
 }
 
 
+/**
+ * doPost receives audio / handwriting files from the kiosk and sends the email
+ * from the Google account that owns this Apps Script project.
+ */
+function doPost(e) {
+  let body = {};
+  try {
+    body = JSON.parse(e && e.postData && e.postData.contents || '{}');
+  } catch (error) {
+    return transcriptionJsonOutput_({ ok: false, error: 'בקשת JSON לא תקינה.' });
+  }
+
+  if (!isAuthorizedTranscriptionToken_(body.token)) {
+    return transcriptionJsonOutput_({ ok: false, error: 'מפתח החיבור אינו תקין.' });
+  }
+  if (String(body.action || '') !== 'send') {
+    return transcriptionJsonOutput_({ ok: false, error: 'פעולה לא מוכרת.' });
+  }
+
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(5000)) {
+    return transcriptionJsonOutput_({ ok: false, error: 'המערכת עסוקה. נסה שוב.' });
+  }
+
+  try {
+    const requestId = String(body.requestId || '').trim().toLowerCase();
+    const studentId = String(body.studentId || '').replace(/\D/g, '');
+    const kind = String(body.kind || '');
+    const model = String(body.model || '');
+    const recipient = normalizeEmail_(body.recipient);
+    const folderId = String(body.folderId || '').slice(0, 200);
+    const folderName = String(body.folderName || studentId).slice(0, 160);
+    const attachmentsInput = Array.isArray(body.attachments) ? body.attachments : [];
+
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)) {
+      return transcriptionJsonOutput_({ ok: false, error: 'מזהה בקשה לא תקין.' });
+    }
+    if (!/^\d{9}$/.test(studentId)) {
+      return transcriptionJsonOutput_({ ok: false, error: 'מספר תעודת הזהות אינו תקין.' });
+    }
+    if (kind !== 'audio' && kind !== 'handwriting') {
+      return transcriptionJsonOutput_({ ok: false, error: 'סוג התמלול אינו תקין.' });
+    }
+    if (model !== 'model1' && model !== 'model2') {
+      return transcriptionJsonOutput_({ ok: false, error: 'המודל שנבחר אינו תקין.' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+      return transcriptionJsonOutput_({ ok: false, error: 'כתובת היעד אינה תקינה.' });
+    }
+    if (attachmentsInput.length < 1 || attachmentsInput.length > 20) {
+      return transcriptionJsonOutput_({ ok: false, error: 'יש לצרף בין קובץ אחד ל-20 קבצים.' });
+    }
+
+    const properties = PropertiesService.getScriptProperties();
+    const sentKey = transcriptionSentKey_(requestId);
+    const existing = properties.getProperty(sentKey);
+    if (existing) {
+      return transcriptionJsonOutput_({
+        ok: true,
+        duplicate: true,
+        requestId: requestId,
+        status: 'pending'
+      });
+    }
+
+    const allowedAudio = ['.mp3', '.wav', '.m4a', '.aac', '.ogg', '.flac', '.wma', '.opus', '.amr', '.aiff', '.aif'];
+    const allowedHandwriting = ['.pdf'];
+    const allowed = kind === 'audio' ? allowedAudio : allowedHandwriting;
+    let totalBytes = 0;
+    const attachments = attachmentsInput.map(function(item) {
+      const filename = String(item && item.filename || '').trim();
+      const mimeType = String(item && item.mimeType || 'application/octet-stream').slice(0, 120);
+      const base64 = String(item && item.base64 || '');
+      if (!new RegExp('^' + studentId + '(-[2-9][0-9]*)?\\.[A-Za-z0-9]{1,8}$').test(filename)) {
+        throw new Error('שם קובץ מצורף אינו תואם למספר תעודת הזהות.');
+      }
+      const extension = filename.slice(filename.lastIndexOf('.')).toLowerCase();
+      if (allowed.indexOf(extension) === -1) {
+        throw new Error('סיומת קובץ אינה מותרת לסוג התמלול שנבחר.');
+      }
+      if (!base64 || base64.length > 28000000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) {
+        throw new Error('תוכן קובץ מצורף אינו תקין או גדול מדי.');
+      }
+      const bytes = Utilities.base64Decode(base64);
+      totalBytes += bytes.length;
+      if (bytes.length <= 0 || bytes.length > 20 * 1024 * 1024 || totalBytes > 20 * 1024 * 1024) {
+        throw new Error('הגודל הכולל של הקבצים חורג מ-20MB.');
+      }
+      return Utilities.newBlob(bytes, mimeType, filename);
+    });
+
+    const kindName = kind === 'audio' ? 'תמלול קולי' : 'תמלול כתבי יד';
+    const modelName = model === 'model1' ? 'מודל 1' : 'מודל 2';
+    const subject = 'ToraDelia | ' + kindName + ' | ' + studentId + ' | ' + requestId;
+    const bodyText = [
+      'בקשת תמלול חדשה מתוכנת ToraDelia.',
+      'תעודת זהות: ' + studentId,
+      'סוג: ' + kindName,
+      'מודל: ' + modelName,
+      'מזהה בקשה: ' + requestId,
+      'תיקיית יעד ב-Google Drive: ' + folderId,
+      'שם תיקיית היעד: ' + folderName,
+      'הקבצים המצורפים נקראים לפי תעודת הזהות.',
+      'נא להשיב למייל המקורי, לשמור את מזהה הבקשה בנושא, ולצרף תוצאות ששמן מתחיל בתעודת הזהות בת 9 הספרות.'
+    ].join('\n');
+
+    GmailApp.sendEmail(recipient, subject, bodyText, {
+      attachments: attachments,
+      name: 'ToraDelia'
+    });
+
+    properties.setProperty(sentKey, new Date().toISOString());
+    saveTranscriptionReplyStatus_(requestId, {
+      status: 'pending',
+      savedFileNames: [],
+      error: ''
+    });
+    return transcriptionJsonOutput_({
+      ok: true,
+      requestId: requestId,
+      status: 'pending',
+      recipient: recipient
+    });
+  } catch (error) {
+    return transcriptionJsonOutput_({
+      ok: false,
+      error: error && error.message ? String(error.message).slice(0, 500) : 'שליחת המייל נכשלה.'
+    });
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
 /** Web App endpoint שבו ToraDelia בודקת אם בקשת תמלול הסתיימה. */
 function doGet(e) {
   const action = e && e.parameter ? String(e.parameter.action || '') : '';
@@ -644,8 +781,13 @@ function doGet(e) {
     return transcriptionJsonOutput_({ ok: true, service: 'ToraDelia transcription status' });
   }
 
-  const requestId = String(e.parameter.requestId || '').trim();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+  const token = e && e.parameter ? String(e.parameter.token || '') : '';
+  if (!isAuthorizedTranscriptionToken_(token)) {
+    return transcriptionJsonOutput_({ ok: false, error: 'מפתח החיבור אינו תקין.' });
+  }
+
+  const requestId = String(e.parameter.requestId || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(requestId)) {
     return transcriptionJsonOutput_({ ok: false, status: 'failed', error: 'מזהה בקשה לא תקין.' });
   }
 
@@ -660,7 +802,7 @@ function doGet(e) {
     return transcriptionJsonOutput_({
       ok: true,
       requestId: requestId,
-      status: status.status === 'completed' ? 'completed' : 'failed',
+      status: status.status === 'completed' ? 'completed' : status.status === 'failed' ? 'failed' : 'pending',
       savedFileNames: Array.isArray(status.savedFileNames) ? status.savedFileNames : [],
       error: status.error || '',
       updatedAt: status.updatedAt || ''
@@ -670,6 +812,17 @@ function doGet(e) {
   }
 }
 
+
+function isAuthorizedTranscriptionToken_(supplied) {
+  const expected = PropertiesService.getScriptProperties()
+    .getProperty('TOR ADELIA_INTEGRATION_TOKEN') || '';
+  return Boolean(expected && supplied && String(supplied) === expected);
+}
+
+
+function transcriptionSentKey_(requestId) {
+  return 'TOR ADELIA_TRANSCRIPTION_SENT_' + requestId;
+}
 
 function transcriptionJsonOutput_(value) {
   return ContentService
@@ -740,11 +893,23 @@ function isTranscriptionModelSender(fromValue) {
 }
 
 
+function getTranscriptionReplySenders_() {
+  return [
+    TRANSCRIPTION_CONFIG.AUDIO_MODEL_ONE_REPLY_SENDER,
+    TRANSCRIPTION_CONFIG.AUDIO_MODEL_TWO_REPLY_SENDER,
+    TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_ONE_REPLY_SENDER,
+    TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_TWO_REPLY_SENDER
+  ].map(normalizeEmail_).filter(Boolean);
+}
+
+
 function getTranscriptionModelType_(sender) {
   const normalized = normalizeEmail_(sender);
   if (!normalized) return null;
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER)) return 'מודל 1';
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER)) return 'מודל 2';
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.AUDIO_MODEL_ONE_REPLY_SENDER)) return 'מודל 1 · תמלול קולי';
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.AUDIO_MODEL_TWO_REPLY_SENDER)) return 'מודל 2 · תמלול קולי';
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_ONE_REPLY_SENDER)) return 'מודל 1 · תמלול כתבי יד';
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_TWO_REPLY_SENDER)) return 'מודל 2 · תמלול כתבי יד';
   return null;
 }
 
@@ -764,17 +929,13 @@ function normalizeEmail_(value) {
 
 
 function validateTranscriptionConfig_() {
-  const modelOne = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER);
-  const modelTwo = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER);
-  if (
-    !modelOne ||
-    !modelTwo ||
-    modelOne.indexOf('@example.com') !== -1 ||
-    modelTwo.indexOf('@example.com') !== -1 ||
-    modelOne === modelTwo
-  ) {
+  const senders = getTranscriptionReplySenders_();
+  if (senders.length !== 4 || senders.some(function(sender) {
+    return sender.indexOf('@example.com') !== -1 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
+  })) {
     throw new Error(
-      'יש להגדיר ב-TRANSCRIPTION_CONFIG את כתובות From האמיתיות של תשובות מודל 1 ומודל 2.'
+      'יש להגדיר ב-TRANSCRIPTION_CONFIG את ארבע כתובות From האמיתיות: מודל 1 ומודל 2 לכל אחד מסוגי התמלול.'
     );
   }
 }

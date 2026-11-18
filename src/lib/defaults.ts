@@ -64,14 +64,12 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   sheetsWebhookUrl: "",
   transcriptionEnabled: false,
   transcriptionAllowedStudentIds: [],
-  transcriptionModelOneEmail: "",
-  transcriptionModelTwoEmail: "",
-  transcriptionSmtpHost: "",
-  transcriptionSmtpPort: 587,
-  transcriptionSmtpUser: "",
-  transcriptionSmtpFrom: "",
-  transcriptionSmtpPassword: "",
-  transcriptionReplyStatusUrl: "",
+  transcriptionAudioModelOneEmail: "",
+  transcriptionAudioModelTwoEmail: "",
+  transcriptionHandwritingModelOneEmail: "",
+  transcriptionHandwritingModelTwoEmail: "",
+  transcriptionAppsScriptUrl: "",
+  transcriptionAppsScriptToken: "",
 };
 
 export interface EffectMeta {

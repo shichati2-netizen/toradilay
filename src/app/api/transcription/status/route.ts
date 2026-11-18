@@ -7,10 +7,11 @@ import {
 export const dynamic = "force-dynamic";
 
 async function syncReturnedStatuses(
-  replyStatusUrl: string,
+  appsScriptUrl: string,
+  appsScriptToken: string,
   studentId: string,
 ): Promise<void> {
-  if (!replyStatusUrl) return;
+  if (!appsScriptUrl || !appsScriptToken) return;
 
   const pending = listTranscriptionRequests(studentId)
     .filter((item) => item.status === "pending")
@@ -18,9 +19,10 @@ async function syncReturnedStatuses(
 
   await Promise.all(pending.map(async (item) => {
     try {
-      const url = new URL(replyStatusUrl);
+      const url = new URL(appsScriptUrl);
       url.searchParams.set("action", "status");
       url.searchParams.set("requestId", item.id);
+      url.searchParams.set("token", appsScriptToken);
       const response = await fetch(url.toString(), {
         cache: "no-store",
         redirect: "follow",
@@ -64,6 +66,10 @@ export async function GET(req: Request) {
     return Response.json({ items: [] });
   }
 
-  await syncReturnedStatuses(config.transcriptionReplyStatusUrl, studentId);
+  await syncReturnedStatuses(
+    config.transcriptionAppsScriptUrl,
+    config.transcriptionAppsScriptToken,
+    studentId,
+  );
   return Response.json({ items: listTranscriptionRequests(studentId) });
 }
