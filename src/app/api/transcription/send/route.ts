@@ -90,14 +90,24 @@ export async function POST(req: Request) {
 
     consumeTranscriptionFileTokens(body.fileTokens);
     
-    const folderName = String(body.folderName || studentId)
+    const requestedFolderName = String(body.folderName || studentId)
       .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
       .trim()
-      .slice(0, 160) || studentId;
+      .slice(0, 160);
+    const folderName = !requestedFolderName || requestedFolderName === "." || requestedFolderName === ".."
+      ? studentId
+      : requestedFolderName;
     const source = body.source === "local" ? "local" : "drive";
-    const destinationPath = source === "local" && config.localSearchPath
-      ? path.resolve(config.localSearchPath, folderName)
+    const localRoot = source === "local" && config.localSearchPath
+      ? path.resolve(config.localSearchPath)
       : "";
+    const destinationPath = localRoot ? path.resolve(localRoot, folderName) : "";
+    if (destinationPath) {
+      const relativeTarget = path.relative(localRoot, destinationPath);
+      if (relativeTarget === ".." || relativeTarget.startsWith(".." + path.sep) || path.isAbsolute(relativeTarget)) {
+        throw new Error("תיקיית היעד אינה נמצאת בתוך תיקיית החיפוש המקומית.");
+      }
+    }
     const record = {
       id: requestId,
       studentId,
