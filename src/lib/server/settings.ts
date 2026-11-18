@@ -99,7 +99,7 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
 
 export async function getStoredConfig(): Promise<StoredConfig> {
   try {
-    const raw = (readLocalSettings() ?? {}) as Partial<StoredConfig>;
+    const raw = (readLocalSettings() ?? {}) as Partial<StoredConfig> & Record<string, unknown>;
     const pin =
       typeof raw.adminPin === "string" && raw.adminPin.length >= 4
         ? raw.adminPin

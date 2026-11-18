@@ -481,7 +481,7 @@ const TRANSCRIPTION_CONFIG = {
   ALLOWED_RESULT_EXTENSIONS: ['doc', 'docx', 'docm', 'pdf', 'txt', 'rtf']
 };
 
-const TRANSCRIPTION_STATUS_PREFIX = 'TOR ADELIA_TRANSCRIPTION_';
+const TRANSCRIPTION_STATUS_PREFIX = 'TORADELIA_TRANSCRIPTION_';
 
 
 /**
@@ -815,13 +815,13 @@ function doGet(e) {
 
 function isAuthorizedTranscriptionToken_(supplied) {
   const expected = PropertiesService.getScriptProperties()
-    .getProperty('TOR ADELIA_INTEGRATION_TOKEN') || '';
+    .getProperty('TORADELIA_INTEGRATION_TOKEN') || '';
   return Boolean(expected && supplied && String(supplied) === expected);
 }
 
 
 function transcriptionSentKey_(requestId) {
-  return 'TOR ADELIA_TRANSCRIPTION_SENT_' + requestId;
+  return 'TORADELIA_TRANSCRIPTION_SENT_' + requestId;
 }
 
 function transcriptionJsonOutput_(value) {
