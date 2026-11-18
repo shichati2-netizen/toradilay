@@ -62,6 +62,16 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   ...DEFAULT_CONFIG,
   adminPin: DEFAULT_ADMIN_PIN,
   sheetsWebhookUrl: "",
+  transcriptionEnabled: false,
+  transcriptionAllowedStudentIds: [],
+  transcriptionModelOneEmail: "",
+  transcriptionModelTwoEmail: "",
+  transcriptionSmtpHost: "",
+  transcriptionSmtpPort: 587,
+  transcriptionSmtpUser: "",
+  transcriptionSmtpFrom: "",
+  transcriptionSmtpPassword: "",
+  transcriptionReplyStatusUrl: "",
 };
 
 export interface EffectMeta {

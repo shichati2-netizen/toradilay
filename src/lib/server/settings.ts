@@ -9,6 +9,8 @@ import type {
   KioskConfig,
   StoredConfig,
   StoredGoogleAccount,
+  TranscriptionSettings,
+  TranscriptionSettingsInput,
 } from "@/lib/types";
 import { mergeLocalSettings, readLocalSettings } from "./local-store";
 
@@ -28,6 +30,22 @@ function normalizeOAuthClient(raw: unknown): GoogleOAuthClientConfig | null {
     clientType,
     redirectUriOverride: redirectUriOverride || undefined,
   };
+}
+
+function normalizeAppsScriptStatusUrl(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.trim()) return "";
+  try {
+    const url = new URL(raw.trim());
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "script.google.com" ||
+      !url.pathname.startsWith("/macros/s/") ||
+      !url.pathname.endsWith("/exec")
+    ) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
 }
 
 function normalizeGoogleAccount(raw: unknown): StoredGoogleAccount | null {
@@ -63,6 +81,16 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     googleOAuthClient: null,
     googleAccount: null,
     googleServiceAccountJson: null,
+    transcriptionEnabled: false,
+    transcriptionAllowedStudentIds: [],
+    transcriptionModelOneEmail: "",
+    transcriptionModelTwoEmail: "",
+    transcriptionSmtpHost: "",
+    transcriptionSmtpPort: 587,
+    transcriptionSmtpUser: "",
+    transcriptionSmtpFrom: "",
+    transcriptionSmtpPassword: "",
+    transcriptionReplyStatusUrl: "",
     ...(patch as Partial<StoredConfig>),
   };
   await mergeLocalSettings(
@@ -88,6 +116,21 @@ export async function getStoredConfig(): Promise<StoredConfig> {
         typeof raw.googleServiceAccountJson === "string" && raw.googleServiceAccountJson.trim()
           ? raw.googleServiceAccountJson
           : null,
+      transcriptionEnabled: raw.transcriptionEnabled === true,
+      transcriptionAllowedStudentIds: Array.isArray(raw.transcriptionAllowedStudentIds)
+        ? [...new Set(raw.transcriptionAllowedStudentIds
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.replace(/\D/g, "").slice(0, 12))
+            .filter((value) => value.length === 9))]
+        : [],
+      transcriptionModelOneEmail: typeof raw.transcriptionModelOneEmail === "string" ? raw.transcriptionModelOneEmail.trim().slice(0, 254) : "",
+      transcriptionModelTwoEmail: typeof raw.transcriptionModelTwoEmail === "string" ? raw.transcriptionModelTwoEmail.trim().slice(0, 254) : "",
+      transcriptionSmtpHost: typeof raw.transcriptionSmtpHost === "string" ? raw.transcriptionSmtpHost.trim().slice(0, 255) : "",
+      transcriptionSmtpPort: typeof raw.transcriptionSmtpPort === "number" && Number.isInteger(raw.transcriptionSmtpPort) && raw.transcriptionSmtpPort >= 1 && raw.transcriptionSmtpPort <= 65535 ? raw.transcriptionSmtpPort : 587,
+      transcriptionSmtpUser: typeof raw.transcriptionSmtpUser === "string" ? raw.transcriptionSmtpUser.trim().slice(0, 254) : "",
+      transcriptionSmtpFrom: typeof raw.transcriptionSmtpFrom === "string" ? raw.transcriptionSmtpFrom.trim().slice(0, 254) : "",
+      transcriptionSmtpPassword: typeof raw.transcriptionSmtpPassword === "string" ? raw.transcriptionSmtpPassword : "",
+      transcriptionReplyStatusUrl: normalizeAppsScriptStatusUrl(raw.transcriptionReplyStatusUrl),
     };
   } catch (err) {
     console.error("[settings] failed to load, using defaults:", err);
@@ -98,6 +141,16 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       googleOAuthClient: null,
       googleAccount: null,
       googleServiceAccountJson: null,
+      transcriptionEnabled: false,
+      transcriptionAllowedStudentIds: [],
+      transcriptionModelOneEmail: "",
+      transcriptionModelTwoEmail: "",
+      transcriptionSmtpHost: "",
+      transcriptionSmtpPort: 587,
+      transcriptionSmtpUser: "",
+      transcriptionSmtpFrom: "",
+      transcriptionSmtpPassword: "",
+      transcriptionReplyStatusUrl: "",
     };
   }
 }
@@ -110,6 +163,16 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     googleOAuthClient: _oauth,
     googleAccount: _account,
     googleServiceAccountJson: _serviceAccountJson,
+    transcriptionEnabled: _transcriptionEnabled,
+    transcriptionAllowedStudentIds: _transcriptionAllowedStudentIds,
+    transcriptionModelOneEmail: _transcriptionModelOneEmail,
+    transcriptionModelTwoEmail: _transcriptionModelTwoEmail,
+    transcriptionSmtpHost: _transcriptionSmtpHost,
+    transcriptionSmtpPort: _transcriptionSmtpPort,
+    transcriptionSmtpUser: _transcriptionSmtpUser,
+    transcriptionSmtpFrom: _transcriptionSmtpFrom,
+    transcriptionSmtpPassword: _transcriptionSmtpPassword,
+    transcriptionReplyStatusUrl: _transcriptionReplyStatusUrl,
     ...config
   } = await getStoredConfig();
   void _pin;
@@ -117,6 +180,16 @@ export async function getPublicConfig(): Promise<KioskConfig> {
   void _oauth;
   void _account;
   void _serviceAccountJson;
+  void _transcriptionEnabled;
+  void _transcriptionAllowedStudentIds;
+  void _transcriptionModelOneEmail;
+  void _transcriptionModelTwoEmail;
+  void _transcriptionSmtpHost;
+  void _transcriptionSmtpPort;
+  void _transcriptionSmtpUser;
+  void _transcriptionSmtpFrom;
+  void _transcriptionSmtpPassword;
+  void _transcriptionReplyStatusUrl;
   return config;
 }
 
@@ -217,4 +290,66 @@ export async function updateRefreshedGoogleToken(params: {
       refreshToken: params.newRefreshToken || current.googleAccount.refreshToken,
     },
   });
+}
+
+
+export async function getTranscriptionSettings(): Promise<TranscriptionSettings> {
+  const stored = await getStoredConfig();
+  return {
+    enabled: stored.transcriptionEnabled,
+    allowedStudentIds: stored.transcriptionAllowedStudentIds,
+    modelOneEmail: stored.transcriptionModelOneEmail,
+    modelTwoEmail: stored.transcriptionModelTwoEmail,
+    smtpHost: stored.transcriptionSmtpHost,
+    smtpPort: stored.transcriptionSmtpPort,
+    smtpUser: stored.transcriptionSmtpUser,
+    smtpFrom: stored.transcriptionSmtpFrom,
+    smtpPasswordConfigured: Boolean(stored.transcriptionSmtpPassword),
+    replyStatusUrl: stored.transcriptionReplyStatusUrl,
+  };
+}
+
+function validEmail(value: unknown): string {
+  if (typeof value !== "string") return "";
+  const email = value.trim().slice(0, 254);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
+export async function saveTranscriptionSettings(
+  input: TranscriptionSettingsInput,
+): Promise<TranscriptionSettings> {
+  const current = await getStoredConfig();
+  const allowedStudentIds = Array.isArray(input.allowedStudentIds)
+    ? [...new Set(input.allowedStudentIds
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.replace(/\D/g, "").slice(0, 12))
+        .filter((value) => value.length === 9))]
+    : [];
+  const smtpPort = Number.isInteger(input.smtpPort) && input.smtpPort >= 1 && input.smtpPort <= 65535
+    ? input.smtpPort
+    : 587;
+  const smtpPassword = input.clearSmtpPassword
+    ? ""
+    : typeof input.smtpPassword === "string" && input.smtpPassword.trim()
+      ? input.smtpPassword
+      : current.transcriptionSmtpPassword;
+  const replyStatusUrl = normalizeAppsScriptStatusUrl(input.replyStatusUrl);
+  if (input.replyStatusUrl?.trim() && !replyStatusUrl) {
+    throw new Error("כתובת Web App חייבת להיות כתובת HTTPS תקינה של Google Apps Script שמסתיימת ב-/exec.");
+  }
+
+  await mergeStoredFields({
+    transcriptionEnabled: input.enabled === true,
+    transcriptionAllowedStudentIds: allowedStudentIds,
+    transcriptionModelOneEmail: validEmail(input.modelOneEmail),
+    transcriptionModelTwoEmail: validEmail(input.modelTwoEmail),
+    transcriptionSmtpHost: typeof input.smtpHost === "string" ? input.smtpHost.trim().slice(0, 255) : "",
+    transcriptionSmtpPort: smtpPort,
+    transcriptionSmtpUser: validEmail(input.smtpUser),
+    transcriptionSmtpFrom: validEmail(input.smtpFrom) || validEmail(input.smtpUser),
+    transcriptionSmtpPassword: smtpPassword,
+    transcriptionReplyStatusUrl: replyStatusUrl,
+  });
+
+  return getTranscriptionSettings();
 }
