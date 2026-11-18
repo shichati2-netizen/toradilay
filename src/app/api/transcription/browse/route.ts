@@ -16,7 +16,7 @@ export async function GET(req: Request) {
     }
     const drive = url.searchParams.get("drive") || undefined;
     const relativePath = url.searchParams.get("path") || "";
-    const result = browseTranscriptionFiles(kind, drive, relativePath);
+    const result = browseTranscriptionFiles(kind, drive, relativePath, studentId);
     return Response.json(result);
   } catch (error) {
     console.warn("[transcription/browse] failed:", error);

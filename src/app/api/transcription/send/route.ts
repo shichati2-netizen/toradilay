@@ -43,7 +43,7 @@ export async function POST(req: Request) {
       return Response.json({ error: "יש להגדיר שרת SMTP, משתמש וסיסמה בהגדרות התמלול לפני שליחת קבצים." }, { status: 400 });
     }
 
-    const files = readSelectedTranscriptionFiles(body.fileTokens, kind);
+    const files = readSelectedTranscriptionFiles(body.fileTokens, kind, studentId);
     const counts = new Map<string, number>();
     const attachments = files.map((file) => {
       const next = (counts.get(file.extension) || 0) + 1;

@@ -17,6 +17,7 @@ interface FileToken {
   extension: string;
   size: number;
   kind: TranscriptionKind;
+  studentId: string;
   createdAt: number;
 }
 
@@ -65,7 +66,9 @@ function resolveBrowsePath(root: string, relativePath: string): string {
   return realTarget;
 }
 
-export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: string, relativePath = "") {
+export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: string, relativePath = "", studentId = "") {
+  const ownerId = String(studentId).replace(/\D/g, "").slice(0, 12);
+  if (ownerId.length !== 9) throw new Error("תעודת הזהות אינה תקינה.");
   if (!isWindows) return { drives: [], folders: [], files: [], relativePath: "" };
   const drives = detectRemovableDrives();
   if (!driveLetter) {
@@ -100,6 +103,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
           extension: path.extname(entry.name).toLowerCase(),
           size: stat.size,
           kind,
+          studentId: ownerId,
           createdAt: Date.now(),
         });
         files.push({
@@ -125,7 +129,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
   };
 }
 
-export function readSelectedTranscriptionFiles(fileTokens: string[], kind: TranscriptionKind) {
+export function readSelectedTranscriptionFiles(fileTokens: string[], kind: TranscriptionKind, studentId: string) {
   pruneTokens();
   if (!Array.isArray(fileTokens) || fileTokens.length < 1 || fileTokens.length > 20) {
     throw new Error("יש לבחור בין קובץ אחד ל-20 קבצים.");
@@ -136,7 +140,7 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
     if (typeof token !== "string" || seen.has(token)) throw new Error("בחירת קבצים לא תקינה.");
     seen.add(token);
     const item = tokens.get(token);
-    if (!item || item.kind !== kind || !fs.existsSync(item.path)) {
+    if (!item || item.kind !== kind || item.studentId !== studentId || !fs.existsSync(item.path)) {
       throw new Error("אחד הקבצים כבר אינו זמין. רענן את הסייר ובחר אותו שוב.");
     }
     const stat = fs.statSync(item.path);
@@ -154,5 +158,6 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
   if (totalBytes > MAX_SELECTED_BYTES) {
     throw new Error("הגודל הכולל של הקבצים חורג מ-20MB. יש לפצל למספר שליחות.");
   }
+  for (const token of seen) tokens.delete(token);
   return selected;
 }
