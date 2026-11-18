@@ -198,6 +198,8 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
     throw new Error("יש לבחור בין קובץ אחד ל-20 קבצים.");
   }
   const tokenRecords = readTokenRecords();
+  const verifiedDrives = detectTranscriptionUsbDrives();
+  const verifiedRoots = new Map<string, string>();
   const seen = new Set<string>();
   let totalBytes = 0;
   const selected = fileTokens.map((token) => {
@@ -208,10 +210,14 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
       throw new Error("אחד הקבצים כבר אינו זמין. רענן את הסייר ובחר אותו שוב.");
     }
     const driveLetter = path.parse(item.path).root.replace(/[^A-Za-z]/g, "").toUpperCase();
-    const verifiedDrive = detectTranscriptionUsbDrives().some((drive) => drive.letter === driveLetter);
-    if (!verifiedDrive) throw new Error("הכונן הנשלף נותק או אינו מזוהה עוד.");
-    const root = driveLetter + ":\\";
-    const realRoot = fs.realpathSync(root);
+    if (!verifiedDrives.some((drive) => drive.letter === driveLetter)) {
+      throw new Error("הכונן הנשלף נותק או אינו מזוהה עוד.");
+    }
+    let realRoot = verifiedRoots.get(driveLetter);
+    if (!realRoot) {
+      realRoot = fs.realpathSync(driveLetter + ":\\");
+      verifiedRoots.set(driveLetter, realRoot);
+    }
     const realFile = fs.realpathSync(item.path);
     const relativeFile = path.relative(realRoot, realFile);
     if (relativeFile === ".." || relativeFile.startsWith(".." + path.sep) || path.isAbsolute(relativeFile)) {
