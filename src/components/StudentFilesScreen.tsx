@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { FileText, FolderOpen, Loader2, LogOut, Timer, Usb, Database } from "lucide-react";
+import { Clock, FileText, FolderOpen, Loader2, LogOut, Mic, PenLine, Timer, Usb, Database } from "lucide-react";
 import type { KioskFile, KioskFolder } from "@/lib/types";
 import { useFx } from "@/lib/client/fx";
 import { FileCard } from "./FileCard";
@@ -59,6 +59,9 @@ export function StudentFilesScreen({
   folder,
   files,
   source,
+  transcriptionAllowed,
+  pendingTranscriptions,
+  onTranscription,
   autoLogoutSeconds,
   targetPath,
   targetDriveLetter,
@@ -76,6 +79,9 @@ export function StudentFilesScreen({
   folder: KioskFolder;
   files: KioskFile[];
   source?: "drive" | "local";
+  transcriptionAllowed: boolean;
+  pendingTranscriptions: number;
+  onTranscription: (kind: "audio" | "handwriting") => void;
   autoLogoutSeconds: number;
   targetPath: string;
   targetDriveLetter: string;
@@ -157,6 +163,24 @@ export function StudentFilesScreen({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {transcriptionAllowed && (
+            <>
+              <FxButton variant="ghost" onClick={() => onTranscription("audio")} className="h-11 px-4 text-sm">
+                <Mic className="h-4 w-4 text-sky-300" />
+                <span>תמלול קולי</span>
+              </FxButton>
+              <FxButton variant="ghost" onClick={() => onTranscription("handwriting")} className="h-11 px-4 text-sm">
+                <PenLine className="h-4 w-4 text-rose-300" />
+                <span>תמלול כתבי יד</span>
+              </FxButton>
+            </>
+          )}
+          {pendingTranscriptions > 0 && (
+            <div className="flex h-10 items-center gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-3 text-xs font-bold text-amber-100">
+              <Clock className="h-4 w-4" />
+              {pendingTranscriptions} בתהליך תמלול
+            </div>
+          )}
           {wordFiles.length > 1 && (
             <FxButton
               variant="emerald"
