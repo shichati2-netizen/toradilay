@@ -4,7 +4,7 @@ import {
 } from "./local-store";
 import type { StatsResponse } from "@/lib/types";
 
-export type ActivityType = "search" | "miss" | "print" | "copy" | "exit" | "register";
+export type ActivityType = "search" | "miss" | "print" | "copy" | "exit" | "register" | "transcription";
 
 /** מסתיר את רוב ספרות תעודת הזהות ביומן (••••••123) */
 export function maskId(id?: string | null): string | null {

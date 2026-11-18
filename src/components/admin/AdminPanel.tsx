@@ -11,6 +11,7 @@ import {
   HardDrive,
   Loader2,
   Lock,
+  Mic,
   Settings2,
   Sparkles,
   Terminal,
@@ -33,14 +34,16 @@ import { GeneralTab } from "./GeneralTab";
 import { GoogleTab } from "./GoogleTab";
 import { SetupTab } from "./SetupTab";
 import { StatsTab } from "./StatsTab";
+import { TranscriptionTab } from "./TranscriptionTab";
 
-type TabId = "effects" | "drive" | "google" | "registration" | "general" | "stats" | "setup";
+type TabId = "effects" | "drive" | "google" | "registration" | "general" | "stats" | "setup" | "transcription";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Sparkles }> = [
   { id: "effects", label: "אפקטים ועיצוב", icon: Sparkles },
   { id: "drive", label: "כונן יעד ודיסק און קי", icon: HardDrive },
   { id: "google", label: "חשבון Google ודרייב", icon: Cloud },
   { id: "registration", label: "רישום תלמידים", icon: FileSpreadsheet },
+  { id: "transcription", label: "תמלול קולי וכתבי יד", icon: Mic },
   { id: "general", label: "כללי ומיתוג", icon: Settings2 },
   { id: "stats", label: "סטטיסטיקה ויומן", icon: BarChart3 },
   { id: "setup", label: "עמדה ויציאה", icon: Terminal },
@@ -303,6 +306,7 @@ export function AdminPanel({
                     )}
                     {tab === "stats" && <StatsTab pin={pin} />}
                     {tab === "setup" && <SetupTab onShutdown={onShutdown} />}
+                    {tab === "transcription" && pin && <TranscriptionTab pin={pin} />}
                   </div>
                 </div>
 

@@ -81,6 +81,34 @@ export interface GoogleOAuthClientConfig {
   redirectUriOverride?: string;
 }
 
+export type TranscriptionKind = "audio" | "handwriting";
+export type TranscriptionModel = "model1" | "model2";
+
+export interface TranscriptionSettings {
+  enabled: boolean;
+  allowedStudentIds: string[];
+  modelOneEmail: string;
+  modelTwoEmail: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpFrom: string;
+  smtpPasswordConfigured: boolean;
+}
+
+export interface TranscriptionSettingsInput {
+  enabled: boolean;
+  allowedStudentIds: string[];
+  modelOneEmail: string;
+  modelTwoEmail: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpUser: string;
+  smtpFrom: string;
+  smtpPassword?: string;
+  clearSmtpPassword?: boolean;
+}
+
 export interface StoredGoogleAccount {
   email: string;
   name?: string;
@@ -104,6 +132,15 @@ export interface StoredConfig extends KioskConfig {
   googleAccount?: StoredGoogleAccount | null;
   /** מפתח JSON של חשבון שירות ל-Google Sheets/Drive שנשמר מקומית בלבד */
   googleServiceAccountJson?: string | null;
+  transcriptionEnabled: boolean;
+  transcriptionAllowedStudentIds: string[];
+  transcriptionModelOneEmail: string;
+  transcriptionModelTwoEmail: string;
+  transcriptionSmtpHost: string;
+  transcriptionSmtpPort: number;
+  transcriptionSmtpUser: string;
+  transcriptionSmtpFrom: string;
+  transcriptionSmtpPassword: string;
 }
 
 export interface GoogleAuthStatus {
