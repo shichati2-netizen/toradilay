@@ -290,7 +290,7 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
 function validEmail(value: unknown): string {
   if (typeof value !== "string") return "";
   const email = value.trim().slice(0, 254);
-  return /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) ? email : "";
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
 export async function saveTranscriptionSettings(
@@ -300,7 +300,7 @@ export async function saveTranscriptionSettings(
   const allowedStudentIds = Array.isArray(input.allowedStudentIds)
     ? [...new Set(input.allowedStudentIds
         .filter((value): value is string => typeof value === "string")
-        .map((value) => value.replace(/\\D/g, "").slice(0, 12))
+        .map((value) => value.replace(/\D/g, "").slice(0, 12))
         .filter((value) => value.length === 9))]
     : [];
   const smtpPort = Number.isInteger(input.smtpPort) && input.smtpPort >= 1 && input.smtpPort <= 65535
