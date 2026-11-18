@@ -508,6 +508,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
             kind={transcriptionKind}
             studentId={studentId}
             folder={folder}
+            source={source}
             onClose={() => setTranscriptionKind(null)}
             onSubmitted={() => {
               void fetchTranscriptionStatus(studentId).then((items) => {

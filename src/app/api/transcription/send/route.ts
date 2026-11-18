@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import path from "node:path";
 import nodemailer from "nodemailer";
 import { getStoredConfig } from "@/lib/server/settings";
 import { consumeTranscriptionFileTokens, readSelectedTranscriptionFiles, type TranscriptionKind } from "@/lib/server/transcription-files";
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
       studentId?: string;
       folderId?: string;
       folderName?: string;
+      source?: string;
       kind?: string;
       model?: string;
       fileTokens?: string[];
@@ -87,11 +89,22 @@ export async function POST(req: Request) {
     });
 
     consumeTranscriptionFileTokens(body.fileTokens);
+    
+    const folderName = String(body.folderName || studentId)
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+      .trim()
+      .slice(0, 160) || studentId;
+    const source = body.source === "local" ? "local" : "drive";
+    const destinationPath = source === "local" && config.localSearchPath
+      ? path.resolve(config.localSearchPath, folderName)
+      : "";
     const record = {
       id: requestId,
       studentId,
       folderId: typeof body.folderId === "string" ? body.folderId.slice(0, 200) : "",
-      folderName: typeof body.folderName === "string" ? body.folderName.slice(0, 160) : studentId,
+      folderName,
+      source,
+      destinationPath,
       kind,
       model,
       recipient,

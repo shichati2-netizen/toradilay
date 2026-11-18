@@ -22,6 +22,7 @@ export function TranscriptionDialog({
   kind,
   studentId,
   folder,
+  source,
   onClose,
   onSubmitted,
 }: {
@@ -29,6 +30,7 @@ export function TranscriptionDialog({
   kind: TranscriptionKind;
   studentId: string;
   folder: KioskFolder;
+  source?: "drive" | "local";
   onClose: () => void;
   onSubmitted: () => void;
 }) {
@@ -113,6 +115,7 @@ export function TranscriptionDialog({
       studentId,
       folderId: folder.id,
       folderName: folder.name,
+      source,
       kind,
       model,
       fileTokens: selected.map((item) => item.token),

@@ -10,6 +10,8 @@ export interface TranscriptionRequestRecord {
   studentId: string;
   folderId: string;
   folderName: string;
+  source: "drive" | "local";
+  destinationPath: string;
   kind: TranscriptionKind;
   model: TranscriptionModel;
   recipient: string;
@@ -33,6 +35,8 @@ function readAll(): TranscriptionRequestRecord[] {
         typeof item.id === "string" &&
         typeof item.studentId === "string" &&
         typeof item.createdAt === "string" &&
+        (item.source === "drive" || item.source === "local") &&
+        typeof item.destinationPath === "string" &&
         typeof item.status === "string")
     );
   } catch {
