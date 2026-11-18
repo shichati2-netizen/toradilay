@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { detectRemovableDrives, isWindows } from "./drives";
+import { execSync } from "node:child_process";
+import { isWindows } from "./drives";
 
 export type TranscriptionKind = "audio" | "handwriting";
 
@@ -23,6 +24,33 @@ interface FileToken {
 
 const tokens = new Map<string, FileToken>();
 
+function detectTranscriptionUsbDrives(): Array<{ letter: string; name: string }> {
+  if (!isWindows) return [];
+  try {
+    const command =
+      'powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Get-CimInstance Win32_LogicalDisk | Where-Object { $_.DriveType -eq 2 } | Select-Object -Property DeviceID, VolumeName | ConvertTo-Json -Compress"';
+    const output = execSync(command, {
+      encoding: "utf8",
+      timeout: 3000,
+      windowsHide: true,
+    }).trim();
+    if (!output) return [];
+    const parsed: unknown = JSON.parse(output);
+    const rows = Array.isArray(parsed) ? parsed : [parsed];
+    return rows.flatMap((row) => {
+      if (!row || typeof row !== "object" || !("DeviceID" in row)) return [];
+      const item = row as { DeviceID?: unknown; VolumeName?: unknown };
+      const letter = String(item.DeviceID || "").replace(/[^A-Za-z]/g, "").toUpperCase();
+      if (!/^[A-Z]$/.test(letter)) return [];
+      const volume = typeof item.VolumeName === "string" ? item.VolumeName.trim() : "";
+      return [{ letter, name: volume ? volume + " (" + letter + ":)" : "דיסק און קי (" + letter + ":)" }];
+    });
+  } catch (error) {
+    console.warn("[transcription] strict USB detection failed; no drives will be shown:", error);
+    return [];
+  }
+}
+
 function pruneTokens() {
   const cutoff = Date.now() - TOKEN_TTL;
   for (const [token, item] of tokens) {
@@ -41,7 +69,7 @@ function allowedExtensions(kind: TranscriptionKind): Set<string> {
 
 function safeRoot(letter: string): string {
   const clean = letter.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 1);
-  const drive = detectRemovableDrives().find((item) => item.letter === clean);
+  const drive = detectTranscriptionUsbDrives().find((item) => item.letter === clean);
   if (!isWindows || !drive) throw new Error("הכונן אינו מזוהה כדיסק נשלף מחובר.");
   return clean + ":\\";
 }
@@ -70,7 +98,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
   const ownerId = String(studentId).replace(/\D/g, "").slice(0, 12);
   if (ownerId.length !== 9) throw new Error("תעודת הזהות אינה תקינה.");
   if (!isWindows) return { drives: [], folders: [], files: [], relativePath: "" };
-  const drives = detectRemovableDrives();
+  const drives = detectTranscriptionUsbDrives();
   if (!driveLetter) {
     return {
       drives: drives.map((drive) => ({ letter: drive.letter, name: drive.name })),
