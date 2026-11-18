@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { RotateCcw } from "lucide-react";
-import type { KioskConfig, KioskFile, KioskFolder } from "@/lib/types";
+import type { KioskConfig, KioskFile, KioskFolder, TranscriptionKind } from "@/lib/types";
 import { FxProvider, effectClasses, fireConfetti } from "@/lib/client/fx";
 import { playSound } from "@/lib/client/sound";
 import { applyLiquidGlassRefraction } from "@/lib/client/liquid-glass";
@@ -15,6 +15,8 @@ import {
   fetchPreview,
   logClientActivity,
   searchStudent,
+  fetchTranscriptionAccess,
+  fetchTranscriptionStatus,
 } from "@/lib/client/api";
 import { Background } from "./Background";
 import { ExitModal } from "./ExitModal";
@@ -24,6 +26,7 @@ import { IdEntryScreen } from "./IdEntryScreen";
 import { PathLabel } from "./PathLabel";
 import { RegistrationModal } from "./RegistrationModal";
 import { StudentFilesScreen } from "./StudentFilesScreen";
+import { TranscriptionDialog } from "./TranscriptionDialog";
 import { TorahLogo } from "./TorahLogo";
 import { Toasts, type ToastItem } from "./Toasts";
 import { AdminPanel } from "./admin/AdminPanel";
@@ -108,6 +111,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [files, setFiles] = useState<KioskFile[]>([]);
   const [source, setSource] = useState<"drive" | "local" | undefined>();
   const [studentId, setStudentId] = useState("");
+  const [transcriptionAllowed, setTranscriptionAllowed] = useState(false);
+  const [pendingTranscriptions, setPendingTranscriptions] = useState(0);
+  const [transcriptionKind, setTranscriptionKind] = useState<TranscriptionKind | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -158,6 +164,15 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           );
           return false;
         }
+        const transcriptionAccess = await fetchTranscriptionAccess(id);
+        setTranscriptionAllowed(transcriptionAccess.allowed);
+        if (transcriptionAccess.allowed) {
+          const requests = await fetchTranscriptionStatus(id);
+          setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
+        } else {
+          setPendingTranscriptions(0);
+        }
+        setTranscriptionKind(null);
         setStudentId(id);
         setFolder(res.folder);
         setFiles(res.files ?? []);
@@ -181,6 +196,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     setView("id-entry");
     setFolder(null);
     setFiles([]);
+    setTranscriptionAllowed(false);
+    setPendingTranscriptions(0);
+    setTranscriptionKind(null);
     setErrorMessage(null);
   }, []);
 
@@ -350,7 +368,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const glassRadius = 5 + (effects.glassShape / 100) * 19;
   const gel = effects.glassGel / 100;
   const busy =
-    printingId !== null || copyingId !== null || isCopyingAll || adminOpen;
+    printingId !== null || copyingId !== null || isCopyingAll || adminOpen || transcriptionKind !== null;
 
   return (
     <FxProvider effects={effects}>
@@ -424,6 +442,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     folder={folder}
                     files={files}
                     source={source}
+                    transcriptionAllowed={transcriptionAllowed}
+                    pendingTranscriptions={pendingTranscriptions}
+                    onTranscription={setTranscriptionKind}
                     autoLogoutSeconds={active.autoLogoutSeconds}
                     targetPath={targetPath}
                     targetDriveLetter={active.targetDriveLetter}
@@ -480,6 +501,21 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           initialId={registerInitialId}
           onClose={closeRegistration}
         />
+
+        {folder && transcriptionKind && (
+          <TranscriptionDialog
+            open={true}
+            kind={transcriptionKind}
+            studentId={studentId}
+            folder={folder}
+            onClose={() => setTranscriptionKind(null)}
+            onSubmitted={() => {
+              void fetchTranscriptionStatus(studentId).then((items) => {
+                setPendingTranscriptions(items.filter((item) => item.status === "pending").length);
+              });
+            }}
+          />
+        )}
 
         <Toasts toasts={toasts} onDismiss={removeToast} />
 
