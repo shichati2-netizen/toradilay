@@ -1,0 +1,810 @@
+/**
+ * סריקת מיילים ושמירת קובצי Word לפי 9 ספרות (ת.ז) בשם הקובץ,
+ * וחילוץ השם מהמייל וכתיבה לשורה חדשה ב-Google Sheets.
+ * 
+ * לוגיקת המערכת (מציאת ת.ז מהקובץ -> חילוץ שם מהמייל -> שמירה וכתיבה לשיטס):
+ * 1. סריקת מיילים עם קבצים מצורפים שטרם עובדו.
+ * 2. סינון קובצי Word בלבד (.doc, .docx, .docm).
+ * 3. איתור 9 ספרות ברצף בשם קובץ ה-Word המצורף (מספר הזהות).
+ * 4. חילוץ שם האדם מגוף/נושא המייל (מתבנית "בתיקייה של ...").
+ * 5. שמירת קובץ ה-Word בתיקייה ב-Google Drive הקרויה לפי 9 הספרות.
+ * 6. כתיבה לשורה חדשה ב-Google Sheets:
+ *    - עמודה A: שם פרטי
+ *    - עמודה B: שם משפחה
+ *    - עמודה C: מספר זהות (9 ספרות)
+ * 7. סימון תוויות ב-Gmail:
+ *    - "מעובד" - קובץ ה-Word נשמר ונרשם בשיטס.
+ *    - "ללא קובץ וורד" - במייל אין קובצי Word כלל (מדלג להבא).
+ *    - "ללא ת.ז בשם הקובץ" - יש קובץ Word אך לא נמצאו 9 ספרות בשמו (מדלג להבא).
+ */
+
+// ==================== הגדרות ====================
+
+const PARENT_FOLDER_ID = '1CXFm0VyVtSZIqONXJYMmIu0hJyxUqj2B';
+const GMAIL_SEARCH_QUERY = 'has:attachment';
+const LABEL_PROCESSED = 'מעובד';
+const LABEL_NO_WORD = 'ללא קובץ וורד';
+const LABEL_NO_ID = 'ללא ת.ז בשם הקובץ';
+const SHEET_NAME = ''; // ריק = הגיליון הפעיל הראשון בקובץ
+const SEARCH_PAGE_SIZE = 100;
+
+
+// ==================== הפונקציה הראשית ====================
+
+function processEmails() {
+  const lock = LockService.getScriptLock();
+
+  if (!lock.tryLock(1000)) {
+    Logger.log('הרצה אחרת כבר פועלת.');
+    return;
+  }
+
+  try {
+    // 1. חיבור ל-Google Sheets
+    const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+    if (!spreadsheet) {
+      throw new Error('לא נמצא Google Sheets מחובר. פתח את Apps Script מתוך הגיליון.');
+    }
+
+    const sheet = SHEET_NAME
+      ? spreadsheet.getSheetByName(SHEET_NAME)
+      : spreadsheet.getActiveSheet();
+
+    if (!sheet) {
+      throw new Error('לא נמצא גיליון כתיבה תקין ב-Sheets.');
+    }
+
+    // 2. חיבור לדרייב ותוויות Gmail
+    const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
+    const labelProcessed = getOrCreateLabel(LABEL_PROCESSED);
+    const labelNoWord = getOrCreateLabel(LABEL_NO_WORD);
+    const labelNoId = getOrCreateLabel(LABEL_NO_ID);
+
+    // חיפוש מיילים עם קבצים מצורפים, ללא התוויות שכבר טופלו
+    const query = GMAIL_SEARCH_QUERY + 
+      ' -label:"' + LABEL_PROCESSED + '"' +
+      ' -label:"' + LABEL_NO_WORD + '"' +
+      ' -label:"' + LABEL_NO_ID + '"';
+
+    const threads = getAllThreads(query);
+
+    Logger.log('שאילתת Gmail: ' + query);
+    Logger.log('נמצאו ' + threads.length + ' שיחות לבדיקה.');
+
+    let processedThreads = 0;
+    let noWordThreads = 0;
+    let noIdThreads = 0;
+    let savedFiles = 0;
+    let writtenRows = 0;
+    let skippedNonWordFiles = 0;
+
+    for (let t = 0; t < threads.length; t++) {
+      const thread = threads[t];
+      const messages = thread.getMessages();
+
+      let threadHasAttachments = false;
+      let threadHasWordAttachments = false;
+      let filesSavedInThread = 0;
+      let wordFilesMissingId = 0;
+
+      for (let m = 0; m < messages.length; m++) {
+        const message = messages[m];
+
+        // הודעות חוזרות ממודלי התמלול מטופלות בפונקציה נפרדת,
+        // כדי שלא ייכנסו בטעות למסלול הרישום הישן של קובצי Word.
+        if (isTranscriptionModelSender(message.getFrom())) {
+          continue;
+        }
+
+        let attachments;
+
+        try {
+          attachments = message.getAttachments({
+            includeInlineImages: false,
+            includeAttachments: true
+          });
+        } catch (error) {
+          Logger.log(
+            'שגיאה בקריאת קבצים במייל "' +
+            message.getSubject() + '": ' + error.message
+          );
+          continue;
+        }
+
+        if (!attachments || attachments.length === 0) {
+          continue;
+        }
+
+        threadHasAttachments = true;
+
+        // משאירים רק קובצי Word
+        const wordAttachments = attachments.filter(function (attachment) {
+          return isWordAttachment(attachment);
+        });
+
+        skippedNonWordFiles += attachments.length - wordAttachments.length;
+
+        if (wordAttachments.length === 0) {
+          continue;
+        }
+
+        threadHasWordAttachments = true;
+
+        for (let a = 0; a < wordAttachments.length; a++) {
+          const wordFile = wordAttachments[a];
+          const fileName = wordFile.getName() || '';
+
+          // 1. חיפוש 9 ספרות ברצף בשם קובץ ה-Word המצורף
+          const id = extractIdFromFileName(fileName);
+
+          if (!id) {
+            Logger.log('קובץ Word ללא 9 ספרות ברצף בשמו: "' + fileName + '"');
+            wordFilesMissingId++;
+            continue;
+          }
+
+          Logger.log('נמצא מספר זהות (9 ספרות) בשם הקובץ: ' + id);
+
+          // 2. חילוץ השם מתוך המייל
+          const rawPersonName = extractNameFromMessage(message);
+          const parsedName = splitEmailNameToFirstAndLast(rawPersonName);
+
+          Logger.log(
+            'חולץ מהמייל עבור ת.ז ' + id + ': שם פרטי="' +
+            parsedName.firstName + '", שם משפחה="' + parsedName.lastName + '"'
+          );
+
+          try {
+            // 3. שמירת הקובץ בתיקייה בדרייב לפי 9 הספרות
+            const destinationFolder = getOrCreateFolder(parentFolder, id);
+            const created = saveAttachment(destinationFolder, wordFile);
+
+            if (created) {
+              savedFiles++;
+              filesSavedInThread++;
+            }
+
+            // 4. כתיבה ל-Google Sheets בשורה חדשה (אם עדיין לא מופיע בגיליון)
+            const wasWritten = appendToSheetIfNotExists(sheet, parsedName.firstName, parsedName.lastName, id);
+            if (wasWritten) {
+              writtenRows++;
+            }
+
+          } catch (err) {
+            Logger.log('שגיאה בטיפול בקובץ "' + fileName + '": ' + err.message);
+          }
+        }
+      }
+
+      // סימון תוויות ב-Gmail לפי תוצאות השיחה:
+      if (threadHasAttachments && !threadHasWordAttachments) {
+        // בשיחה היו קבצים אך אף אחד מהם אינו Word
+        thread.addLabel(labelNoWord);
+        noWordThreads++;
+        Logger.log('השיחה סומנה "ללא קובץ וורד" ותדולג בריצות הבאות.');
+
+      } else if (threadHasWordAttachments && filesSavedInThread > 0 && wordFilesMissingId === 0) {
+        // כל קובצי ה-Word זוהו, נשמרו ונרשמו בשיטס בהצלחה
+        thread.addLabel(labelProcessed);
+        processedThreads++;
+        Logger.log('השיחה סומנה "מעובד". נשמרו ' + filesSavedInThread + ' קבצים.');
+
+      } else if (threadHasWordAttachments && filesSavedInThread > 0 && wordFilesMissingId > 0) {
+        // חלק נשמרו וחלק היו ללא 9 ספרות
+        thread.addLabel(labelProcessed);
+        processedThreads++;
+        Logger.log('השיחה סומנה "מעובד" (נשמרו ' + filesSavedInThread + ' קבצים, ' + wordFilesMissingId + ' ללא 9 ספרות).');
+
+      } else if (threadHasWordAttachments && wordFilesMissingId > 0 && filesSavedInThread === 0) {
+        // יש קובצי Word אך באף אחד מהם אין 9 ספרות בשם
+        thread.addLabel(labelNoId);
+        noIdThreads++;
+        Logger.log('השיחה סומנה "ללא ת.ז בשם הקובץ" ותדולג בריצות הבאות.');
+      }
+    }
+
+    Logger.log('========== סיכום הריצה ==========');
+    Logger.log('שיחות שסומנו כמעובדות: ' + processedThreads);
+    Logger.log('שיחות ללא קובץ Word: ' + noWordThreads);
+    Logger.log('שיחות עם קובץ ללא 9 ספרות: ' + noIdThreads);
+    Logger.log('קובצי Word שנשמרו בדרייב: ' + savedFiles);
+    Logger.log('שורות חדשות שנכתבו בשיטס: ' + writtenRows);
+    Logger.log('קבצים שאינם Word ודולגו: ' + skippedNonWordFiles);
+
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+// ==================== חילוץ 9 ספרות משם הקובץ ====================
+
+function extractIdFromFileName(fileName) {
+  if (!fileName) {
+    return null;
+  }
+
+  // חיפוש 9 ספרות ברצף
+  const match = String(fileName).match(/\d{9}/);
+  return match ? match[0] : null;
+}
+
+
+// ==================== כתיבה לגיליון Google Sheets ====================
+
+function appendToSheetIfNotExists(sheet, firstName, lastName, id) {
+  const lastRow = sheet.getLastRow();
+
+  // אם הגיליון מכיל שורות, נוודא שתעודת הזהות לא קיימת כבר כדי למנוע שורות כפולות
+  if (lastRow > 0) {
+    const existingIds = sheet.getRange(1, 3, lastRow, 1).getDisplayValues(); // עמודה C = ת.ז
+    for (let i = 0; i < existingIds.length; i++) {
+      if (String(existingIds[i][0] || '').trim() === id) {
+        Logger.log('ת.ז ' + id + ' כבר מופיעה בשיטס בשורה ' + (i + 1) + ' (לא נוספה שורה כפולה).');
+        return false;
+      }
+    }
+  }
+
+  // הוספת שורה חדשה: A=שם פרטי, B=שם משפחה, C=תעודת זהות
+  sheet.appendRow([firstName, lastName, id]);
+  Logger.log('נוספה שורה חדשה לשיטס: [' + firstName + ', ' + lastName + ', ' + id + ']');
+  return true;
+}
+
+
+// ==================== חילוץ ופיצול שם מתוך המייל ====================
+
+function splitEmailNameToFirstAndLast(extractedName) {
+  if (!extractedName) {
+    return { firstName: '', lastName: '' };
+  }
+
+  const cleaned = cleanExtractedName(extractedName);
+  const parts = cleaned.split(/\s+/).filter(Boolean);
+
+  if (parts.length === 0) {
+    return { firstName: '', lastName: '' };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  }
+
+  // במייל סדר המילים הוא: שם משפחה ולאחריו שם פרטי
+  const lastName = parts[0];
+  const firstName = parts.slice(1).join(' ');
+
+  return {
+    firstName: firstName,
+    lastName: lastName
+  };
+}
+
+
+function extractNameFromMessage(message) {
+  const sources = [
+    message.getBody(),
+    message.getPlainBody(),
+    message.getSubject()
+  ];
+
+  for (let i = 0; i < sources.length; i++) {
+    const text = htmlToText(sources[i]);
+
+    const match = text.match(
+      /בתיקייה\s+של\s+(.+?)(?=\s*(?:,|;|[.!?]|ממש\s+כמו|כמו\s+בעבודה|$))/i
+    );
+
+    if (match && match[1]) {
+      const name = cleanExtractedName(match[1]);
+      if (name) {
+        return name;
+      }
+    }
+  }
+
+  return null;
+}
+
+
+function cleanExtractedName(value) {
+  return String(value || '')
+    // הסרת כותרות, תפקידים וכינויים
+    .replace(/^(מר|גב'|גברת|עו"ד|עו״ד|רו"ח|רו״ח|ד"ר|ד״ר|פרופ'|פרופסור|הרב)\s+/i, '')
+    // הסרת סוגריים ותוכנם
+    .replace(/\([^)]*\)/g, ' ')
+    .replace(/\[[^\]]*\]/g, ' ')
+    // הסרת מירכאות וגרשיים
+    .replace(/[\"'״׳“”‘’`]/g, '')
+    // מנקים סימני פיסוק שנשארו בקצוות
+    .replace(/^[.,;:!?—–־\s-]+|[.,;:!?—–־\s-]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+function htmlToText(value) {
+  return String(value || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<\s*br\b[^>]*>/gi, ' ')
+    .replace(/<\/(p|div|td|tr|li|h[1-6])\s*>/gi, ' ')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;|&#160;|&#xA0;/gi, ' ')
+    .replace(/&quot;/gi, '"')
+    .replace(/&apos;|&#39;/gi, "'")
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&#(\d+);/g, function (match, number) {
+      return String.fromCharCode(Number(number));
+    })
+    .replace(/&#x([0-9a-f]+);/gi, function (match, hex) {
+      return String.fromCharCode(parseInt(hex, 16));
+    })
+    .replace(/[\u200e\u200f\u00a0]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+
+// ==================== סינון קובצי Word ====================
+
+function isWordAttachment(attachment) {
+  const fileName = String(
+    attachment.getName() || ''
+  ).trim();
+
+  // אם יש סיומת, היא חייבת להיות DOC, DOCX או DOCM
+  const extension = fileName.match(/\.([^.]+)$/);
+
+  if (extension) {
+    return /\.(doc|docx|docm)$/i.test(fileName);
+  }
+
+  // כשאין סיומת, בודקים את סוג ה-MIME
+  const mimeType = String(
+    attachment.getContentType() || ''
+  ).toLowerCase().split(';')[0].trim();
+
+  const allowedMimeTypes = [
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-word.document.macroenabled.12'
+  ];
+
+  return allowedMimeTypes.indexOf(mimeType) !== -1;
+}
+
+
+// ==================== תיקיות וקבצים בדרייב ====================
+
+function getOrCreateFolder(parentFolder, folderName) {
+  const folders = parentFolder.getFoldersByName(folderName);
+
+  return folders.hasNext()
+    ? folders.next()
+    : parentFolder.createFolder(folderName);
+}
+
+
+function saveAttachment(folder, attachment) {
+  const fileName = attachment.getName() || 'מסמך Word';
+
+  if (!isWordAttachment(attachment)) {
+    Logger.log('דילוג על קובץ שאינו Word: ' + fileName);
+    return false;
+  }
+
+  const existingFiles = folder.getFilesByName(fileName);
+
+  if (existingFiles.hasNext()) {
+    Logger.log(
+      'הקובץ כבר קיים בתיקייה ולא ייווצר עותק כפול: ' + fileName
+    );
+    return false;
+  }
+
+  folder.createFile(attachment.copyBlob()).setName(fileName);
+
+  Logger.log(
+    'נשמר קובץ Word: "' + fileName +
+    '" בתיקייה ' + folder.getName()
+  );
+
+  return true;
+}
+
+
+// ==================== Gmail ותוויות ====================
+
+function getAllThreads(query) {
+  const allThreads = [];
+  let start = 0;
+
+  while (true) {
+    const page = GmailApp.search(
+      query,
+      start,
+      SEARCH_PAGE_SIZE
+    );
+
+    if (page.length === 0) {
+      break;
+    }
+
+    allThreads.push.apply(allThreads, page);
+    start += page.length;
+
+    if (page.length < SEARCH_PAGE_SIZE) {
+      break;
+    }
+  }
+
+  return allThreads;
+}
+
+
+function getOrCreateLabel(name) {
+  return GmailApp.getUserLabelByName(name) ||
+    GmailApp.createLabel(name);
+}
+
+
+
+// ============================================================================
+// קליטת תוצאות תמלול של ToraDelia + API לעדכון מצב הבקשה בעמדה
+// ============================================================================
+//
+// יש להגדיר כאן את כתובות השולח שמהן מגיעות תשובות שני המודלים.
+// בדרך כלל הן זהות לכתובות היעד שהוזנו בהגדרות ToraDelia, אך יש לבדוק
+// את שדה From של מייל התשובה בפועל.
+//
+// פרסום כ-Web App:
+// 1. Deploy > New deployment > Web app.
+// 2. Execute as: Me.
+// 3. Who has access: Anyone (נדרש כדי שהעמדה תוכל לבדוק סטטוס לפי UUID).
+// 4. להעתיק את כתובת /exec למסך הגדרות התמלול ב-ToraDelia.
+// 5. להריץ פעם אחת את installTranscriptionReplyTrigger ולאשר הרשאות.
+
+const TRANSCRIPTION_CONFIG = {
+  MODEL_ONE_REPLY_SENDER: 'MODEL-1-REPLY-SENDER@example.com',
+  MODEL_TWO_REPLY_SENDER: 'MODEL-2-REPLY-SENDER@example.com',
+
+  LABEL_SAVED: 'תמלול חזר - נשמר',
+  LABEL_NO_ID: 'תמלול חזר - ללא תעודת זהות בשם הקובץ',
+  LABEL_UNSUPPORTED: 'תמלול חזר - קובץ לא נתמך',
+
+  ALLOWED_RESULT_EXTENSIONS: ['doc', 'docx', 'docm', 'pdf', 'txt', 'rtf']
+};
+
+const TRANSCRIPTION_STATUS_PREFIX = 'TOR ADELIA_TRANSCRIPTION_';
+
+
+/**
+ * סריקת תשובות משני מודלי התמלול.
+ * שם קובץ התוצאה מנורמל לת.ז. + סיומת, ונשמר בתיקיית התלמיד בדרייב.
+ * מזהה הבקשה מהנושא נשמר ב-Script Properties כדי שהעמדה תוכל לבדוק סטטוס ב-doGet.
+ */
+function processTranscriptionReplies() {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(1000)) {
+    Logger.log('קליטת תמלולים: הרצה אחרת כבר פועלת.');
+    return;
+  }
+
+  try {
+    validateTranscriptionConfig_();
+
+    const modelOne = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER);
+    const modelTwo = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER);
+    const senderQuery = ['from:' + modelOne, 'from:' + modelTwo];
+
+    const labelSaved = getOrCreateLabel(TRANSCRIPTION_CONFIG.LABEL_SAVED);
+    const labelNoId = getOrCreateLabel(TRANSCRIPTION_CONFIG.LABEL_NO_ID);
+    const labelUnsupported = getOrCreateLabel(TRANSCRIPTION_CONFIG.LABEL_UNSUPPORTED);
+    const query =
+      'has:attachment {' + senderQuery.join(' ') + '}' +
+      ' -label:"' + TRANSCRIPTION_CONFIG.LABEL_SAVED + '"' +
+      ' -label:"' + TRANSCRIPTION_CONFIG.LABEL_NO_ID + '"' +
+      ' -label:"' + TRANSCRIPTION_CONFIG.LABEL_UNSUPPORTED + '"';
+
+    const threads = getAllThreads(query);
+    const parentFolder = DriveApp.getFolderById(PARENT_FOLDER_ID);
+    let saved = 0;
+    let missingId = 0;
+    let unsupported = 0;
+
+    Logger.log('קליטת תמלולים: ' + threads.length + ' שיחות לבדיקה.');
+
+    threads.forEach(function(thread) {
+      let threadSaved = 0;
+      let threadMissingId = 0;
+      let threadUnsupported = 0;
+      let foundModelMessage = false;
+      const requestIds = {};
+      const savedNamesByRequest = {};
+
+      thread.getMessages().forEach(function(message) {
+        const sender = extractEmailAddress_(message.getFrom());
+        const modelType = getTranscriptionModelType_(sender);
+        if (!modelType) return;
+
+        foundModelMessage = true;
+        const requestId = extractTranscriptionRequestId_(message);
+        if (requestId) {
+          requestIds[requestId] = true;
+          savedNamesByRequest[requestId] = savedNamesByRequest[requestId] || [];
+        }
+
+        const attachments = message.getAttachments({
+          includeInlineImages: false,
+          includeAttachments: true
+        }) || [];
+
+        attachments.forEach(function(attachment) {
+          const originalName = String(attachment.getName() || '').trim();
+          const extensionMatch = originalName.match(/\.([^.]+)$/);
+          const extension = extensionMatch ? extensionMatch[1].toLowerCase() : '';
+
+          if (!extension ||
+              TRANSCRIPTION_CONFIG.ALLOWED_RESULT_EXTENSIONS.indexOf(extension) === -1) {
+            threadUnsupported++;
+            unsupported++;
+            Logger.log('תמלול: קובץ בפורמט לא נתמך (' + modelType + '): ' + originalName);
+            return;
+          }
+
+          const studentId = extractIdFromFileName(originalName);
+          if (!studentId) {
+            threadMissingId++;
+            missingId++;
+            Logger.log('תמלול: לא נמצאו 9 ספרות בשם הקובץ: ' + originalName);
+            return;
+          }
+
+          try {
+            const requestedFolderId = extractDriveFolderIdFromMessage_(message);
+            const destinationFolder = getTranscriptionDestinationFolder_(
+              parentFolder,
+              studentId,
+              requestedFolderId
+            );
+
+            // שומרים את הסיומת המספרית, אם המודל החזיר מספר קבצים לאותו חשבון.
+            const suffixMatch = originalName.match(/^\d{9}(-\d+)?\.[^.]+$/);
+            const suffix = suffixMatch && suffixMatch[1] ? suffixMatch[1] : '';
+            const targetName = studentId + suffix + '.' + extension;
+            saveTranscriptionResult_(destinationFolder, attachment, targetName);
+
+            if (requestId && savedNamesByRequest[requestId].indexOf(targetName) === -1) {
+              savedNamesByRequest[requestId].push(targetName);
+            }
+
+            threadSaved++;
+            saved++;
+            Logger.log(
+              'נשמר תמלול ' + modelType + ' עבור ת.ז ' + studentId +
+              ' בתיקייה ' + destinationFolder.getName() + ' בשם ' + targetName
+            );
+          } catch (error) {
+            Logger.log(
+              'שגיאה בשמירת תוצאת תמלול "' + originalName + '": ' +
+              (error && error.message ? error.message : error)
+            );
+            throw error;
+          }
+        });
+      });
+
+      // גם אם Gmail החזיר הודעה חוזרת בלי קובץ תקין, מעדכנים את העמדה בכישלון.
+      Object.keys(requestIds).forEach(function(requestId) {
+        const names = savedNamesByRequest[requestId] || [];
+        if (names.length > 0 && threadMissingId === 0 && threadUnsupported === 0) {
+          saveTranscriptionReplyStatus_(requestId, {
+            status: 'completed',
+            savedFileNames: names
+          });
+        } else {
+          saveTranscriptionReplyStatus_(requestId, {
+            status: 'failed',
+            savedFileNames: names,
+            error: threadMissingId > 0
+              ? 'בקובץ התוצאה לא נמצאה תעודת זהות בת 9 ספרות בשם הקובץ.'
+              : 'לא התקבל קובץ תוצאה בפורמט נתמך.'
+          });
+        }
+      });
+
+      if (!foundModelMessage) return;
+      if (threadSaved > 0 && threadMissingId === 0 && threadUnsupported === 0) {
+        thread.addLabel(labelSaved);
+      } else if (threadMissingId > 0) {
+        thread.addLabel(labelNoId);
+      } else if (threadUnsupported > 0 || threadSaved === 0) {
+        thread.addLabel(labelUnsupported);
+      }
+    });
+
+    Logger.log('========== סיכום קליטת תמלולים ==========');
+    Logger.log('קבצים שנשמרו או כבר קיימים: ' + saved);
+    Logger.log('קבצים ללא ת.ז בשם: ' + missingId);
+    Logger.log('קבצים בפורמט לא נתמך: ' + unsupported);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+/** Web App endpoint שבו ToraDelia בודקת אם בקשת תמלול הסתיימה. */
+function doGet(e) {
+  const action = e && e.parameter ? String(e.parameter.action || '') : '';
+  if (action !== 'status') {
+    return transcriptionJsonOutput_({ ok: true, service: 'ToraDelia transcription status' });
+  }
+
+  const requestId = String(e.parameter.requestId || '').trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(requestId)) {
+    return transcriptionJsonOutput_({ ok: false, status: 'failed', error: 'מזהה בקשה לא תקין.' });
+  }
+
+  const raw = PropertiesService.getScriptProperties()
+    .getProperty(transcriptionStatusKey_(requestId));
+  if (!raw) {
+    return transcriptionJsonOutput_({ ok: true, requestId: requestId, status: 'pending' });
+  }
+
+  try {
+    const status = JSON.parse(raw);
+    return transcriptionJsonOutput_({
+      ok: true,
+      requestId: requestId,
+      status: status.status === 'completed' ? 'completed' : 'failed',
+      savedFileNames: Array.isArray(status.savedFileNames) ? status.savedFileNames : [],
+      error: status.error || '',
+      updatedAt: status.updatedAt || ''
+    });
+  } catch (error) {
+    return transcriptionJsonOutput_({ ok: false, status: 'pending' });
+  }
+}
+
+
+function transcriptionJsonOutput_(value) {
+  return ContentService
+    .createTextOutput(JSON.stringify(value))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+
+function transcriptionStatusKey_(requestId) {
+  return TRANSCRIPTION_STATUS_PREFIX + requestId;
+}
+
+
+function saveTranscriptionReplyStatus_(requestId, value) {
+  const record = {
+    status: value.status,
+    savedFileNames: Array.isArray(value.savedFileNames) ? value.savedFileNames.slice(0, 20) : [],
+    error: String(value.error || '').slice(0, 500),
+    updatedAt: new Date().toISOString()
+  };
+  PropertiesService.getScriptProperties()
+    .setProperty(transcriptionStatusKey_(requestId), JSON.stringify(record));
+}
+
+
+function extractTranscriptionRequestId_(message) {
+  const source = String(message.getSubject() || '') + '\n' + String(message.getPlainBody() || '');
+  const match = source.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+  return match ? match[0].toLowerCase() : '';
+}
+
+
+function extractDriveFolderIdFromMessage_(message) {
+  const body = String(message.getPlainBody() || '');
+  const match = body.match(/תיקיית יעד ב-Google Drive:\s*([A-Za-z0-9_-]{10,200})/i);
+  return match ? match[1] : '';
+}
+
+
+/**
+ * אם האפליקציה שלחה מזהה תיקייה, משתמשים בה רק אם היא תיקייה ישירה
+ * בתוך תיקיית השורש המוגדרת. אחרת נופלים לתיקייה לפי ת.ז.
+ */
+function getTranscriptionDestinationFolder_(parentFolder, studentId, requestedFolderId) {
+  if (requestedFolderId) {
+    try {
+      const candidate = DriveApp.getFolderById(requestedFolderId);
+      const parents = candidate.getParents();
+      while (parents.hasNext()) {
+        if (parents.next().getId() === parentFolder.getId()) {
+          return candidate;
+        }
+      }
+    } catch (error) {
+      Logger.log('לא ניתן להשתמש בתיקיית היעד שבבקשה; תיבחר תיקייה לפי ת.ז.');
+    }
+  }
+  return getOrCreateFolder(parentFolder, studentId);
+}
+
+
+/**
+ * מחזיר true אם כתובת השולח היא אחת מכתובות התשובה של המודלים.
+ * משמש גם כדי להחריג את המיילים האלה מהמסלול הישן של קובצי Word.
+ */
+function isTranscriptionModelSender(fromValue) {
+  return !!getTranscriptionModelType_(extractEmailAddress_(fromValue));
+}
+
+
+function getTranscriptionModelType_(sender) {
+  const normalized = normalizeEmail_(sender);
+  if (!normalized) return null;
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER)) return 'מודל 1';
+  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER)) return 'מודל 2';
+  return null;
+}
+
+
+function extractEmailAddress_(value) {
+  const text = String(value || '').trim().toLowerCase();
+  const match = text.match(/<\s*([^<>]+@[^<>]+)\s*>/);
+  if (match) return match[1].trim();
+  const plain = text.match(/[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}/i);
+  return plain ? plain[0].toLowerCase() : '';
+}
+
+
+function normalizeEmail_(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+
+function validateTranscriptionConfig_() {
+  const modelOne = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_ONE_REPLY_SENDER);
+  const modelTwo = normalizeEmail_(TRANSCRIPTION_CONFIG.MODEL_TWO_REPLY_SENDER);
+  if (
+    !modelOne ||
+    !modelTwo ||
+    modelOne.indexOf('@example.com') !== -1 ||
+    modelTwo.indexOf('@example.com') !== -1 ||
+    modelOne === modelTwo
+  ) {
+    throw new Error(
+      'יש להגדיר ב-TRANSCRIPTION_CONFIG את כתובות From האמיתיות של תשובות מודל 1 ומודל 2.'
+    );
+  }
+}
+
+
+/**
+ * שומר את הקובץ בשם תעודת הזהות + סיומת. קובץ קיים אינו נדרס.
+ * מחזיר false אם כבר קיים קובץ באותו שם.
+ */
+function saveTranscriptionResult_(folder, attachment, targetName) {
+  const existing = folder.getFilesByName(targetName);
+  if (existing.hasNext()) return false;
+  const blob = attachment.copyBlob().setName(targetName);
+  folder.createFile(blob);
+  return true;
+}
+
+
+/** מתקין טריגר קליטה כל 5 דקות; יש להריץ ידנית פעם אחת ולאשר הרשאות. */
+function installTranscriptionReplyTrigger() {
+  const handler = 'processTranscriptionReplies';
+  ScriptApp.getProjectTriggers().forEach(function(trigger) {
+    if (trigger.getHandlerFunction() === handler) ScriptApp.deleteTrigger(trigger);
+  });
+  ScriptApp.newTrigger(handler).timeBased().everyMinutes(5).create();
+  Logger.log('נוצר טריגר לקליטת תוצאות תמלול כל 5 דקות.');
+}
+
+
+function testTranscriptionConfiguration() {
+  validateTranscriptionConfig_();
+  Logger.log('הגדרות כתובות השולח של מודלי התמלול תקינות.');
+}
