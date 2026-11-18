@@ -53,7 +53,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     setSaved(false);
     const input: TranscriptionSettingsInput = {
       enabled: settings.enabled,
-      allowedStudentIds: allowedIdsText.split(/[\s,;]+/).map((value) => value.replace(/\D/g, "")).filter((value) => value.length >= 5),
+      allowedStudentIds: allowedIdsText.split(/[\s,;]+/).map((value) => value.replace(/\D/g, "")).filter((value) => value.length === 9),
       modelOneEmail: settings.modelOneEmail,
       modelTwoEmail: settings.modelTwoEmail,
       smtpHost: settings.smtpHost,

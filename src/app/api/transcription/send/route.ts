@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     const model: TranscriptionModel | null =
       body.model === "model1" ? "model1" : body.model === "model2" ? "model2" : null;
 
-    if (studentId.length < 5 || !kind || !model || !Array.isArray(body.fileTokens)) {
+    if (studentId.length !== 9 || !kind || !model || !Array.isArray(body.fileTokens)) {
       return Response.json({ error: "פרטי בקשת התמלול אינם תקינים." }, { status: 400 });
     }
 

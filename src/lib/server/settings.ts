@@ -104,7 +104,7 @@ export async function getStoredConfig(): Promise<StoredConfig> {
         ? [...new Set(raw.transcriptionAllowedStudentIds
             .filter((value): value is string => typeof value === "string")
             .map((value) => value.replace(/\D/g, "").slice(0, 12))
-            .filter((value) => value.length >= 5))]
+            .filter((value) => value.length === 9))]
         : [],
       transcriptionModelOneEmail: typeof raw.transcriptionModelOneEmail === "string" ? raw.transcriptionModelOneEmail.trim().slice(0, 254) : "",
       transcriptionModelTwoEmail: typeof raw.transcriptionModelTwoEmail === "string" ? raw.transcriptionModelTwoEmail.trim().slice(0, 254) : "",
@@ -301,7 +301,7 @@ export async function saveTranscriptionSettings(
     ? [...new Set(input.allowedStudentIds
         .filter((value): value is string => typeof value === "string")
         .map((value) => value.replace(/\\D/g, "").slice(0, 12))
-        .filter((value) => value.length >= 5))]
+        .filter((value) => value.length === 9))]
     : [];
   const smtpPort = Number.isInteger(input.smtpPort) && input.smtpPort >= 1 && input.smtpPort <= 65535
     ? input.smtpPort
