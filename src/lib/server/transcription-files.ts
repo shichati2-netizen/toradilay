@@ -22,7 +22,49 @@ interface FileToken {
   createdAt: number;
 }
 
-const tokens = new Map<string, FileToken>();
+function tokenStorePath(): string {
+  const directory = process.env.KIOSK_DATA_DIR?.trim() || path.join(process.cwd(), ".toradelia-data");
+  fs.mkdirSync(directory, { recursive: true });
+  return path.join(directory, "transcription-file-tokens.json");
+}
+
+function readTokenRecords(): Record<string, FileToken> {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(fs.readFileSync(tokenStorePath(), "utf8"));
+  } catch {
+    return {};
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+  const cutoff = Date.now() - TOKEN_TTL;
+  const output: Record<string, FileToken> = {};
+  for (const [token, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const item = value as Partial<FileToken>;
+    if (
+      typeof item.path !== "string" ||
+      typeof item.name !== "string" ||
+      typeof item.extension !== "string" ||
+      typeof item.size !== "number" ||
+      (item.kind !== "audio" && item.kind !== "handwriting") ||
+      typeof item.studentId !== "string" ||
+      typeof item.createdAt !== "number" ||
+      item.createdAt < cutoff
+    ) continue;
+    output[token] = item as FileToken;
+  }
+  return output;
+}
+
+function writeTokenRecords(records: Record<string, FileToken>): void {
+  const destination = tokenStorePath();
+  const temporary = destination + "." + process.pid + ".tmp";
+  fs.writeFileSync(temporary, JSON.stringify(records), {
+    encoding: "utf8",
+    mode: 0o600,
+  });
+  fs.renameSync(temporary, destination);
+}
 
 function detectTranscriptionUsbDrives(): Array<{ letter: string; name: string }> {
   if (!isWindows) return [];
@@ -48,18 +90,6 @@ function detectTranscriptionUsbDrives(): Array<{ letter: string; name: string }>
   } catch (error) {
     console.warn("[transcription] strict USB detection failed; no drives will be shown:", error);
     return [];
-  }
-}
-
-function pruneTokens() {
-  const cutoff = Date.now() - TOKEN_TTL;
-  for (const [token, item] of tokens) {
-    if (item.createdAt < cutoff) tokens.delete(token);
-  }
-  while (tokens.size > 3000) {
-    const oldest = tokens.keys().next().value;
-    if (!oldest) break;
-    tokens.delete(oldest);
   }
 }
 
@@ -112,6 +142,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
   const current = resolveBrowsePath(root, relativePath);
   const folders: Array<{ name: string; relativePath: string }> = [];
   const files: Array<{ token: string; name: string; size: number; modifiedAt: string }> = [];
+  const tokenRecords = readTokenRecords();
   const extSet = allowedExtensions(kind);
 
   for (const entry of fs.readdirSync(current, { withFileTypes: true })) {
@@ -125,7 +156,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
         const stat = fs.statSync(fullPath);
         if (stat.size <= 0 || stat.size > MAX_FILE_BYTES) continue;
         const token = crypto.randomBytes(18).toString("hex");
-        tokens.set(token, {
+        tokenRecords[token] = {
           path: fullPath,
           name: entry.name,
           extension: path.extname(entry.name).toLowerCase(),
@@ -133,7 +164,7 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
           kind,
           studentId: ownerId,
           createdAt: Date.now(),
-        });
+        };
         files.push({
           token,
           name: entry.name,
@@ -146,7 +177,12 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
     }
   }
 
-  pruneTokens();
+  const tokenEntries = Object.entries(tokenRecords).sort((a, b) => a[1].createdAt - b[1].createdAt);
+  while (tokenEntries.length > 3000) {
+    const oldest = tokenEntries.shift();
+    if (oldest) delete tokenRecords[oldest[0]];
+  }
+  writeTokenRecords(tokenRecords);
   folders.sort((a, b) => a.name.localeCompare(b.name, "he"));
   files.sort((a, b) => a.name.localeCompare(b.name, "he"));
   return {
@@ -158,16 +194,16 @@ export function browseTranscriptionFiles(kind: TranscriptionKind, driveLetter?: 
 }
 
 export function readSelectedTranscriptionFiles(fileTokens: string[], kind: TranscriptionKind, studentId: string) {
-  pruneTokens();
   if (!Array.isArray(fileTokens) || fileTokens.length < 1 || fileTokens.length > 20) {
     throw new Error("יש לבחור בין קובץ אחד ל-20 קבצים.");
   }
+  const tokenRecords = readTokenRecords();
   const seen = new Set<string>();
   let totalBytes = 0;
   const selected = fileTokens.map((token) => {
     if (typeof token !== "string" || seen.has(token)) throw new Error("בחירת קבצים לא תקינה.");
     seen.add(token);
-    const item = tokens.get(token);
+    const item = tokenRecords[token];
     if (!item || item.kind !== kind || item.studentId !== studentId || !fs.existsSync(item.path)) {
       throw new Error("אחד הקבצים כבר אינו זמין. רענן את הסייר ובחר אותו שוב.");
     }
@@ -190,5 +226,7 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
 }
 
 export function consumeTranscriptionFileTokens(fileTokens: string[]): void {
-  for (const token of fileTokens) tokens.delete(token);
+  const tokenRecords = readTokenRecords();
+  for (const token of fileTokens) delete tokenRecords[token];
+  writeTokenRecords(tokenRecords);
 }
