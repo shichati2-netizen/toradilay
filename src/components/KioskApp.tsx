@@ -192,6 +192,39 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     [],
   );
 
+  // Poll Gmail/Apps Script while this student has outstanding transcription requests.
+  useEffect(() => {
+    if (
+      view !== "student-files" ||
+      !studentId ||
+      !transcriptionAllowed ||
+      pendingTranscriptions <= 0
+    ) return;
+
+    let cancelled = false;
+    let checking = false;
+    const poll = async () => {
+      if (cancelled || checking) return;
+      checking = true;
+      try {
+        const requests = await fetchTranscriptionStatus(studentId);
+        if (!cancelled) {
+          setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
+        }
+      } catch {
+        // Keep the current pending badge during temporary network failures.
+      } finally {
+        checking = false;
+      }
+    };
+
+    const timer = window.setInterval(() => { void poll(); }, 15000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [view, studentId, transcriptionAllowed, pendingTranscriptions]);
+
   const handleBack = useCallback(() => {
     setView("id-entry");
     setFolder(null);

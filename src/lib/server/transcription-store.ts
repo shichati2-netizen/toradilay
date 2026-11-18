@@ -18,6 +18,7 @@ export interface TranscriptionRequestRecord {
   createdAt: string;
   status: TranscriptionStatus;
   fileNames: string[];
+  failureReason?: string;
 }
 
 function storePath(): string {
@@ -60,12 +61,37 @@ export function addTranscriptionRequest(record: TranscriptionRequestRecord) {
   writeAll(items);
 }
 
+export function updateTranscriptionRequestStatus(
+  requestId: string,
+  status: Exclude<TranscriptionStatus, "pending">,
+  details: { fileNames?: string[]; failureReason?: string } = {},
+): boolean {
+  const items = readAll();
+  const index = items.findIndex((item) => item.id === requestId);
+  if (index < 0) return false;
+
+  const current = items[index];
+  if (current.status !== "pending") return true;
+  items[index] = {
+    ...current,
+    status,
+    fileNames: Array.isArray(details.fileNames) && details.fileNames.length
+      ? details.fileNames.slice(0, 20)
+      : current.fileNames,
+    failureReason: typeof details.failureReason === "string"
+      ? details.failureReason.slice(0, 500)
+      : undefined,
+  };
+  writeAll(items);
+  return true;
+}
+
 export function listTranscriptionRequests(studentId: string) {
   return readAll()
     .filter((item) => item.studentId === studentId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, 30)
-    .map(({ id, kind, model, createdAt, status, fileNames }) => ({
-      id, kind, model, createdAt, status, fileNames,
+    .map(({ id, kind, model, createdAt, status, fileNames, failureReason }) => ({
+      id, kind, model, createdAt, status, fileNames, failureReason,
     }));
 }

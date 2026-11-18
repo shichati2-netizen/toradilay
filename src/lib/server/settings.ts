@@ -32,6 +32,22 @@ function normalizeOAuthClient(raw: unknown): GoogleOAuthClientConfig | null {
   };
 }
 
+function normalizeAppsScriptWebAppUrl(raw: unknown): string {
+  if (typeof raw !== "string" || !raw.trim()) return "";
+  try {
+    const url = new URL(raw.trim());
+    if (
+      url.protocol !== "https:" ||
+      url.hostname !== "script.google.com" ||
+      !url.pathname.startsWith("/macros/s/") ||
+      !url.pathname.endsWith("/exec")
+    ) return "";
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 function normalizeGoogleAccount(raw: unknown): StoredGoogleAccount | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<StoredGoogleAccount>;
@@ -67,13 +83,12 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     googleServiceAccountJson: null,
     transcriptionEnabled: false,
     transcriptionAllowedStudentIds: [],
-    transcriptionModelOneEmail: "",
-    transcriptionModelTwoEmail: "",
-    transcriptionSmtpHost: "",
-    transcriptionSmtpPort: 587,
-    transcriptionSmtpUser: "",
-    transcriptionSmtpFrom: "",
-    transcriptionSmtpPassword: "",
+    transcriptionAudioModelOneEmail: "",
+    transcriptionAudioModelTwoEmail: "",
+    transcriptionHandwritingModelOneEmail: "",
+    transcriptionHandwritingModelTwoEmail: "",
+    transcriptionAppsScriptUrl: "",
+    transcriptionAppsScriptToken: "",
     ...(patch as Partial<StoredConfig>),
   };
   await mergeLocalSettings(
@@ -84,7 +99,7 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
 
 export async function getStoredConfig(): Promise<StoredConfig> {
   try {
-    const raw = (readLocalSettings() ?? {}) as Partial<StoredConfig>;
+    const raw = (readLocalSettings() ?? {}) as Partial<StoredConfig> & Record<string, unknown>;
     const pin =
       typeof raw.adminPin === "string" && raw.adminPin.length >= 4
         ? raw.adminPin
@@ -106,13 +121,23 @@ export async function getStoredConfig(): Promise<StoredConfig> {
             .map((value) => value.replace(/\D/g, "").slice(0, 12))
             .filter((value) => value.length === 9))]
         : [],
-      transcriptionModelOneEmail: typeof raw.transcriptionModelOneEmail === "string" ? raw.transcriptionModelOneEmail.trim().slice(0, 254) : "",
-      transcriptionModelTwoEmail: typeof raw.transcriptionModelTwoEmail === "string" ? raw.transcriptionModelTwoEmail.trim().slice(0, 254) : "",
-      transcriptionSmtpHost: typeof raw.transcriptionSmtpHost === "string" ? raw.transcriptionSmtpHost.trim().slice(0, 255) : "",
-      transcriptionSmtpPort: typeof raw.transcriptionSmtpPort === "number" && Number.isInteger(raw.transcriptionSmtpPort) && raw.transcriptionSmtpPort >= 1 && raw.transcriptionSmtpPort <= 65535 ? raw.transcriptionSmtpPort : 587,
-      transcriptionSmtpUser: typeof raw.transcriptionSmtpUser === "string" ? raw.transcriptionSmtpUser.trim().slice(0, 254) : "",
-      transcriptionSmtpFrom: typeof raw.transcriptionSmtpFrom === "string" ? raw.transcriptionSmtpFrom.trim().slice(0, 254) : "",
-      transcriptionSmtpPassword: typeof raw.transcriptionSmtpPassword === "string" ? raw.transcriptionSmtpPassword : "",
+      transcriptionAudioModelOneEmail: typeof raw.transcriptionAudioModelOneEmail === "string"
+        ? raw.transcriptionAudioModelOneEmail.trim().slice(0, 254)
+        : typeof raw.transcriptionModelOneEmail === "string" ? raw.transcriptionModelOneEmail.trim().slice(0, 254) : "",
+      transcriptionAudioModelTwoEmail: typeof raw.transcriptionAudioModelTwoEmail === "string"
+        ? raw.transcriptionAudioModelTwoEmail.trim().slice(0, 254)
+        : typeof raw.transcriptionModelTwoEmail === "string" ? raw.transcriptionModelTwoEmail.trim().slice(0, 254) : "",
+      transcriptionHandwritingModelOneEmail: typeof raw.transcriptionHandwritingModelOneEmail === "string"
+        ? raw.transcriptionHandwritingModelOneEmail.trim().slice(0, 254) : "",
+      transcriptionHandwritingModelTwoEmail: typeof raw.transcriptionHandwritingModelTwoEmail === "string"
+        ? raw.transcriptionHandwritingModelTwoEmail.trim().slice(0, 254) : "",
+      transcriptionAppsScriptUrl: normalizeAppsScriptWebAppUrl(
+        typeof raw.transcriptionAppsScriptUrl === "string" && raw.transcriptionAppsScriptUrl.trim()
+          ? raw.transcriptionAppsScriptUrl
+          : raw.transcriptionReplyStatusUrl
+      ),
+      transcriptionAppsScriptToken: typeof raw.transcriptionAppsScriptToken === "string"
+        ? raw.transcriptionAppsScriptToken.trim().slice(0, 256) : "",
     };
   } catch (err) {
     console.error("[settings] failed to load, using defaults:", err);
@@ -125,13 +150,12 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       googleServiceAccountJson: null,
       transcriptionEnabled: false,
       transcriptionAllowedStudentIds: [],
-      transcriptionModelOneEmail: "",
-      transcriptionModelTwoEmail: "",
-      transcriptionSmtpHost: "",
-      transcriptionSmtpPort: 587,
-      transcriptionSmtpUser: "",
-      transcriptionSmtpFrom: "",
-      transcriptionSmtpPassword: "",
+      transcriptionAudioModelOneEmail: "",
+      transcriptionAudioModelTwoEmail: "",
+      transcriptionHandwritingModelOneEmail: "",
+      transcriptionHandwritingModelTwoEmail: "",
+      transcriptionAppsScriptUrl: "",
+      transcriptionAppsScriptToken: "",
     };
   }
 }
@@ -146,13 +170,12 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     googleServiceAccountJson: _serviceAccountJson,
     transcriptionEnabled: _transcriptionEnabled,
     transcriptionAllowedStudentIds: _transcriptionAllowedStudentIds,
-    transcriptionModelOneEmail: _transcriptionModelOneEmail,
-    transcriptionModelTwoEmail: _transcriptionModelTwoEmail,
-    transcriptionSmtpHost: _transcriptionSmtpHost,
-    transcriptionSmtpPort: _transcriptionSmtpPort,
-    transcriptionSmtpUser: _transcriptionSmtpUser,
-    transcriptionSmtpFrom: _transcriptionSmtpFrom,
-    transcriptionSmtpPassword: _transcriptionSmtpPassword,
+    transcriptionAudioModelOneEmail: _transcriptionAudioModelOneEmail,
+    transcriptionAudioModelTwoEmail: _transcriptionAudioModelTwoEmail,
+    transcriptionHandwritingModelOneEmail: _transcriptionHandwritingModelOneEmail,
+    transcriptionHandwritingModelTwoEmail: _transcriptionHandwritingModelTwoEmail,
+    transcriptionAppsScriptUrl: _transcriptionAppsScriptUrl,
+    transcriptionAppsScriptToken: _transcriptionAppsScriptToken,
     ...config
   } = await getStoredConfig();
   void _pin;
@@ -162,13 +185,12 @@ export async function getPublicConfig(): Promise<KioskConfig> {
   void _serviceAccountJson;
   void _transcriptionEnabled;
   void _transcriptionAllowedStudentIds;
-  void _transcriptionModelOneEmail;
-  void _transcriptionModelTwoEmail;
-  void _transcriptionSmtpHost;
-  void _transcriptionSmtpPort;
-  void _transcriptionSmtpUser;
-  void _transcriptionSmtpFrom;
-  void _transcriptionSmtpPassword;
+  void _transcriptionAudioModelOneEmail;
+  void _transcriptionAudioModelTwoEmail;
+  void _transcriptionHandwritingModelOneEmail;
+  void _transcriptionHandwritingModelTwoEmail;
+  void _transcriptionAppsScriptUrl;
+  void _transcriptionAppsScriptToken;
   return config;
 }
 
@@ -277,13 +299,12 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
   return {
     enabled: stored.transcriptionEnabled,
     allowedStudentIds: stored.transcriptionAllowedStudentIds,
-    modelOneEmail: stored.transcriptionModelOneEmail,
-    modelTwoEmail: stored.transcriptionModelTwoEmail,
-    smtpHost: stored.transcriptionSmtpHost,
-    smtpPort: stored.transcriptionSmtpPort,
-    smtpUser: stored.transcriptionSmtpUser,
-    smtpFrom: stored.transcriptionSmtpFrom,
-    smtpPasswordConfigured: Boolean(stored.transcriptionSmtpPassword),
+    audioModelOneEmail: stored.transcriptionAudioModelOneEmail,
+    audioModelTwoEmail: stored.transcriptionAudioModelTwoEmail,
+    handwritingModelOneEmail: stored.transcriptionHandwritingModelOneEmail,
+    handwritingModelTwoEmail: stored.transcriptionHandwritingModelTwoEmail,
+    appsScriptUrl: stored.transcriptionAppsScriptUrl,
+    appsScriptTokenConfigured: Boolean(stored.transcriptionAppsScriptToken),
   };
 }
 
@@ -303,25 +324,31 @@ export async function saveTranscriptionSettings(
         .map((value) => value.replace(/\D/g, "").slice(0, 12))
         .filter((value) => value.length === 9))]
     : [];
-  const smtpPort = Number.isInteger(input.smtpPort) && input.smtpPort >= 1 && input.smtpPort <= 65535
-    ? input.smtpPort
-    : 587;
-  const smtpPassword = input.clearSmtpPassword
+
+  const appsScriptUrl = normalizeAppsScriptWebAppUrl(input.appsScriptUrl);
+  if (input.appsScriptUrl?.trim() && !appsScriptUrl) {
+    throw new Error("כתובת Web App חייבת להיות כתובת HTTPS תקינה של Google Apps Script שמסתיימת ב-/exec.");
+  }
+  const incomingToken = typeof input.appsScriptToken === "string" ? input.appsScriptToken.trim() : "";
+  const appsScriptToken = input.clearAppsScriptToken
     ? ""
-    : typeof input.smtpPassword === "string" && input.smtpPassword.trim()
-      ? input.smtpPassword
-      : current.transcriptionSmtpPassword;
+    : incomingToken || current.transcriptionAppsScriptToken;
+  if (appsScriptToken && appsScriptToken.length < 32) {
+    throw new Error("מפתח החיבור צריך להכיל לפחות 32 תווים.");
+  }
+  if (appsScriptUrl && !appsScriptToken) {
+    throw new Error("יש להגדיר גם מפתח חיבור משותף ל-Google Apps Script.");
+  }
 
   await mergeStoredFields({
     transcriptionEnabled: input.enabled === true,
     transcriptionAllowedStudentIds: allowedStudentIds,
-    transcriptionModelOneEmail: validEmail(input.modelOneEmail),
-    transcriptionModelTwoEmail: validEmail(input.modelTwoEmail),
-    transcriptionSmtpHost: typeof input.smtpHost === "string" ? input.smtpHost.trim().slice(0, 255) : "",
-    transcriptionSmtpPort: smtpPort,
-    transcriptionSmtpUser: validEmail(input.smtpUser),
-    transcriptionSmtpFrom: validEmail(input.smtpFrom) || validEmail(input.smtpUser),
-    transcriptionSmtpPassword: smtpPassword,
+    transcriptionAudioModelOneEmail: validEmail(input.audioModelOneEmail),
+    transcriptionAudioModelTwoEmail: validEmail(input.audioModelTwoEmail),
+    transcriptionHandwritingModelOneEmail: validEmail(input.handwritingModelOneEmail),
+    transcriptionHandwritingModelTwoEmail: validEmail(input.handwritingModelTwoEmail),
+    transcriptionAppsScriptUrl: appsScriptUrl,
+    transcriptionAppsScriptToken: appsScriptToken,
   });
 
   return getTranscriptionSettings();

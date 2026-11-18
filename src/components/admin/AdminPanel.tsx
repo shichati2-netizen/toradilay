@@ -36,7 +36,7 @@ import { SetupTab } from "./SetupTab";
 import { StatsTab } from "./StatsTab";
 import { TranscriptionTab } from "./TranscriptionTab";
 
-type TabId = "effects" | "drive" | "google" | "registration" | "general" | "stats" | "setup" | "transcription";
+type TabId = "effects" | "drive" | "google" | "registration" | "transcription" | "general" | "stats" | "setup";
 
 const TABS: Array<{ id: TabId; label: string; icon: typeof Sparkles }> = [
   { id: "effects", label: "אפקטים ועיצוב", icon: Sparkles },
@@ -301,12 +301,12 @@ export function AdminPanel({
                         onOpenGoogleTab={() => setTab("google")}
                       />
                     )}
+                    {tab === "transcription" && pin && <TranscriptionTab pin={pin} />}
                     {tab === "general" && (
                       <GeneralTab draft={draft} update={update} newPin={newPin} setNewPin={setNewPin} />
                     )}
                     {tab === "stats" && <StatsTab pin={pin} />}
                     {tab === "setup" && <SetupTab onShutdown={onShutdown} />}
-                    {tab === "transcription" && pin && <TranscriptionTab pin={pin} />}
                   </div>
                 </div>
 

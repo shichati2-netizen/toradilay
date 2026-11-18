@@ -411,7 +411,6 @@ export interface TranscriptionAccess {
   enabled: boolean;
   allowed: boolean;
 }
-
 export interface TranscriptionBrowseResult {
   drives: Array<{ letter: string; name: string }>;
   folders: Array<{ name: string; relativePath: string }>;
@@ -419,7 +418,6 @@ export interface TranscriptionBrowseResult {
   relativePath: string;
   error?: string;
 }
-
 export interface TranscriptionStatusItem {
   id: string;
   kind: "audio" | "handwriting";
@@ -427,40 +425,27 @@ export interface TranscriptionStatusItem {
   createdAt: string;
   status: "pending" | "completed" | "failed";
   fileNames: string[];
+  failureReason?: string;
 }
-
 export async function fetchTranscriptionAccess(studentId: string): Promise<TranscriptionAccess> {
   try {
     const res = await fetch("/api/transcription/access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studentId }),
-      cache: "no-store",
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId }), cache: "no-store",
     });
     return await json<TranscriptionAccess>(res);
-  } catch {
-    return { enabled: false, allowed: false };
-  }
+  } catch { return { enabled: false, allowed: false }; }
 }
-
 export async function fetchTranscriptionStatus(studentId: string): Promise<TranscriptionStatusItem[]> {
   try {
-    const res = await fetch("/api/transcription/status?studentId=" + encodeURIComponent(studentId), {
-      cache: "no-store",
-    });
+    const res = await fetch("/api/transcription/status?studentId=" + encodeURIComponent(studentId), { cache: "no-store" });
     if (!res.ok) return [];
     const data = await json<{ items?: TranscriptionStatusItem[] }>(res);
     return Array.isArray(data.items) ? data.items : [];
-  } catch {
-    return [];
-  }
+  } catch { return []; }
 }
-
 export async function browseTranscriptionFiles(
-  studentId: string,
-  kind: "audio" | "handwriting",
-  drive?: string,
-  relativePath = "",
+  studentId: string, kind: "audio" | "handwriting", drive?: string, relativePath = "",
 ): Promise<TranscriptionBrowseResult> {
   const params = new URLSearchParams({ studentId, kind });
   if (drive) params.set("drive", drive);
@@ -470,55 +455,33 @@ export async function browseTranscriptionFiles(
   if (!res.ok) throw new Error(data.error || "לא ניתן להציג את הקבצים בכונן.");
   return data;
 }
-
 export async function sendTranscriptionFiles(payload: {
-  studentId: string;
-  folderId: string;
-  folderName: string;
-  source?: "drive" | "local";
-  kind: "audio" | "handwriting";
-  model: "model1" | "model2";
-  fileTokens: string[];
+  studentId: string; folderId: string; folderName: string; source?: "drive" | "local";
+  kind: "audio" | "handwriting"; model: "model1" | "model2"; fileTokens: string[];
 }): Promise<{ ok: boolean; requestId?: string; fileNames?: string[]; error?: string }> {
   try {
     const res = await fetch("/api/transcription/send", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
     });
     return await json(res);
-  } catch {
-    return { ok: false, error: "שגיאת תקשורת בעת שליחת הקבצים." };
-  }
+  } catch { return { ok: false, error: "שגיאת תקשורת בעת שליחת הקבצים." }; }
 }
-
 export async function fetchTranscriptionSettingsApi(pin: string): Promise<{
-  settings?: import("@/lib/types").TranscriptionSettings;
-  error?: string;
+  settings?: import("@/lib/types").TranscriptionSettings; error?: string;
 }> {
   try {
-    const res = await fetch("/api/transcription/settings", {
-      headers: { "x-admin-pin": pin },
-      cache: "no-store",
-    });
+    const res = await fetch("/api/transcription/settings", { headers: { "x-admin-pin": pin }, cache: "no-store" });
     return await json(res);
-  } catch {
-    return { error: "שגיאת תקשורת בטעינת הגדרות התמלול." };
-  }
+  } catch { return { error: "שגיאת תקשורת בטעינת הגדרות התמלול." }; }
 }
-
 export async function saveTranscriptionSettingsApi(
-  pin: string,
-  settings: import("@/lib/types").TranscriptionSettingsInput,
+  pin: string, settings: import("@/lib/types").TranscriptionSettingsInput,
 ): Promise<{ ok: boolean; settings?: import("@/lib/types").TranscriptionSettings; error?: string }> {
   try {
     const res = await fetch("/api/transcription/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      method: "PUT", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ pin, settings }),
     });
     return await json(res);
-  } catch {
-    return { ok: false, error: "שגיאת תקשורת בשמירת הגדרות התמלול." };
-  }
+  } catch { return { ok: false, error: "שגיאת תקשורת בשמירת הגדרות התמלול." }; }
 }
