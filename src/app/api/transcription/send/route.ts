@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     const folderName = !requestedFolderName || requestedFolderName === "." || requestedFolderName === ".."
       ? studentId
       : requestedFolderName;
-    const source = body.source === "local" ? "local" : "drive";
+    const source: "drive" | "local" = body.source === "local" ? "local" : "drive";
     const localRoot = source === "local" && config.localSearchPath
       ? path.resolve(config.localSearchPath)
       : "";
