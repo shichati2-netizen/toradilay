@@ -204,11 +204,25 @@ export function readSelectedTranscriptionFiles(fileTokens: string[], kind: Trans
     if (typeof token !== "string" || seen.has(token)) throw new Error("בחירת קבצים לא תקינה.");
     seen.add(token);
     const item = tokenRecords[token];
-    if (!item || item.kind !== kind || item.studentId !== studentId || !fs.existsSync(item.path)) {
+    if (!item || item.kind !== kind || item.studentId !== studentId) {
       throw new Error("אחד הקבצים כבר אינו זמין. רענן את הסייר ובחר אותו שוב.");
     }
+    const driveLetter = path.parse(item.path).root.replace(/[^A-Za-z]/g, "").toUpperCase();
+    const verifiedDrive = detectTranscriptionUsbDrives().some((drive) => drive.letter === driveLetter);
+    if (!verifiedDrive) throw new Error("הכונן הנשלף נותק או אינו מזוהה עוד.");
+    const root = driveLetter + ":\\";
+    const realRoot = fs.realpathSync(root);
+    const realFile = fs.realpathSync(item.path);
+    const relativeFile = path.relative(realRoot, realFile);
+    if (relativeFile === ".." || relativeFile.startsWith(".." + path.sep) || path.isAbsolute(relativeFile)) {
+      throw new Error("הקובץ אינו נמצא בתוך כונן USB מאומת.");
+    }
+    const linkStat = fs.lstatSync(item.path);
+    if (linkStat.isSymbolicLink() || !linkStat.isFile()) {
+      throw new Error("הקובץ שנבחר אינו קובץ רגיל.");
+    }
     const stat = fs.statSync(item.path);
-    if (!stat.isFile() || stat.size !== item.size || stat.size > MAX_FILE_BYTES) {
+    if (stat.size !== item.size || stat.size <= 0 || stat.size > MAX_FILE_BYTES) {
       throw new Error("אחד הקבצים השתנה או חורג מהמגבלה.");
     }
     totalBytes += stat.size;
