@@ -6,7 +6,7 @@ import { addTranscriptionRequest, updateTranscriptionRequestStatus, type Transcr
 import { logActivity } from "@/lib/server/activity";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 180;
 
 function getRecipient(
   config: Awaited<ReturnType<typeof getStoredConfig>>,
@@ -131,25 +131,45 @@ export async function POST(req: Request) {
     });
     storedRequest = true;
 
-    const response = await fetch(config.transcriptionAppsScriptUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "send",
-        token: config.transcriptionAppsScriptToken,
-        requestId,
-        studentId,
-        kind,
-        model,
-        recipient,
-        folderId: source === "drive" ? String(body.folderId || "").slice(0, 200) : "",
-        folderName,
-        attachments,
-      }),
-      redirect: "follow",
-      signal: AbortSignal.timeout(55000),
-      cache: "no-store",
-    });
+    const totalAttachmentBytes = files.reduce((sum, file) => sum + file.size, 0);
+    console.info(
+      "[transcription/send] submitting to Apps Script:",
+      JSON.stringify({ requestId, kind, model, fileCount: files.length, totalBytes: totalAttachmentBytes }),
+    );
+    const sendStartedAt = Date.now();
+    let response: Response;
+    try {
+      response = await fetch(config.transcriptionAppsScriptUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "send",
+          token: config.transcriptionAppsScriptToken,
+          requestId,
+          studentId,
+          kind,
+          model,
+          recipient,
+          folderId: source === "drive" ? String(body.folderId || "").slice(0, 200) : "",
+          folderName,
+          attachments,
+        }),
+        redirect: "follow",
+        signal: AbortSignal.timeout(150000),
+        cache: "no-store",
+      });
+    } catch (fetchError) {
+      if (fetchError instanceof Error &&
+          (fetchError.name === "TimeoutError" || fetchError.name === "AbortError")) {
+        throw new Error(
+          "Google Apps Script לא החזיר תשובה בתוך 150 שניות. ייתכן שהמייל כבר נשלח למרות שהאישור התעכב. בדוק בתיקיית 'נשלח' לפני ניסיון חוזר. מזהה הבקשה: " + requestId
+        );
+      }
+      throw fetchError;
+    }
+    console.info(
+      "[transcription/send] Apps Script response received after " + (Date.now() - sendStartedAt) + "ms",
+    );
 
     const responseText = await response.text();
     let result: { ok?: boolean; error?: string; requestId?: string; duplicate?: boolean };
@@ -181,14 +201,25 @@ export async function POST(req: Request) {
       sentVia: "google-apps-script",
     });
   } catch (error) {
-    if (storedRequest && requestId) {
+    const message = error instanceof Error ? error.message : "שליחת הקבצים לתמלול נכשלה.";
+    const mayHaveSent = message.includes("לא החזיר תשובה בתוך 150 שניות");
+    // A timeout is ambiguous: Apps Script/Gmail may have completed the send after
+    // the kiosk stopped waiting. Do not mark the request failed in that case.
+    if (storedRequest && requestId && !mayHaveSent) {
       updateTranscriptionRequestStatus(requestId, "failed", {
-        failureReason: error instanceof Error ? error.message : "שליחת בקשת התמלול נכשלה.",
+        failureReason: message,
       });
     }
-    console.error("[transcription/send] failed:", error);
+    console.error("[transcription/send] failed:", {
+      requestId,
+      mayHaveSent,
+      error: message,
+    });
     return Response.json({
-      error: error instanceof Error ? error.message : "שליחת הקבצים לתמלול נכשלה.",
-    }, { status: 500 });
+      error: message,
+      requestId: requestId || undefined,
+      status: mayHaveSent ? "pending" : "failed",
+      mayHaveSent,
+    }, { status: mayHaveSent ? 504 : 500 });
   }
 }

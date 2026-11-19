@@ -746,10 +746,20 @@ function doPost(e) {
       'נא להשיב למייל המקורי, לשמור את מזהה הבקשה בנושא, ולצרף תוצאות ששמן מתחיל בתעודת הזהות בת 9 הספרות.'
     ].join('\n');
 
+    const gmailSendStartedAt = Date.now();
+    Logger.log(
+      'ToraDelia mail send started: request=' + requestId +
+      ', fileCount=' + attachments.length +
+      ', totalBytes=' + totalBytes
+    );
     GmailApp.sendEmail(recipient, subject, bodyText, {
       attachments: attachments,
       name: 'ToraDelia'
     });
+    Logger.log(
+      'ToraDelia mail send completed: request=' + requestId +
+      ', elapsedMs=' + (Date.now() - gmailSendStartedAt)
+    );
 
     properties.setProperty(sentKey, new Date().toISOString());
     saveTranscriptionReplyStatus_(requestId, {
@@ -814,8 +824,13 @@ function doGet(e) {
 
 
 function isAuthorizedTranscriptionToken_(supplied) {
-  const expected = PropertiesService.getScriptProperties()
-    .getProperty('TORADELIA_INTEGRATION_TOKEN') || '';
+  const properties = PropertiesService.getScriptProperties();
+  // The first name is canonical. The second is accepted for compatibility
+  // with the earlier setup instructions, which accidentally included a space.
+  const expected =
+    properties.getProperty('TORADELIA_INTEGRATION_TOKEN') ||
+    properties.getProperty('TOR ADELIA_INTEGRATION_TOKEN') ||
+    '';
   return Boolean(expected && supplied && String(supplied) === expected);
 }
 
