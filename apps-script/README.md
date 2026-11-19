@@ -37,6 +37,7 @@ There are four sender settings so that audio model 1, audio model 2, handwriting
 ## Important
 
 - The Apps Script Web App URL is used for both outgoing email submission and status polling.
-- The shared token is stored locally by ToraDelia and in Apps Script Script Properties. Do not commit the real token into GitHub.
+- The shared token is stored locally by ToraDelia and in Apps Script Script Properties. The canonical property name is `TORADELIA_INTEGRATION_TOKEN`; the script also accepts the earlier spelling with a space (`TOR ADELIA_INTEGRATION_TOKEN`) for compatibility. Do not commit the real token into GitHub.
+- If the kiosk times out, check the Apps Script execution log for `ToraDelia mail send started` and `ToraDelia mail send completed`. A timeout does not prove that Gmail failed to send; check the Gmail Sent folder before retrying.
 - Local-only student folders on the kiosk PC cannot be written to by Google's cloud Apps Script. Returned files are saved in the Google Drive student folder named by ID for local-only searches. Drive-backed student folders are routed to the original Drive folder.
 - The existing Word attachment processing workflow remains in this combined script.
