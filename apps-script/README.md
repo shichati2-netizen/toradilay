@@ -14,7 +14,7 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 
    These are reply sender addresses. Normally they match the four destination addresses configured in ToraDelia, but use the actual From address shown on a returned model email.
 4. In Apps Script, open **Project Settings → Script Properties** and create:
-   - Property: \`TOR ADELIA_INTEGRATION_TOKEN\`
+   - Property: \`TORADELIA_INTEGRATION_TOKEN\`
    - Value: the same random secret (at least 32 characters) that you will save in ToraDelia's Transcription settings.
 5. Run \`testTranscriptionConfiguration\` once.
 6. Run \`installTranscriptionReplyTrigger\` once and approve Gmail, Drive and Script Properties permissions. It checks model replies every five minutes.
