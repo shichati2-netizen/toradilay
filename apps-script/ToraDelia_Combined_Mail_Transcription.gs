@@ -498,8 +498,6 @@ function processTranscriptionReplies() {
 
   try {
     validateTranscriptionConfig_();
-
-    validateTranscriptionConfig_();
     const senderQuery = getTranscriptionReplySenders_().map(function(sender) {
       return 'from:' + sender;
     });
@@ -644,19 +642,38 @@ function processTranscriptionReplies() {
  * doPost receives audio / handwriting files from the kiosk and sends the email
  * from the Google account that owns this Apps Script project.
  */
+/**
+ * נקודת כניסה משולבת:
+ * - JSON action=send: מקבלת קבצים מ-ToraDelia ושולחת אותם במייל למודל.
+ * - action=emails/transcriptions/all/ping: תאימות לממשק ה-Web App הישן.
+ */
 function doPost(e) {
-  let body = {};
-  try {
-    body = JSON.parse(e && e.postData && e.postData.contents || '{}');
-  } catch (error) {
-    return transcriptionJsonOutput_({ ok: false, error: 'בקשת JSON לא תקינה.' });
+  const raw = e && e.postData && e.postData.contents
+    ? String(e.postData.contents)
+    : '';
+  let body = null;
+
+  if (raw) {
+    try {
+      body = JSON.parse(raw);
+    } catch (error) {
+      return transcriptionJsonOutput_({ ok: false, error: 'בקשת JSON לא תקינה.' });
+    }
   }
 
+  if (body && String(body.action || '').toLowerCase() === 'send') {
+    return handleTranscriptionSend_(body);
+  }
+
+  const legacyAction = body && body.action
+    ? body.action
+    : (e && e.parameter && e.parameter.action ? e.parameter.action : 'emails');
+  return handleLegacyWebAppAction_(legacyAction);
+}
+
+function handleTranscriptionSend_(body) {
   if (!isAuthorizedTranscriptionToken_(body.token)) {
     return transcriptionJsonOutput_({ ok: false, error: 'מפתח החיבור אינו תקין.' });
-  }
-  if (String(body.action || '') !== 'send') {
-    return transcriptionJsonOutput_({ ok: false, error: 'פעולה לא מוכרת.' });
   }
 
   const lock = LockService.getScriptLock();
@@ -784,11 +801,69 @@ function doPost(e) {
 }
 
 
+
+
+/**
+ * פעולות Web App מהסקריפט הקודם נשמרות לתאימות:
+ * ?action=emails | transcriptions | all | ping
+ */
+function handleLegacyWebAppAction_(actionValue) {
+  const action = String(actionValue || 'ping').trim().toLowerCase();
+  const result = {
+    ok: true,
+    action: action,
+    timestamp: new Date().toISOString(),
+    results: {},
+    logs: ''
+  };
+
+  try {
+    if (action === 'ping') {
+      result.results.status = 'ready';
+    } else if (action === 'emails') {
+      processEmails();
+      result.results.processEmails = 'completed';
+    } else if (action === 'transcriptions') {
+      processTranscriptionReplies();
+      result.results.processTranscriptionReplies = 'completed';
+    } else if (action === 'all') {
+      processEmails();
+      result.results.processEmails = 'completed';
+      try {
+        processTranscriptionReplies();
+        result.results.processTranscriptionReplies = 'completed';
+      } catch (transcriptionError) {
+        result.ok = false;
+        result.results.processTranscriptionReplies =
+          'error: ' + (transcriptionError && transcriptionError.message
+            ? transcriptionError.message
+            : String(transcriptionError));
+      }
+    } else {
+      result.ok = false;
+      result.error = 'Unknown action: ' + action +
+        '. Supported actions: emails, transcriptions, all, ping, status.';
+    }
+  } catch (error) {
+    result.ok = false;
+    result.error = error && error.message ? error.message : String(error);
+  }
+
+  try {
+    result.logs = Logger.getLog();
+  } catch (logError) {
+    // Logging is best-effort only.
+  }
+
+  return transcriptionJsonOutput_(result);
+}
+
+
 /** Web App endpoint שבו ToraDelia בודקת אם בקשת תמלול הסתיימה. */
 function doGet(e) {
   const action = e && e.parameter ? String(e.parameter.action || '') : '';
   if (action !== 'status') {
-    return transcriptionJsonOutput_({ ok: true, service: 'ToraDelia transcription status' });
+    return handleLegacyWebAppAction_(action || 'ping');
   }
 
   const token = e && e.parameter ? String(e.parameter.token || '') : '';
