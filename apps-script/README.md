@@ -24,7 +24,8 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 
 ## Email sending
 
-- ToraDelia posts selected files as Base64 attachments to \`doPost\`.
+- ToraDelia sends a JSON POST with `action: send`; the selected files are included as Base64 attachments in that JSON body.
+- The Web App reads the JSON from `e.postData.contents`. An older deployed script that reads only `e.parameter.action` misses the upload and may run the old `emails` scan instead of sending the audio.
 - Apps Script validates the shared token, student ID, request UUID, file extensions and 20MB total limit.
 - \`GmailApp.sendEmail\` sends the attachments from the Gmail account that owns the script.
 - The request subject contains the request UUID. Keep that subject intact in the model reply.
