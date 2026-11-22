@@ -195,7 +195,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
             <p className="text-[11px] text-emerald-300">מפתח חיבור כבר שמור ואינו מוצג בחזרה. השאר ריק כדי לשמור אותו.</p>
           )}
           <p className="text-[11px] leading-relaxed text-slate-500">
-            יש לשמור את אותו מפתח גם ב-Google Apps Script תחת Project Settings → Script Properties, בשם TOR ADELIA_INTEGRATION_TOKEN. כתובת זו משמשת גם לשליחה וגם לבדיקת תשובות התמלול.
+            יש לשמור את אותו מפתח גם ב-Google Apps Script תחת Project Settings → Script Properties, בשם TORADELIA_INTEGRATION_TOKEN. כתובת זו משמשת גם לשליחה וגם לבדיקת תשובות התמלול.
           </p>
         </div>
       </SectionCard>
