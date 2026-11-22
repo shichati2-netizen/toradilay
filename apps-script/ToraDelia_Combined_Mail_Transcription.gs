@@ -964,12 +964,14 @@ function doGet(e) {
 function isAuthorizedTranscriptionToken_(supplied) {
   const properties = PropertiesService.getScriptProperties();
   // The first name is canonical. The second is accepted for compatibility
-  // with the earlier setup instructions, which accidentally included a space.
-  const expected =
+  // with older setup instructions that accidentally included a space.
+  const expected = String(
     properties.getProperty('TORADELIA_INTEGRATION_TOKEN') ||
     properties.getProperty('TOR ADELIA_INTEGRATION_TOKEN') ||
-    '';
-  return Boolean(expected && supplied && String(supplied) === expected);
+    ''
+  ).trim();
+  const received = supplied == null ? '' : String(supplied).trim();
+  return Boolean(expected && received && received === expected);
 }
 
 
