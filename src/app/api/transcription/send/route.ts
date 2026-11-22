@@ -21,13 +21,10 @@ function getRecipient(
       ? config.transcriptionHandwritingModelOneEmail
       : config.transcriptionHandwritingModelTwoEmail);
 
-  // Strip only quote wrappers/known mojibake quote bytes at the edges;
-  // never append model names, request IDs, or any other text.
-  return configured
-    .trim()
-    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, "")
-    .replace(/(?:â€|â€™|[”’"'>])+$/i, "")
-    .trim();
+  // Extract only the email itself. A corrupted quote prefix such as â€œ
+  // is discarded even if its byte sequence differs from the known variants.
+  const emailMatch = configured.trim().match(/[A-Z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/i);
+  return emailMatch ? emailMatch[0] : "";
 }
 
 function getMimeType(extension: string): string {
