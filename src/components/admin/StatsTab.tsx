@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, Loader2, Printer, RefreshCw, Search, SearchX, Usb, UserPlus } from "lucide-react";
+import { Copy, FolderOpen, Loader2, Printer, RefreshCw, Search, SearchX, Usb, UserPlus } from "lucide-react";
 import type { StatsResponse } from "@/lib/types";
 import { fetchStats } from "@/lib/client/api";
+
+declare global {
+  interface Window {
+    toradeliaDesktop?: {
+      openLogsFolder?: () => Promise<{ ok: boolean; error?: string }>;
+    };
+  }
+}
 
 const TYPE_LABEL: Record<string, { label: string; color: string }> = {
   print: { label: "הדפסה", color: "text-sky-300 bg-sky-400/10" },
@@ -23,6 +31,7 @@ export function StatsTab({ pin }: { pin: string }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
+  const [logsError, setLogsError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,15 +75,36 @@ export function StatsTab({ pin }: { pin: string }) {
             ? `מאז ${new Date(stats.since).toLocaleDateString("he-IL")}`
             : "עדיין אין פעילות רשומה"}
         </p>
-        <button
-          type="button"
-          onClick={load}
-          className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? "keep-anim animate-spin" : ""}`} />
-          רענן
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={async () => {
+              setLogsError(null);
+              try {
+                const result = await window.toradeliaDesktop?.openLogsFolder?.();
+                if (!result) setLogsError("פתיחת תיקיית יומני האבחון זמינה בגרסת Windows בלבד.");
+                else if (!result.ok) setLogsError(result.error || "לא ניתן לפתוח את תיקיית היומנים.");
+              } catch (error) {
+                setLogsError(error instanceof Error ? error.message : "לא ניתן לפתוח את תיקיית היומנים.");
+              }
+            }}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-xs text-gold-200 transition hover:bg-white/10 hover:text-white"
+          >
+            <FolderOpen className="h-3.5 w-3.5" />
+            פתח יומני אבחון
+          </button>
+          <button
+            type="button"
+            onClick={load}
+            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "keep-anim animate-spin" : ""}`} />
+            רענן
+          </button>
+        </div>
       </div>
+
+      {logsError && <p className="text-xs text-red-300">{logsError}</p>}
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {cards.map((c) => (

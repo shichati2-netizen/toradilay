@@ -97,6 +97,49 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     };
   }, []);
 
+  // Send uncaught browser errors to the local diagnostic log (without credentials or student IDs).
+  useEffect(() => {
+    const report = (event: string, details: Record<string, unknown>) => {
+      try {
+        void fetch("/api/diagnostics", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event, details, page: window.location.pathname }),
+          keepalive: true,
+        }).catch(() => {});
+      } catch {
+        // Error reporting must never interfere with kiosk operation.
+      }
+    };
+
+    const onError = (event: ErrorEvent) => {
+      report("window.error", {
+        message: event.message,
+        filename: event.filename ? event.filename.split("?")[0] : undefined,
+        line: event.lineno,
+        column: event.colno,
+        error: event.error instanceof Error
+          ? { name: event.error.name, message: event.error.message, stack: event.error.stack }
+          : undefined,
+      });
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      report("window.unhandledrejection", {
+        reason: reason instanceof Error
+          ? { name: reason.name, message: reason.message, stack: reason.stack }
+          : String(reason).slice(0, 4000),
+      });
+    };
+
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
+
   // True optical refraction belongs on controls/navigation, not every content card.
   useEffect(() => {
     if (!effects.master || !effects.glass || effects.glassIntensity <= 0) return;
