@@ -50,6 +50,17 @@ function normalizeAppsScriptWebAppUrl(raw: unknown): string {
   }
 }
 
+/** Removes quotation marks accidentally pasted or corrupted by UTF-8/Windows-1252 decoding. */
+function cleanConfiguredEmail(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  return raw
+    .trim()
+    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, "")
+    .replace(/(?:â€|â€™|[”’"'>])+$/i, "")
+    .trim()
+    .slice(0, 254);
+}
+
 function normalizeGoogleAccount(raw: unknown): StoredGoogleAccount | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Partial<StoredGoogleAccount>;
@@ -127,16 +138,18 @@ export async function getStoredConfig(): Promise<StoredConfig> {
             .map((value) => value.replace(/\D/g, "").slice(0, 12))
             .filter((value) => value.length === 9))]
         : [],
-      transcriptionAudioModelOneEmail: typeof raw.transcriptionAudioModelOneEmail === "string"
-        ? raw.transcriptionAudioModelOneEmail.trim().slice(0, 254)
-        : typeof raw.transcriptionModelOneEmail === "string" ? raw.transcriptionModelOneEmail.trim().slice(0, 254) : "",
-      transcriptionAudioModelTwoEmail: typeof raw.transcriptionAudioModelTwoEmail === "string"
-        ? raw.transcriptionAudioModelTwoEmail.trim().slice(0, 254)
-        : typeof raw.transcriptionModelTwoEmail === "string" ? raw.transcriptionModelTwoEmail.trim().slice(0, 254) : "",
-      transcriptionHandwritingModelOneEmail: typeof raw.transcriptionHandwritingModelOneEmail === "string"
-        ? raw.transcriptionHandwritingModelOneEmail.trim().slice(0, 254) : "",
-      transcriptionHandwritingModelTwoEmail: typeof raw.transcriptionHandwritingModelTwoEmail === "string"
-        ? raw.transcriptionHandwritingModelTwoEmail.trim().slice(0, 254) : "",
+      transcriptionAudioModelOneEmail: cleanConfiguredEmail(
+        typeof raw.transcriptionAudioModelOneEmail === "string"
+          ? raw.transcriptionAudioModelOneEmail
+          : raw.transcriptionModelOneEmail
+      ),
+      transcriptionAudioModelTwoEmail: cleanConfiguredEmail(
+        typeof raw.transcriptionAudioModelTwoEmail === "string"
+          ? raw.transcriptionAudioModelTwoEmail
+          : raw.transcriptionModelTwoEmail
+      ),
+      transcriptionHandwritingModelOneEmail: cleanConfiguredEmail(raw.transcriptionHandwritingModelOneEmail),
+      transcriptionHandwritingModelTwoEmail: cleanConfiguredEmail(raw.transcriptionHandwritingModelTwoEmail),
       transcriptionAudioModelOneReplyEmail: typeof raw.transcriptionAudioModelOneReplyEmail === "string"
         ? raw.transcriptionAudioModelOneReplyEmail.trim().slice(0, 254) : "",
       transcriptionAudioModelTwoReplyEmail: typeof raw.transcriptionAudioModelTwoReplyEmail === "string"
@@ -339,8 +352,7 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
 }
 
 function validEmail(value: unknown): string {
-  if (typeof value !== "string") return "";
-  const email = value.trim().slice(0, 254);
+  const email = cleanConfiguredEmail(value);
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
 }
 
