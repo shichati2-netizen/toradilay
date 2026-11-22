@@ -36,12 +36,14 @@ function normalizeAppsScriptWebAppUrl(raw: unknown): string {
   if (typeof raw !== "string" || !raw.trim()) return "";
   try {
     const url = new URL(raw.trim());
+    const pathname = url.pathname.replace(/\\/+$/, "");
     if (
       url.protocol !== "https:" ||
       url.hostname !== "script.google.com" ||
-      !url.pathname.startsWith("/macros/s/") ||
-      !url.pathname.endsWith("/exec")
+      !/^\\/macros\\/(?:u\\/\\d+\\/)?s\\/[^/]+\\/exec$/i.test(pathname)
     ) return "";
+    url.pathname = pathname;
+    url.hash = "";
     return url.toString();
   } catch {
     return "";
@@ -353,19 +355,31 @@ export async function saveTranscriptionSettings(
         .filter((value) => value.length === 9))]
     : [];
 
-  const appsScriptUrl = normalizeAppsScriptWebAppUrl(input.appsScriptUrl);
-  if (input.appsScriptUrl?.trim() && !appsScriptUrl) {
-    throw new Error("כתובת Web App חייבת להיות כתובת HTTPS תקינה של Google Apps Script שמסתיימת ב-/exec.");
+  const rawAppsScriptUrl = typeof input.appsScriptUrl === "string" ? input.appsScriptUrl.trim() : "";
+  const normalizedAppsScriptUrl = normalizeAppsScriptWebAppUrl(rawAppsScriptUrl);
+  const warnings: string[] = [];
+  let appsScriptUrl = current.transcriptionAppsScriptUrl;
+  if (!rawAppsScriptUrl) {
+    appsScriptUrl = "";
+  } else if (normalizedAppsScriptUrl) {
+    appsScriptUrl = normalizedAppsScriptUrl;
+  } else {
+    warnings.push("כתובת Google Apps Script אינה בפורמט תקין ולכן לא עודכנה. שאר הגדרות התמלול נשמרו.");
   }
+
   const incomingToken = typeof input.appsScriptToken === "string" ? input.appsScriptToken.trim() : "";
-  const appsScriptToken = input.clearAppsScriptToken
-    ? ""
-    : incomingToken || current.transcriptionAppsScriptToken;
-  if (appsScriptToken && appsScriptToken.length < 32) {
-    throw new Error("מפתח החיבור צריך להכיל לפחות 32 תווים.");
+  let appsScriptToken = current.transcriptionAppsScriptToken;
+  if (input.clearAppsScriptToken) {
+    appsScriptToken = "";
+  } else if (incomingToken) {
+    if (incomingToken.length < 32) {
+      warnings.push("מפתח החיבור קצר מ-32 תווים ולכן לא עודכן. שאר הגדרות התמלול נשמרו.");
+    } else {
+      appsScriptToken = incomingToken;
+    }
   }
   if (appsScriptUrl && !appsScriptToken) {
-    throw new Error("יש להגדיר גם מפתח חיבור משותף ל-Google Apps Script.");
+    warnings.push("כתובת הסקריפט נשמרה, אך נדרש גם מפתח חיבור משותף בן 32 תווים לפחות כדי לשלוח בקשות.");
   }
 
   await mergeStoredFields({
@@ -383,5 +397,8 @@ export async function saveTranscriptionSettings(
     transcriptionAppsScriptToken: appsScriptToken,
   });
 
-  return getTranscriptionSettings();
+  const savedSettings = await getTranscriptionSettings();
+  return warnings.length
+    ? { ...savedSettings, saveWarning: warnings.join(" ") }
+    : savedSettings;
 }
