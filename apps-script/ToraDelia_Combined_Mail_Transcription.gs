@@ -766,9 +766,7 @@ function handleTranscriptionSend_(body) {
     if (model !== 'model1' && model !== 'model2') {
       return transcriptionJsonOutput_({ ok: false, error: 'המודל שנבחר אינו תקין.' });
     }
-    if (!/^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/.test(recipient)) {
-      return transcriptionJsonOutput_({ ok: false, error: 'כתובת הנמען בהגדרות אינה תקינה. בדוק שאין לפניה או אחריה תווים נוספים.' });
-    }
+    // Pass the configured destination address directly to GmailApp without rewriting it.
     if (attachmentsInput.length < 1 || attachmentsInput.length > 20) {
       return transcriptionJsonOutput_({ ok: false, error: 'יש לצרף בין קובץ אחד ל-20 קבצים.' });
     }
