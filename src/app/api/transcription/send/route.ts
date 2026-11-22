@@ -89,7 +89,7 @@ export async function POST(req: Request) {
       handwritingModel2: config.transcriptionHandwritingModelTwoEmail,
     };
     const invalidSender = Object.values(replySenders).some((email) =>
-      typeof email !== "string" || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim()),
+      typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
     );
     if (invalidSender) {
       return Response.json({
