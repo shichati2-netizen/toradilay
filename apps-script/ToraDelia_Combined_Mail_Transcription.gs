@@ -1077,8 +1077,13 @@ function normalizeEmail_(value) {
 }
 
 function normalizeRecipientEmail_(value) {
-  // Preserve the selected destination address exactly; trim only outer whitespace.
-  return value == null ? '' : String(value).trim();
+  // The UI address is passed through unchanged except for stray quote wrappers
+  // and UTF-8/Windows-1252 mojibake quote sequences at its boundaries.
+  return (value == null ? '' : String(value))
+    .trim()
+    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, '')
+    .replace(/(?:â€|â€™|[”’"'>])+$/i, '')
+    .trim();
 }
 function validateTranscriptionConfig_() {
   const senders = getTranscriptionReplySenders_();
