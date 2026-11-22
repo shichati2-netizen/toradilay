@@ -53,12 +53,10 @@ function normalizeAppsScriptWebAppUrl(raw: unknown): string {
 /** Removes quotation marks accidentally pasted or corrupted by UTF-8/Windows-1252 decoding. */
 function cleanConfiguredEmail(raw: unknown): string {
   if (typeof raw !== "string") return "";
-  return raw
-    .trim()
-    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, "")
-    .replace(/(?:â€|â€™|[”’"'>])+$/i, "")
-    .trim()
-    .slice(0, 254);
+  // Extract the email address itself. This safely drops any encoding debris,
+  // quotes, or other stray characters surrounding the address.
+  const emailMatch = raw.trim().match(/[A-Z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/i);
+  return emailMatch ? emailMatch[0].slice(0, 254) : "";
 }
 
 function normalizeGoogleAccount(raw: unknown): StoredGoogleAccount | null {
