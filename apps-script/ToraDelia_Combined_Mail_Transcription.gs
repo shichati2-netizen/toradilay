@@ -1077,13 +1077,10 @@ function normalizeEmail_(value) {
 }
 
 function normalizeRecipientEmail_(value) {
-  // The UI address is passed through unchanged except for stray quote wrappers
-  // and UTF-8/Windows-1252 mojibake quote sequences at its boundaries.
-  return (value == null ? '' : String(value))
-    .trim()
-    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, '')
-    .replace(/(?:â€|â€™|[”’"'>])+$/i, '')
-    .trim();
+  // Send only the email address itself; ignore encoding debris before/after it.
+  const raw = value == null ? '' : String(value).trim();
+  const emailMatch = raw.match(/[A-Z0-9.!#$%&'*+/=?^_\x60{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+/i);
+  return emailMatch ? emailMatch[0] : '';
 }
 function validateTranscriptionConfig_() {
   const senders = getTranscriptionReplySenders_();
