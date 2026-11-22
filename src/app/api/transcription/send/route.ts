@@ -13,14 +13,21 @@ function getRecipient(
   kind: TranscriptionKind,
   model: TranscriptionModel,
 ): string {
-  if (kind === "audio") {
-    return (model === "model1"
+  const configured = kind === "audio"
+    ? (model === "model1"
       ? config.transcriptionAudioModelOneEmail
-      : config.transcriptionAudioModelTwoEmail).trim();
-  }
-  return (model === "model1"
-    ? config.transcriptionHandwritingModelOneEmail
-    : config.transcriptionHandwritingModelTwoEmail).trim();
+      : config.transcriptionAudioModelTwoEmail)
+    : (model === "model1"
+      ? config.transcriptionHandwritingModelOneEmail
+      : config.transcriptionHandwritingModelTwoEmail);
+
+  // Strip only quote wrappers/known mojibake quote bytes at the edges;
+  // never append model names, request IDs, or any other text.
+  return configured
+    .trim()
+    .replace(/^(?:â€œ|â€˜|â€š|â€ž|[“‘"'<])+/i, "")
+    .replace(/(?:â€|â€™|[”’"'>])+$/i, "")
+    .trim();
 }
 
 function getMimeType(extension: string): string {
