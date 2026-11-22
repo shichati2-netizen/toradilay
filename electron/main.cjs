@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
+const { app, BrowserWindow, Menu, dialog, ipcMain } = require("electron");
 const fs = require("node:fs");
 const path = require("node:path");
 const http = require("node:http");
@@ -201,25 +201,6 @@ function waitForServer(url, maxAttempts = 100) {
   });
 }
 
-
-ipcMain.handle("toradelia:open-logs-folder", async () => {
-  try {
-    if (!diagnosticLogDirectory) {
-      diagnosticLogDirectory = path.join(process.env.KIOSK_DATA_DIR || path.join(app.getPath("userData"), "data"), "logs");
-    }
-    fs.mkdirSync(diagnosticLogDirectory, { recursive: true });
-    writeDiagnosticLog("info", "diagnostics.open-folder", {});
-    const result = await shell.openPath(diagnosticLogDirectory);
-    if (result) {
-      writeDiagnosticLog("error", "diagnostics.open-folder-failed", { error: result });
-      return { ok: false, error: result };
-    }
-    return { ok: true };
-  } catch (error) {
-    writeDiagnosticLog("error", "diagnostics.open-folder-failed", { error });
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
-  }
-});
 
 ipcMain.handle("toradelia:select-folder", async () => {
   if (!mainWindow) return { canceled: true };

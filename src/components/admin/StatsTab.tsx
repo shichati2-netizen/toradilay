@@ -1,17 +1,19 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Copy, FolderOpen, Loader2, Printer, RefreshCw, Search, SearchX, Usb, UserPlus } from "lucide-react";
+import { AlertCircle, AlertTriangle, Bug, Copy, Loader2, Printer, RefreshCw, Search, SearchX, Usb, UserPlus } from "lucide-react";
 import type { StatsResponse } from "@/lib/types";
 import { fetchStats } from "@/lib/client/api";
 
-declare global {
-  interface Window {
-    toradeliaDesktop?: {
-      openLogsFolder?: () => Promise<{ ok: boolean; error?: string }>;
-    };
-  }
-}
+type DiagnosticLogEntry = {
+  timestamp: string;
+  level: "info" | "warn" | "error" | "fatal";
+  event: string;
+  source?: string;
+  pid?: number;
+  appVersion?: string;
+  details?: unknown;
+};
 
 const TYPE_LABEL: Record<string, { label: string; color: string }> = {
   print: { label: "הדפסה", color: "text-sky-300 bg-sky-400/10" },
@@ -31,7 +33,10 @@ export function StatsTab({ pin }: { pin: string }) {
   const [stats, setStats] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
-  const [logsError, setLogsError] = useState<string | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticLogEntry[]>([]);
+  const [diagnosticsLoading, setDiagnosticsLoading] = useState(true);
+  const [diagnosticsError, setDiagnosticsError] = useState<string | null>(null);
+  const [logFilter, setLogFilter] = useState<"all" | "error" | "warn" | "info">("all");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -45,6 +50,42 @@ export function StatsTab({ pin }: { pin: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+  const loadDiagnostics = useCallback(async () => {
+    setDiagnosticsLoading(true);
+    setDiagnosticsError(null);
+    try {
+      const response = await fetch("/api/diagnostics?limit=300", {
+        headers: { "x-admin-pin": pin },
+        cache: "no-store",
+      });
+      const data = (await response.json()) as { logs?: DiagnosticLogEntry[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "טעינת יומן האבחון נכשלה");
+      setDiagnostics(Array.isArray(data.logs) ? data.logs : []);
+    } catch (error) {
+      setDiagnosticsError(error instanceof Error ? error.message : "טעינת יומן האבחון נכשלה");
+    } finally {
+      setDiagnosticsLoading(false);
+    }
+  }, [pin]);
+
+  const refreshAll = useCallback(() => {
+    void load();
+    void loadDiagnostics();
+  }, [load, loadDiagnostics]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadDiagnostics();
+  }, [loadDiagnostics]);
+
+  const visibleDiagnostics = diagnostics.filter((entry) => {
+    if (logFilter === "all") return true;
+    if (logFilter === "error") return entry.level === "error" || entry.level === "fatal";
+    return entry.level === logFilter;
+  });
+  const errorCount = diagnostics.filter((entry) => entry.level === "error" || entry.level === "fatal").length;
+  const warningCount = diagnostics.filter((entry) => entry.level === "warn").length;
+
 
   if (loading && !stats) {
     return (
@@ -75,33 +116,14 @@ export function StatsTab({ pin }: { pin: string }) {
             ? `מאז ${new Date(stats.since).toLocaleDateString("he-IL")}`
             : "עדיין אין פעילות רשומה"}
         </p>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={async () => {
-              setLogsError(null);
-              try {
-                const result = await window.toradeliaDesktop?.openLogsFolder?.();
-                if (!result) setLogsError("פתיחת תיקיית יומני האבחון זמינה בגרסת Windows בלבד.");
-                else if (!result.ok) setLogsError(result.error || "לא ניתן לפתוח את תיקיית היומנים.");
-              } catch (error) {
-                setLogsError(error instanceof Error ? error.message : "לא ניתן לפתוח את תיקיית היומנים.");
-              }
-            }}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-white/10 px-2 py-1 text-xs text-gold-200 transition hover:bg-white/10 hover:text-white"
-          >
-            <FolderOpen className="h-3.5 w-3.5" />
-            פתח יומני אבחון
-          </button>
-          <button
-            type="button"
-            onClick={load}
-            className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "keep-anim animate-spin" : ""}`} />
-            רענן
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={refreshAll}
+          className="flex cursor-pointer items-center gap-1.5 rounded-lg px-2 py-1 text-xs text-slate-400 transition hover:bg-white/10 hover:text-white"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${loading || diagnosticsLoading ? "keep-anim animate-spin" : ""}`} />
+          רענן הכול
+        </button>
       </div>
 
       {logsError && <p className="text-xs text-red-300">{logsError}</p>}
@@ -147,6 +169,83 @@ export function StatsTab({ pin }: { pin: string }) {
           <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-sky-400/80" />הדפסות</span>
           <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-emerald-400/80" />העתקות</span>
         </div>
+      </section>
+
+      <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h4 className="flex items-center gap-2 text-sm font-bold text-white">
+            <Bug className="h-4 w-4 text-gold-400" />
+            יומן אבחון ושגיאות
+          </h4>
+          <div className="flex flex-wrap gap-1.5">
+            {([
+              ["all", "הכול"],
+              ["error", "שגיאות"],
+              ["warn", "אזהרות"],
+              ["info", "מידע"],
+            ] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLogFilter(value)}
+                aria-pressed={logFilter === value}
+                className={\`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition \${logFilter === value ? "border-gold-300/50 bg-gold-400/15 text-gold-200" : "border-white/10 text-slate-400 hover:bg-white/10"}\`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="mb-3 flex flex-wrap gap-3 text-[11px] text-slate-400">
+          <span>{diagnostics.length} אירועים אחרונים</span>
+          <span className="text-red-300">{errorCount} שגיאות</span>
+          <span className="text-amber-300">{warningCount} אזהרות</span>
+        </div>
+        {diagnosticsLoading ? (
+          <div className="flex items-center justify-center gap-2 py-8 text-xs text-slate-400">
+            <Loader2 className="h-4 w-4 animate-spin" /> טוען יומן אבחון...
+          </div>
+        ) : diagnosticsError ? (
+          <div className="py-6 text-center text-xs text-red-300">{diagnosticsError}</div>
+        ) : visibleDiagnostics.length === 0 ? (
+          <div className="py-6 text-center text-xs text-slate-500">אין אירועים בקטגוריה שנבחרה</div>
+        ) : (
+          <div className="max-h-[27rem] space-y-2 overflow-y-auto pe-1">
+            {visibleDiagnostics.map((entry, index) => {
+              const critical = entry.level === "fatal" || entry.level === "error";
+              const warning = entry.level === "warn";
+              const levelLabel = entry.level === "fatal" ? "קריטי" : critical ? "שגיאה" : warning ? "אזהרה" : "מידע";
+              const Icon = critical ? AlertCircle : warning ? AlertTriangle : Bug;
+              return (
+                <details key={entry.timestamp + entry.event + index} className="group rounded-xl border border-white/10 bg-navy-950/40">
+                  <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2.5 p-3 marker:hidden">
+                    <span className={\`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg \${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}\`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className={\`w-14 shrink-0 rounded-md px-1.5 py-1 text-center text-[10px] font-black \${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}\`}>
+                      {levelLabel}
+                    </span>
+                    <span className="min-w-0 flex-1 break-all text-xs font-semibold text-slate-200" dir="auto">{entry.event}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-slate-500" dir="ltr">
+                      {new Date(entry.timestamp).toLocaleString("he-IL")}
+                    </span>
+                    <span className="text-[10px] text-slate-500 transition group-open:rotate-180">⌄</span>
+                  </summary>
+                  <div className="border-t border-white/10 p-3">
+                    <div className="mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-slate-500">
+                      <span>מקור: {entry.source || "לא צוין"}</span>
+                      {entry.appVersion && <span>גרסה: {entry.appVersion}</span>}
+                      {typeof entry.pid === "number" && <span>תהליך: {entry.pid}</span>}
+                    </div>
+                    <pre className="max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-black/25 p-3 font-mono text-[11px] leading-relaxed text-slate-300" dir="ltr">
+                      {JSON.stringify(entry.details ?? {}, null, 2)}
+                    </pre>
+                  </div>
+                </details>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">

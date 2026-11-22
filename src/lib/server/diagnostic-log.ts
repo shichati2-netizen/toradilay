@@ -77,3 +77,59 @@ export function writeDiagnosticLog(input: {
     // Diagnostics are best-effort and must never cause another application failure.
   }
 }
+
+
+export interface DiagnosticLogEntry {
+  timestamp: string;
+  level: DiagnosticLevel;
+  event: string;
+  source?: string;
+  pid?: number;
+  appVersion?: string;
+  details?: unknown;
+}
+
+/** Reads the newest entries from the active log and its rotated archives. */
+export function readDiagnosticLogs(limit = 200): DiagnosticLogEntry[] {
+  const dataDirectory = process.env.KIOSK_DATA_DIR?.trim() || path.join(process.cwd(), ".toradilay-data");
+  const directory = path.join(dataDirectory, "logs");
+  const file = path.join(directory, "toradelia-diagnostics.jsonl");
+  const entries: DiagnosticLogEntry[] = [];
+
+  for (let archive = 4; archive >= 0; archive--) {
+    const candidate = archive === 0 ? file : file + "." + archive;
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const lines = fs.readFileSync(candidate, "utf8").split(/\r?\n/);
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        try {
+          const value = JSON.parse(line) as Partial<DiagnosticLogEntry>;
+          if (
+            typeof value.timestamp === "string" &&
+            typeof value.event === "string" &&
+            (value.level === "info" || value.level === "warn" || value.level === "error" || value.level === "fatal")
+          ) {
+            entries.push({
+              timestamp: value.timestamp,
+              level: value.level,
+              event: redactString(value.event),
+              source: typeof value.source === "string" ? redactString(value.source) : "electron",
+              pid: typeof value.pid === "number" ? value.pid : undefined,
+              appVersion: typeof value.appVersion === "string" ? value.appVersion : undefined,
+              details: sanitize(value.details ?? {}),
+            });
+          }
+        } catch {
+          // Ignore a single malformed JSONL line; keep the remaining diagnostics.
+        }
+      }
+    } catch {
+      // An inaccessible rotated file must not hide readable current logs.
+    }
+  }
+
+  return entries
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+    .slice(0, Math.max(1, Math.min(500, Math.floor(limit))));
+}
