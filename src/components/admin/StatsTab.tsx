@@ -126,8 +126,6 @@ export function StatsTab({ pin }: { pin: string }) {
         </button>
       </div>
 
-      {logsError && <p className="text-xs text-red-300">{logsError}</p>}
-
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className={`rounded-2xl border border-white/10 bg-gradient-to-br ${c.tone.split(" ")[0]} to-transparent p-4`}>
@@ -189,7 +187,7 @@ export function StatsTab({ pin }: { pin: string }) {
                 type="button"
                 onClick={() => setLogFilter(value)}
                 aria-pressed={logFilter === value}
-                className={\`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition \${logFilter === value ? "border-gold-300/50 bg-gold-400/15 text-gold-200" : "border-white/10 text-slate-400 hover:bg-white/10"}\`}
+                className={`rounded-lg border px-2.5 py-1 text-[11px] font-bold transition ${logFilter === value ? "border-gold-300/50 bg-gold-400/15 text-gold-200" : "border-white/10 text-slate-400 hover:bg-white/10"}`}
               >
                 {label}
               </button>
@@ -219,10 +217,10 @@ export function StatsTab({ pin }: { pin: string }) {
               return (
                 <details key={entry.timestamp + entry.event + index} className="group rounded-xl border border-white/10 bg-navy-950/40">
                   <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2.5 p-3 marker:hidden">
-                    <span className={\`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg \${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}\`}>
+                    <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg ${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}`}>
                       <Icon className="h-4 w-4" />
                     </span>
-                    <span className={\`w-14 shrink-0 rounded-md px-1.5 py-1 text-center text-[10px] font-black \${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}\`}>
+                    <span className={`w-14 shrink-0 rounded-md px-1.5 py-1 text-center text-[10px] font-black ${critical ? "bg-red-400/10 text-red-300" : warning ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}`}>
                       {levelLabel}
                     </span>
                     <span className="min-w-0 flex-1 break-all text-xs font-semibold text-slate-200" dir="auto">{entry.event}</span>
