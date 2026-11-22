@@ -14,13 +14,13 @@ function getRecipient(
   model: TranscriptionModel,
 ): string {
   if (kind === "audio") {
-    return model === "model1"
+    return (model === "model1"
       ? config.transcriptionAudioModelOneEmail
-      : config.transcriptionAudioModelTwoEmail;
+      : config.transcriptionAudioModelTwoEmail).trim();
   }
-  return model === "model1"
+  return (model === "model1"
     ? config.transcriptionHandwritingModelOneEmail
-    : config.transcriptionHandwritingModelTwoEmail;
+    : config.transcriptionHandwritingModelTwoEmail).trim();
 }
 
 function getMimeType(extension: string): string {
@@ -78,6 +78,10 @@ export async function POST(req: Request) {
     if (!recipient) {
       const typeName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
       return Response.json({ error: "כתובת הדואר של " + typeName + " – " + (model === "model1" ? "מודל 1" : "מודל 2") + " עדיין לא הוגדרה." }, { status: 400 });
+    }
+    // Use the selected model address exactly as configured; reject, do not rewrite, invalid values.
+    if (!/^[A-Za-z0-9.!#$%&'*+/=?^_{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/.test(recipient)) {
+      return Response.json({ error: "כתובת הנמען בשורת ההגדרות אינה תקינה. הסר ממנה תווים נוספים ושמור מחדש." }, { status: 400 });
     }
 
     // מעבירים בנפרד את כתובות From של תשובות המודלים; recipient נשאר רק
