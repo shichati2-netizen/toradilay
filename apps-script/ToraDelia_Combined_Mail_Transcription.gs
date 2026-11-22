@@ -457,9 +457,9 @@ function getOrCreateLabel(name) {
 // קליטת תוצאות תמלול של ToraDelia + API לעדכון מצב הבקשה בעמדה
 // ============================================================================
 //
-// יש להגדיר כאן את כתובות השולח שמהן מגיעות תשובות שני המודלים.
-// בדרך כלל הן זהות לכתובות היעד שהוזנו בהגדרות ToraDelia, אך יש לבדוק
-// את שדה From של מייל התשובה בפועל.
+// כתובות השולח של ארבעת המודלים מתקבלות אוטומטית מהגדרות ToraDelia
+// ונשמרות ב-Script Properties בבקשת התמלול הראשונה ולאחר כל שינוי בהגדרות.
+// יש לוודא שכתובת היעד שהוגדרה בתוכנה תואמת לשדה From של תשובת המודל בפועל.
 //
 // פרסום כ-Web App:
 // 1. Deploy > New deployment > Web app.
@@ -469,10 +469,7 @@ function getOrCreateLabel(name) {
 // 5. להריץ פעם אחת את installTranscriptionReplyTrigger ולאשר הרשאות.
 
 const TRANSCRIPTION_CONFIG = {
-  AUDIO_MODEL_ONE_REPLY_SENDER: 'AUDIO-MODEL-1-REPLY@example.com',
-  AUDIO_MODEL_TWO_REPLY_SENDER: 'AUDIO-MODEL-2-REPLY@example.com',
-  HANDWRITING_MODEL_ONE_REPLY_SENDER: 'HANDWRITING-MODEL-1-REPLY@example.com',
-  HANDWRITING_MODEL_TWO_REPLY_SENDER: 'HANDWRITING-MODEL-2-REPLY@example.com',
+  // כתובות המודלים נשמרות אוטומטית בכל בקשת תמלול מ-ToraDelia.
 
   LABEL_SAVED: 'תמלול חזר - נשמר',
   LABEL_NO_ID: 'תמלול חזר - ללא תעודת זהות בשם הקובץ',
@@ -482,6 +479,56 @@ const TRANSCRIPTION_CONFIG = {
 };
 
 const TRANSCRIPTION_STATUS_PREFIX = 'TORADELIA_TRANSCRIPTION_';
+const TRANSCRIPTION_REPLY_SENDERS_PROPERTY = 'TORADELIA_TRANSCRIPTION_REPLY_SENDERS';
+
+/** שומר את ארבע כתובות המודלים שמתקבלות מ-ToraDelia. */
+function saveTranscriptionReplySenders_(input) {
+  if (!input || typeof input !== 'object') {
+    throw new Error('התוכנה לא העבירה את הגדרות כתובות המודלים. יש לעדכן את ToraDelia לגרסה החדשה.');
+  }
+
+  const senders = {
+    audioModel1: normalizeEmail_(input.audioModel1),
+    audioModel2: normalizeEmail_(input.audioModel2),
+    handwritingModel1: normalizeEmail_(input.handwritingModel1),
+    handwritingModel2: normalizeEmail_(input.handwritingModel2)
+  };
+
+  const keys = Object.keys(senders);
+  const invalid = keys.filter(function(key) {
+    const address = senders[key];
+    return !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address) ||
+      address.indexOf('@example.com') !== -1;
+  });
+  if (invalid.length > 0) {
+    throw new Error('יש להגדיר בתוכנת ToraDelia את כל ארבע כתובות הדואר האמיתיות של המודלים לפני שליחת תמלול.');
+  }
+
+  PropertiesService.getScriptProperties().setProperty(
+    TRANSCRIPTION_REPLY_SENDERS_PROPERTY,
+    JSON.stringify(senders)
+  );
+  return senders;
+}
+
+/** קורא את כתובות המודלים שנשמרו אוטומטית מהתוכנה. */
+function getTranscriptionReplySenderMap_() {
+  const raw = PropertiesService.getScriptProperties()
+    .getProperty(TRANSCRIPTION_REPLY_SENDERS_PROPERTY);
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      audioModel1: normalizeEmail_(parsed.audioModel1),
+      audioModel2: normalizeEmail_(parsed.audioModel2),
+      handwritingModel1: normalizeEmail_(parsed.handwritingModel1),
+      handwritingModel2: normalizeEmail_(parsed.handwritingModel2)
+    };
+  } catch (error) {
+    Logger.log('הגדרות כתובות המודלים השמורות אינן תקינות.');
+    return null;
+  }
+}
 
 
 /**
@@ -696,6 +743,16 @@ function handleTranscriptionSend_(body) {
     }
     if (!/^\d{9}$/.test(studentId)) {
       return transcriptionJsonOutput_({ ok: false, error: 'מספר תעודת הזהות אינו תקין.' });
+    }
+    try {
+      saveTranscriptionReplySenders_(body.replySenders);
+    } catch (configError) {
+      return transcriptionJsonOutput_({
+        ok: false,
+        error: configError && configError.message
+          ? String(configError.message).slice(0, 500)
+          : 'לא ניתן לשמור את כתובות המודלים שהגיעו מ-ToraDelia.'
+      });
     }
     if (kind !== 'audio' && kind !== 'handwriting') {
       return transcriptionJsonOutput_({ ok: false, error: 'סוג התמלול אינו תקין.' });
@@ -984,25 +1041,25 @@ function isTranscriptionModelSender(fromValue) {
 
 
 function getTranscriptionReplySenders_() {
-  return [
-    TRANSCRIPTION_CONFIG.AUDIO_MODEL_ONE_REPLY_SENDER,
-    TRANSCRIPTION_CONFIG.AUDIO_MODEL_TWO_REPLY_SENDER,
-    TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_ONE_REPLY_SENDER,
-    TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_TWO_REPLY_SENDER
-  ].map(normalizeEmail_).filter(Boolean);
+  const senders = getTranscriptionReplySenderMap_();
+  return senders
+    ? [senders.audioModel1, senders.audioModel2, senders.handwritingModel1, senders.handwritingModel2]
+        .filter(Boolean)
+    : [];
 }
 
 
 function getTranscriptionModelType_(sender) {
   const normalized = normalizeEmail_(sender);
   if (!normalized) return null;
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.AUDIO_MODEL_ONE_REPLY_SENDER)) return 'מודל 1 · תמלול קולי';
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.AUDIO_MODEL_TWO_REPLY_SENDER)) return 'מודל 2 · תמלול קולי';
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_ONE_REPLY_SENDER)) return 'מודל 1 · תמלול כתבי יד';
-  if (normalized === normalizeEmail_(TRANSCRIPTION_CONFIG.HANDWRITING_MODEL_TWO_REPLY_SENDER)) return 'מודל 2 · תמלול כתבי יד';
+  const senders = getTranscriptionReplySenderMap_();
+  if (!senders) return null;
+  if (normalized === senders.audioModel1) return 'מודל 1 · תמלול קולי';
+  if (normalized === senders.audioModel2) return 'מודל 2 · תמלול קולי';
+  if (normalized === senders.handwritingModel1) return 'מודל 1 · תמלול כתבי יד';
+  if (normalized === senders.handwritingModel2) return 'מודל 2 · תמלול כתבי יד';
   return null;
 }
-
 
 function extractEmailAddress_(value) {
   const text = String(value || '').trim().toLowerCase();
@@ -1022,10 +1079,10 @@ function validateTranscriptionConfig_() {
   const senders = getTranscriptionReplySenders_();
   if (senders.length !== 4 || senders.some(function(sender) {
     return sender.indexOf('@example.com') !== -1 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
+      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(sender);
   })) {
     throw new Error(
-      'יש להגדיר ב-TRANSCRIPTION_CONFIG את ארבע כתובות From האמיתיות: מודל 1 ומודל 2 לכל אחד מסוגי התמלול.'
+      'כתובות המודלים עדיין לא התקבלו מ-ToraDelia. שלח תחילה בקשת תמלול מהגרסה המעודכנת של התוכנה.'
     );
   }
 }
@@ -1057,5 +1114,5 @@ function installTranscriptionReplyTrigger() {
 
 function testTranscriptionConfiguration() {
   validateTranscriptionConfig_();
-  Logger.log('הגדרות כתובות השולח של מודלי התמלול תקינות.');
+  Logger.log('ארבע כתובות השולח התקבלו ונשמרו אוטומטית מ-ToraDelia.');
 }
