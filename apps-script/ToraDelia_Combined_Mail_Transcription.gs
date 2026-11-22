@@ -729,9 +729,15 @@ function handleTranscriptionSend_(body) {
     return transcriptionJsonOutput_({ ok: false, error: 'מפתח החיבור אינו תקין.' });
   }
 
-  const lock = LockService.getScriptLock();
-  if (!lock.tryLock(5000)) {
-    return transcriptionJsonOutput_({ ok: false, error: 'המערכת עסוקה. נסה שוב.' });
+  // Use a user-level lock for outgoing submissions. Background Gmail/Drive
+  // processors use the script lock, so their scheduled work cannot block sending.
+  // The user lock still serializes simultaneous send requests from this Web App.
+  const lock = LockService.getUserLock();
+  if (!lock.tryLock(15000)) {
+    return transcriptionJsonOutput_({
+      ok: false,
+      error: 'בקשת תמלול אחרת עדיין נשלחת. המתן כמה שניות ונסה שוב.'
+    });
   }
 
   try {
