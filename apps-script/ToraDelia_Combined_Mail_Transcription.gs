@@ -497,7 +497,7 @@ function saveTranscriptionReplySenders_(input) {
   const keys = Object.keys(senders);
   const invalid = keys.filter(function(key) {
     const address = senders[key];
-    return !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(address) ||
+    return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ||
       address.indexOf('@example.com') !== -1;
   });
   if (invalid.length > 0) {
@@ -1079,7 +1079,7 @@ function validateTranscriptionConfig_() {
   const senders = getTranscriptionReplySenders_();
   if (senders.length !== 4 || senders.some(function(sender) {
     return sender.indexOf('@example.com') !== -1 ||
-      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(sender);
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
   })) {
     throw new Error(
       'כתובות המודלים עדיין לא התקבלו מ-ToraDelia. שלח תחילה בקשת תמלול מהגרסה המעודכנת של התוכנה.'
