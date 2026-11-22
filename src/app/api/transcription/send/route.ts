@@ -80,13 +80,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "כתובת הדואר של " + typeName + " – " + (model === "model1" ? "מודל 1" : "מודל 2") + " עדיין לא הוגדרה." }, { status: 400 });
     }
 
-    // מעבירים לסקריפט גם את ארבע הכתובות, כדי שיוכל לזהות תשובות מכל המודלים.
-    // הכתובות נשמרות שם אוטומטית ב-Script Properties.
+    // מעבירים בנפרד את כתובות From של תשובות המודלים; recipient נשאר רק
+    // כתובת היעד היחידה של המודל שנבחר ונשלחת בשדה recipient.
     const replySenders = {
-      audioModel1: config.transcriptionAudioModelOneEmail,
-      audioModel2: config.transcriptionAudioModelTwoEmail,
-      handwritingModel1: config.transcriptionHandwritingModelOneEmail,
-      handwritingModel2: config.transcriptionHandwritingModelTwoEmail,
+      audioModel1: config.transcriptionAudioModelOneReplyEmail,
+      audioModel2: config.transcriptionAudioModelTwoReplyEmail,
+      handwritingModel1: config.transcriptionHandwritingModelOneReplyEmail,
+      handwritingModel2: config.transcriptionHandwritingModelTwoReplyEmail,
     };
     const invalidSender = Object.values(replySenders).some((email) =>
       typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),

@@ -91,6 +91,10 @@ export interface TranscriptionSettings {
   audioModelTwoEmail: string;
   handwritingModelOneEmail: string;
   handwritingModelTwoEmail: string;
+  audioModelOneReplyEmail: string;
+  audioModelTwoReplyEmail: string;
+  handwritingModelOneReplyEmail: string;
+  handwritingModelTwoReplyEmail: string;
   appsScriptUrl: string;
   appsScriptTokenConfigured: boolean;
 }
@@ -102,6 +106,10 @@ export interface TranscriptionSettingsInput {
   audioModelTwoEmail: string;
   handwritingModelOneEmail: string;
   handwritingModelTwoEmail: string;
+  audioModelOneReplyEmail: string;
+  audioModelTwoReplyEmail: string;
+  handwritingModelOneReplyEmail: string;
+  handwritingModelTwoReplyEmail: string;
   appsScriptUrl: string;
   appsScriptToken?: string;
   clearAppsScriptToken?: boolean;
@@ -136,6 +144,10 @@ export interface StoredConfig extends KioskConfig {
   transcriptionAudioModelTwoEmail: string;
   transcriptionHandwritingModelOneEmail: string;
   transcriptionHandwritingModelTwoEmail: string;
+  transcriptionAudioModelOneReplyEmail: string;
+  transcriptionAudioModelTwoReplyEmail: string;
+  transcriptionHandwritingModelOneReplyEmail: string;
+  transcriptionHandwritingModelTwoReplyEmail: string;
   transcriptionAppsScriptUrl: string;
   transcriptionAppsScriptToken: string;
 }

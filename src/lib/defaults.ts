@@ -68,6 +68,10 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   transcriptionAudioModelTwoEmail: "",
   transcriptionHandwritingModelOneEmail: "",
   transcriptionHandwritingModelTwoEmail: "",
+  transcriptionAudioModelOneReplyEmail: "",
+  transcriptionAudioModelTwoReplyEmail: "",
+  transcriptionHandwritingModelOneReplyEmail: "",
+  transcriptionHandwritingModelTwoReplyEmail: "",
   transcriptionAppsScriptUrl: "",
   transcriptionAppsScriptToken: "",
 };

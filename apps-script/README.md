@@ -12,9 +12,9 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 4. Run `installTranscriptionReplyTrigger` once and approve Gmail, Drive and Script Properties permissions. It checks model replies every five minutes.
 5. Deploy → **Manage deployments** → select the existing Web App → Edit → choose **New version** → Deploy. Keep **Execute as: Me** and **Who has access: Anyone**. Updating the editor code alone does not update an already deployed Web App.
 6. Copy the deployed `/exec` URL and paste it into ToraDelia → Admin → Transcription → Google Apps Script Web App. Paste the same secret token in the adjacent shared-key field.
-7. Save the four destination addresses in ToraDelia: audio model 1, audio model 2, handwriting model 1 and handwriting model 2.
-8. On the first transcription request (and after address changes), ToraDelia automatically sends all four addresses to Apps Script. The script stores them in Script Properties; there is no need to edit sender addresses in the script.
-9. After the first request, you can run `testTranscriptionConfiguration` to verify the sender addresses were received.
+7. In ToraDelia, enter the four destination addresses (where each model request should be sent) and, separately, the four reply **From** addresses (the addresses from which result attachments will arrive).
+8. On each transcription request, ToraDelia sends only the selected model's destination address in `recipient`. It separately sends the four reply-sender addresses from the dedicated settings fields.
+9. Apps Script stores the reply-sender addresses in Script Properties; no email address needs to be hard-coded in the script. After the first request, run `testTranscriptionConfiguration` to verify they were received.
 
 ## Email sending
 
@@ -27,7 +27,7 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 
 ## Reply sender addresses
 
-The four reply sender addresses are synchronized automatically from ToraDelia each time a transcription is sent. Apps Script stores them in the `TORADELIA_TRANSCRIPTION_REPLY_SENDERS` Script Property and uses them to identify model replies. The destination address configured in ToraDelia must match the actual **From** address of the model's reply. If a model replies from a different address, change the corresponding destination setting to the actual reply address (or the messages will not be recognized).
+The four reply sender addresses are entered in ToraDelia under the separate **Reply sender addresses** section. They are independent of the four destination addresses used to send requests. ToraDelia sends only the selected destination address in `recipient`, while the four reply **From** addresses are sent separately and stored by Apps Script in the `TORADELIA_TRANSCRIPTION_REPLY_SENDERS` Script Property. Enter the exact **From** address shown on an actual model reply.
 
 ## Important
 

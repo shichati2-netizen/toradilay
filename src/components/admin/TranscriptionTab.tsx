@@ -13,6 +13,10 @@ const EMPTY: TranscriptionSettings = {
   audioModelTwoEmail: "",
   handwritingModelOneEmail: "",
   handwritingModelTwoEmail: "",
+  audioModelOneReplyEmail: "",
+  audioModelTwoReplyEmail: "",
+  handwritingModelOneReplyEmail: "",
+  handwritingModelTwoReplyEmail: "",
   appsScriptUrl: "",
   appsScriptTokenConfigured: false,
 };
@@ -57,6 +61,10 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       audioModelTwoEmail: settings.audioModelTwoEmail,
       handwritingModelOneEmail: settings.handwritingModelOneEmail,
       handwritingModelTwoEmail: settings.handwritingModelTwoEmail,
+      audioModelOneReplyEmail: settings.audioModelOneReplyEmail,
+      audioModelTwoReplyEmail: settings.audioModelTwoReplyEmail,
+      handwritingModelOneReplyEmail: settings.handwritingModelOneReplyEmail,
+      handwritingModelTwoReplyEmail: settings.handwritingModelTwoReplyEmail,
       appsScriptUrl: settings.appsScriptUrl,
       appsScriptToken: appsScriptToken || undefined,
     };
@@ -110,7 +118,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       <SectionCard
         title="כתובות תמלול קולי"
         icon={<Mic className="h-4 w-4 text-sky-300" />}
-        hint="הכתובות כאן משמשות רק לבקשות תמלול קולי. אפשר להגדיר יעד נפרד לכל מודל."
+        hint="כתובות היעד שאליהן נשלחות בקשות התמלול. בכל שליחה נשלחת רק כתובת המודל שנבחר."
       >
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="מודל 1 – תמלול קולי">
@@ -125,7 +133,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       <SectionCard
         title="כתובות תמלול כתבי יד"
         icon={<PenLine className="h-4 w-4 text-rose-300" />}
-        hint="הכתובות כאן נפרדות מתמלול קולי. אפשר להפנות כל מודל לשירות אחר."
+        hint="כתובות היעד שאליהן נשלחות בקשות תמלול כתב יד. בכל שליחה נשלחת רק כתובת המודל שנבחר."
       >
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="מודל 1 – תמלול כתבי יד">
@@ -135,6 +143,30 @@ export function TranscriptionTab({ pin }: { pin: string }) {
             <input type="email" value={settings.handwritingModelTwoEmail} onChange={(event) => update({ handwritingModelTwoEmail: event.target.value })} placeholder="handwriting-model2@example.com" className={inputClass} dir="ltr" />
           </Field>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="כתובות השולחים של תשובות המודלים"
+        icon={<Mail className="h-4 w-4 text-amber-300" />}
+        hint="כאן מזינים את כתובות From שמהן יגיעו קובצי התוצאה בחזרה. אלה אינן כתובות היעד שאליהן נשלחת בקשת התמלול."
+      >
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="From של מודל 1 – תמלול קולי">
+            <input type="email" value={settings.audioModelOneReplyEmail} onChange={(event) => update({ audioModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 1" className={inputClass} dir="ltr" />
+          </Field>
+          <Field label="From של מודל 2 – תמלול קולי">
+            <input type="email" value={settings.audioModelTwoReplyEmail} onChange={(event) => update({ audioModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 2" className={inputClass} dir="ltr" />
+          </Field>
+          <Field label="From של מודל 1 – תמלול כתבי יד">
+            <input type="email" value={settings.handwritingModelOneReplyEmail} onChange={(event) => update({ handwritingModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 1" className={inputClass} dir="ltr" />
+          </Field>
+          <Field label="From של מודל 2 – תמלול כתבי יד">
+            <input type="email" value={settings.handwritingModelTwoReplyEmail} onChange={(event) => update({ handwritingModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 2" className={inputClass} dir="ltr" />
+          </Field>
+        </div>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          יש להעתיק את הכתובת המדויקת משדה From של מייל התשובה בפועל. הכתובות יועברו אוטומטית ל-Google Apps Script בעת שליחת בקשת תמלול ראשונה ואחר כך בכל בקשה.
+        </p>
       </SectionCard>
 
       <SectionCard
@@ -172,7 +204,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
         hint="עד 20 קבצים ובסך הכול 20MB בכל בקשה."
       >
         <p className="text-xs leading-relaxed text-slate-400">
-          כתובות המודלים ומפתח החיבור נשמרים במחשב העמדה. סיסמאות Gmail אינן נשמרות בתוכנה, ושליחת המייל נעשית מחשבון Google שמפעיל את הסקריפט.
+          כתובות היעד וכתובות From של התשובות נשמרות במחשב העמדה. בשליחה נשלחת רק כתובת היעד של המודל שנבחר. סיסמאות Gmail אינן נשמרות בתוכנה, ושליחת המייל נעשית מחשבון Google שמפעיל את הסקריפט.
         </p>
       </SectionCard>
 

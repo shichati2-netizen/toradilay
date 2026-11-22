@@ -87,6 +87,10 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     transcriptionAudioModelTwoEmail: "",
     transcriptionHandwritingModelOneEmail: "",
     transcriptionHandwritingModelTwoEmail: "",
+    transcriptionAudioModelOneReplyEmail: "",
+    transcriptionAudioModelTwoReplyEmail: "",
+    transcriptionHandwritingModelOneReplyEmail: "",
+    transcriptionHandwritingModelTwoReplyEmail: "",
     transcriptionAppsScriptUrl: "",
     transcriptionAppsScriptToken: "",
     ...(patch as Partial<StoredConfig>),
@@ -131,6 +135,14 @@ export async function getStoredConfig(): Promise<StoredConfig> {
         ? raw.transcriptionHandwritingModelOneEmail.trim().slice(0, 254) : "",
       transcriptionHandwritingModelTwoEmail: typeof raw.transcriptionHandwritingModelTwoEmail === "string"
         ? raw.transcriptionHandwritingModelTwoEmail.trim().slice(0, 254) : "",
+      transcriptionAudioModelOneReplyEmail: typeof raw.transcriptionAudioModelOneReplyEmail === "string"
+        ? raw.transcriptionAudioModelOneReplyEmail.trim().slice(0, 254) : "",
+      transcriptionAudioModelTwoReplyEmail: typeof raw.transcriptionAudioModelTwoReplyEmail === "string"
+        ? raw.transcriptionAudioModelTwoReplyEmail.trim().slice(0, 254) : "",
+      transcriptionHandwritingModelOneReplyEmail: typeof raw.transcriptionHandwritingModelOneReplyEmail === "string"
+        ? raw.transcriptionHandwritingModelOneReplyEmail.trim().slice(0, 254) : "",
+      transcriptionHandwritingModelTwoReplyEmail: typeof raw.transcriptionHandwritingModelTwoReplyEmail === "string"
+        ? raw.transcriptionHandwritingModelTwoReplyEmail.trim().slice(0, 254) : "",
       transcriptionAppsScriptUrl: normalizeAppsScriptWebAppUrl(
         typeof raw.transcriptionAppsScriptUrl === "string" && raw.transcriptionAppsScriptUrl.trim()
           ? raw.transcriptionAppsScriptUrl
@@ -154,6 +166,10 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       transcriptionAudioModelTwoEmail: "",
       transcriptionHandwritingModelOneEmail: "",
       transcriptionHandwritingModelTwoEmail: "",
+      transcriptionAudioModelOneReplyEmail: "",
+      transcriptionAudioModelTwoReplyEmail: "",
+      transcriptionHandwritingModelOneReplyEmail: "",
+      transcriptionHandwritingModelTwoReplyEmail: "",
       transcriptionAppsScriptUrl: "",
       transcriptionAppsScriptToken: "",
     };
@@ -174,6 +190,10 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     transcriptionAudioModelTwoEmail: _transcriptionAudioModelTwoEmail,
     transcriptionHandwritingModelOneEmail: _transcriptionHandwritingModelOneEmail,
     transcriptionHandwritingModelTwoEmail: _transcriptionHandwritingModelTwoEmail,
+    transcriptionAudioModelOneReplyEmail: _transcriptionAudioModelOneReplyEmail,
+    transcriptionAudioModelTwoReplyEmail: _transcriptionAudioModelTwoReplyEmail,
+    transcriptionHandwritingModelOneReplyEmail: _transcriptionHandwritingModelOneReplyEmail,
+    transcriptionHandwritingModelTwoReplyEmail: _transcriptionHandwritingModelTwoReplyEmail,
     transcriptionAppsScriptUrl: _transcriptionAppsScriptUrl,
     transcriptionAppsScriptToken: _transcriptionAppsScriptToken,
     ...config
@@ -189,6 +209,10 @@ export async function getPublicConfig(): Promise<KioskConfig> {
   void _transcriptionAudioModelTwoEmail;
   void _transcriptionHandwritingModelOneEmail;
   void _transcriptionHandwritingModelTwoEmail;
+  void _transcriptionAudioModelOneReplyEmail;
+  void _transcriptionAudioModelTwoReplyEmail;
+  void _transcriptionHandwritingModelOneReplyEmail;
+  void _transcriptionHandwritingModelTwoReplyEmail;
   void _transcriptionAppsScriptUrl;
   void _transcriptionAppsScriptToken;
   return config;
@@ -303,6 +327,10 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
     audioModelTwoEmail: stored.transcriptionAudioModelTwoEmail,
     handwritingModelOneEmail: stored.transcriptionHandwritingModelOneEmail,
     handwritingModelTwoEmail: stored.transcriptionHandwritingModelTwoEmail,
+    audioModelOneReplyEmail: stored.transcriptionAudioModelOneReplyEmail,
+    audioModelTwoReplyEmail: stored.transcriptionAudioModelTwoReplyEmail,
+    handwritingModelOneReplyEmail: stored.transcriptionHandwritingModelOneReplyEmail,
+    handwritingModelTwoReplyEmail: stored.transcriptionHandwritingModelTwoReplyEmail,
     appsScriptUrl: stored.transcriptionAppsScriptUrl,
     appsScriptTokenConfigured: Boolean(stored.transcriptionAppsScriptToken),
   };
@@ -347,6 +375,10 @@ export async function saveTranscriptionSettings(
     transcriptionAudioModelTwoEmail: validEmail(input.audioModelTwoEmail),
     transcriptionHandwritingModelOneEmail: validEmail(input.handwritingModelOneEmail),
     transcriptionHandwritingModelTwoEmail: validEmail(input.handwritingModelTwoEmail),
+    transcriptionAudioModelOneReplyEmail: validEmail(input.audioModelOneReplyEmail),
+    transcriptionAudioModelTwoReplyEmail: validEmail(input.audioModelTwoReplyEmail),
+    transcriptionHandwritingModelOneReplyEmail: validEmail(input.handwritingModelOneReplyEmail),
+    transcriptionHandwritingModelTwoReplyEmail: validEmail(input.handwritingModelTwoReplyEmail),
     transcriptionAppsScriptUrl: appsScriptUrl,
     transcriptionAppsScriptToken: appsScriptToken,
   });
