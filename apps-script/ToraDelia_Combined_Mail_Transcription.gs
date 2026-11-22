@@ -544,6 +544,12 @@ function processTranscriptionReplies() {
   }
 
   try {
+    // לפני בקשת התמלול הראשונה עדיין אין כתובות שמורות; הטריגר ימתין
+    // במקום להיכשל בכל מחזור עד שהתוכנה תשלח את ההגדרות.
+    if (!getTranscriptionReplySenderMap_()) {
+      Logger.log('ממתין לסנכרון הראשון של כתובות המודלים מ-ToraDelia.');
+      return;
+    }
     validateTranscriptionConfig_();
     const senderQuery = getTranscriptionReplySenders_().map(function(sender) {
       return 'from:' + sender;
