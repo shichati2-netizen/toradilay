@@ -827,7 +827,7 @@ function handleTranscriptionSend_(body) {
     );
     GmailApp.sendEmail(recipient, subject, bodyText, {
       attachments: attachments,
-      name: 'ToraDelia'
+      name: 'שיחתי'
     });
     Logger.log(
       'ToraDelia mail send completed: request=' + requestId +
