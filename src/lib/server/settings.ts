@@ -36,11 +36,11 @@ function normalizeAppsScriptWebAppUrl(raw: unknown): string {
   if (typeof raw !== "string" || !raw.trim()) return "";
   try {
     const url = new URL(raw.trim());
-    const pathname = url.pathname.replace(/\\/+$/, "");
+    const pathname = url.pathname.replace(/\/+$/, "");
     if (
       url.protocol !== "https:" ||
       url.hostname !== "script.google.com" ||
-      !/^\\/macros\\/(?:u\\/\\d+\\/)?s\\/[^/]+\\/exec$/i.test(pathname)
+      !/^\/macros\/(?:u\/\d+\/)?s\/[^/]+\/exec$/i.test(pathname)
     ) return "";
     url.pathname = pathname;
     url.hash = "";
