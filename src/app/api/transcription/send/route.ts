@@ -80,6 +80,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "כתובת הדואר של " + typeName + " – " + (model === "model1" ? "מודל 1" : "מודל 2") + " עדיין לא הוגדרה." }, { status: 400 });
     }
 
+    // מעבירים לסקריפט גם את ארבע הכתובות, כדי שיוכל לזהות תשובות מכל המודלים.
+    // הכתובות נשמרות שם אוטומטית ב-Script Properties.
+    const replySenders = {
+      audioModel1: config.transcriptionAudioModelOneEmail,
+      audioModel2: config.transcriptionAudioModelTwoEmail,
+      handwritingModel1: config.transcriptionHandwritingModelOneEmail,
+      handwritingModel2: config.transcriptionHandwritingModelTwoEmail,
+    };
+    const invalidSender = Object.values(replySenders).some((email) =>
+      typeof email !== "string" || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email.trim()),
+    );
+    if (invalidSender) {
+      return Response.json({
+        error: "יש להגדיר בהגדרות התמלול את כל ארבע כתובות הדואר של מודל 1 ומודל 2, לתמלול קולי ולכתב יד.",
+      }, { status: 400 });
+    }
+
     const files = readSelectedTranscriptionFiles(fileTokens, kind, studentId);
     const counts = new Map<string, number>();
     const attachments = files.map((file) => {
@@ -150,6 +167,7 @@ export async function POST(req: Request) {
           kind,
           model,
           recipient,
+          replySenders,
           folderId: source === "drive" ? String(body.folderId || "").slice(0, 200) : "",
           folderName,
           attachments,
