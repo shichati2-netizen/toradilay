@@ -739,7 +739,7 @@ function handleTranscriptionSend_(body) {
     const studentId = String(body.studentId || '').replace(/\D/g, '');
     const kind = String(body.kind || '');
     const model = String(body.model || '');
-    const recipient = normalizeEmail_(body.recipient);
+    const recipient = normalizeRecipientEmail_(body.recipient);
     const folderId = String(body.folderId || '').slice(0, 200);
     const folderName = String(body.folderName || studentId).slice(0, 160);
     const attachmentsInput = Array.isArray(body.attachments) ? body.attachments : [];
@@ -1068,7 +1068,12 @@ function extractEmailAddress_(value) {
 
 
 function normalizeEmail_(value) {
-  // Keep exactly the configured address; remove surrounding whitespace only.
+  // Model reply-sender matching is case-insensitive.
+  return String(value || '').trim().toLowerCase();
+}
+
+function normalizeRecipientEmail_(value) {
+  // Preserve the selected destination address exactly; trim only outer whitespace.
   return value == null ? '' : String(value).trim();
 }
 function validateTranscriptionConfig_() {
