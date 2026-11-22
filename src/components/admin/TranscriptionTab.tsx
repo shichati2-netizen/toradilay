@@ -48,6 +48,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
   const update = (patch: Partial<TranscriptionSettings>) => {
     setSettings((current) => ({ ...current, ...patch }));
     setSaved(false);
+    setError(null);
   };
 
   const save = async () => {
@@ -78,6 +79,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     setAllowedIdsText(result.settings.allowedStudentIds.join("\n"));
     setAppsScriptToken("");
     setSaved(true);
+    setError(result.settings.saveWarning || null);
   };
 
   if (loading) {
@@ -183,7 +185,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
               type="password"
               autoComplete="new-password"
               value={appsScriptToken}
-              onChange={(event) => { setAppsScriptToken(event.target.value); setSaved(false); }}
+              onChange={(event) => { setAppsScriptToken(event.target.value); setSaved(false); setError(null); }}
               placeholder={settings.appsScriptTokenConfigured ? "מפתח שמור – השאר ריק כדי לא לשנות" : "הדבק מפתח אקראי ארוך"}
               className={inputClass}
               dir="ltr"
@@ -210,7 +212,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="text-xs">
-          {error ? <span className="text-red-300">{error}</span> : saved ? <span className="flex items-center gap-1 text-emerald-300"><Check className="h-3.5 w-3.5" /> ההגדרות נשמרו</span> : <span className="text-slate-500">השינויים יישמרו בנפרד מהגדרות העמדה הרגילות</span>}
+          {error ? <span className={saved ? "text-amber-300" : "text-red-300"}>{error}</span> : saved ? <span className="flex items-center gap-1 text-emerald-300"><Check className="h-3.5 w-3.5" /> ההגדרות נשמרו</span> : <span className="text-slate-500">השינויים יישמרו בנפרד מהגדרות העמדה הרגילות</span>}
         </div>
         <button type="button" onClick={save} disabled={saving} className="flex h-11 items-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-5 text-sm font-black text-navy-950 shadow-lg disabled:opacity-50">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
