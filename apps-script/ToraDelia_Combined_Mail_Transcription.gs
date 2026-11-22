@@ -766,8 +766,8 @@ function handleTranscriptionSend_(body) {
     if (model !== 'model1' && model !== 'model2') {
       return transcriptionJsonOutput_({ ok: false, error: 'המודל שנבחר אינו תקין.' });
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
-      return transcriptionJsonOutput_({ ok: false, error: 'כתובת היעד אינה תקינה.' });
+    if (!/^[A-Z0-9.!#$%&'*+/=?^`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i.test(recipient)) {
+      return transcriptionJsonOutput_({ ok: false, error: 'כתובת היעד אינה תקינה. בדוק שאין מרכאות או תווים מיותרים בכתובת.' });
     }
     if (attachmentsInput.length < 1 || attachmentsInput.length > 20) {
       return transcriptionJsonOutput_({ ok: false, error: 'יש לצרף בין קובץ אחד ל-20 קבצים.' });
@@ -811,20 +811,9 @@ function handleTranscriptionSend_(body) {
       return Utilities.newBlob(bytes, mimeType, filename);
     });
 
-    const kindName = kind === 'audio' ? 'תמלול קולי' : 'תמלול כתבי יד';
-    const modelName = model === 'model1' ? 'מודל 1' : 'מודל 2';
-    const subject = 'ToraDelia | ' + kindName + ' | ' + studentId + ' | ' + requestId;
-    const bodyText = [
-      'בקשת תמלול חדשה מתוכנת ToraDelia.',
-      'תעודת זהות: ' + studentId,
-      'סוג: ' + kindName,
-      'מודל: ' + modelName,
-      'מזהה בקשה: ' + requestId,
-      'תיקיית יעד ב-Google Drive: ' + folderId,
-      'שם תיקיית היעד: ' + folderName,
-      'הקבצים המצורפים נקראים לפי תעודת הזהות.',
-      'נא להשיב למייל המקורי, לשמור את מזהה הבקשה בנושא, ולצרף תוצאות ששמן מתחיל בתעודת הזהות בת 9 הספרות.'
-    ].join('\n');
+    // המייל נשלח ללא נושא וללא טקסט בגוף. רק הקבצים המצורפים נשלחים.
+    const subject = '';
+    const bodyText = '';
 
     const gmailSendStartedAt = Date.now();
     Logger.log(
@@ -1079,7 +1068,13 @@ function extractEmailAddress_(value) {
 
 
 function normalizeEmail_(value) {
-  return String(value || '').trim().toLowerCase();
+  // מסיר מרכאות שהודבקו בטעות סביב הכתובת, כולל סימן ציטוט שהגיע כ-Mojibake.
+  return String(value || '')
+    .trim()
+    .replace(/^â€œ/i, '')
+    .replace(/^["'“”‘’<]+|["'“”‘’>]+$/g, '')
+    .trim()
+    .toLowerCase();
 }
 
 
