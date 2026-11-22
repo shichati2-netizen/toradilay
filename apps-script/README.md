@@ -6,21 +6,15 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 
 1. Open the Apps Script project attached to the Gmail account that should send model-request emails and receive model replies.
 2. Replace the existing combined script with \`ToraDelia_Combined_Mail_Transcription.gs\`. Keep the original \`PARENT_FOLDER_ID\` and the existing Word-email workflow.
-3. In \`TRANSCRIPTION_CONFIG\`, set the four exact **From** addresses from which model replies arrive:
-   - \`AUDIO_MODEL_ONE_REPLY_SENDER\`
-   - \`AUDIO_MODEL_TWO_REPLY_SENDER\`
-   - \`HANDWRITING_MODEL_ONE_REPLY_SENDER\`
-   - \`HANDWRITING_MODEL_TWO_REPLY_SENDER\`
-
-   These are reply sender addresses. Normally they match the four destination addresses configured in ToraDelia, but use the actual From address shown on a returned model email.
-4. In Apps Script, open **Project Settings → Script Properties** and create:
-   - Property: \`TORADELIA_INTEGRATION_TOKEN\`
+3. In Apps Script, open **Project Settings → Script Properties** and create:
+   - Property: `TORADELIA_INTEGRATION_TOKEN`
    - Value: the same random secret (at least 32 characters) that you will save in ToraDelia's Transcription settings.
-5. Run \`testTranscriptionConfiguration\` once.
-6. Run \`installTranscriptionReplyTrigger\` once and approve Gmail, Drive and Script Properties permissions. It checks model replies every five minutes.
-7. Deploy → **Manage deployments** → select the existing Web App → Edit → choose **New version** → Deploy. Keep **Execute as: Me** and **Who has access: Anyone**. Updating the editor code alone does not update an already deployed Web App.
-8. Copy the deployed \`/exec\` URL and paste it into ToraDelia → Admin → Transcription → Google Apps Script Web App. Paste the same secret token in the adjacent shared-key field.
-9. Save four destination addresses in ToraDelia: audio model 1, audio model 2, handwriting model 1 and handwriting model 2.
+4. Run `installTranscriptionReplyTrigger` once and approve Gmail, Drive and Script Properties permissions. It checks model replies every five minutes.
+5. Deploy → **Manage deployments** → select the existing Web App → Edit → choose **New version** → Deploy. Keep **Execute as: Me** and **Who has access: Anyone**. Updating the editor code alone does not update an already deployed Web App.
+6. Copy the deployed `/exec` URL and paste it into ToraDelia → Admin → Transcription → Google Apps Script Web App. Paste the same secret token in the adjacent shared-key field.
+7. Save the four destination addresses in ToraDelia: audio model 1, audio model 2, handwriting model 1 and handwriting model 2.
+8. On the first transcription request (and after address changes), ToraDelia automatically sends all four addresses to Apps Script. The script stores them in Script Properties; there is no need to edit sender addresses in the script.
+9. After the first request, you can run `testTranscriptionConfiguration` to verify the sender addresses were received.
 
 ## Email sending
 
@@ -31,9 +25,9 @@ The kiosk does not connect to SMTP. It sends selected files to this Google Apps 
 - The request subject contains the request UUID. Keep that subject intact in the model reply.
 - Returned attachments must have the student's 9-digit ID in the filename. The script saves them in the matching student Drive folder, then marks the request completed or failed.
 
-## Separate reply senders
+## Reply sender addresses
 
-There are four sender settings so that audio model 1, audio model 2, handwriting model 1 and handwriting model 2 can reply from different email addresses. These are independent of the four destination addresses in the kiosk, though they will often be the same.
+The four reply sender addresses are synchronized automatically from ToraDelia each time a transcription is sent. Apps Script stores them in the `TORADELIA_TRANSCRIPTION_REPLY_SENDERS` Script Property and uses them to identify model replies. The destination address configured in ToraDelia must match the actual **From** address of the model's reply. If a model replies from a different address, change the corresponding destination setting to the actual reply address (or the messages will not be recognized).
 
 ## Important
 
