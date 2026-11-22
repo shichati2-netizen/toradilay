@@ -97,6 +97,8 @@ export interface TranscriptionSettings {
   handwritingModelTwoReplyEmail: string;
   appsScriptUrl: string;
   appsScriptTokenConfigured: boolean;
+  /** אזהרה נקודתית בעת שמירה מוצלחת של שאר ההגדרות. */
+  saveWarning?: string;
 }
 
 export interface TranscriptionSettingsInput {
