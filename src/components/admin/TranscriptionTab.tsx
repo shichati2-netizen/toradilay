@@ -96,7 +96,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
         hint="כאשר האפשרות מופעלת, הכפתורים יופיעו רק לאחר הזנת תעודת זהות שנמצאת ברשימת המורשים."
       >
         <ToggleRow
-          title="הפעלת תמלול קולי ותיקיית כתבי יד"
+          title="הפעלת תמלול קולי וגישה לכתבי יד"
           description="אפשר לכבות בכל עת. כשהאפשרות כבויה, מסך הקבצים נשאר ללא שינוי."
           checked={settings.enabled}
           onChange={(value) => update({ enabled: value })}
