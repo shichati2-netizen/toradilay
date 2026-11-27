@@ -1,6 +1,8 @@
 import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
 import {
+  checkExistingRegistration,
   getHandwritingNameForStudent,
+  resolveTarget,
   saveHandwritingNameForStudent,
 } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
@@ -105,12 +107,47 @@ export async function GET(req: Request) {
     const access = await getFolderSettings(studentId);
     if (!access.ok) return access.response;
 
-    let fullName = await getHandwritingNameForStudent(studentId);
+    // Prefer the handwriting-specific mapping, then use the registration sheet,
+    // and finally the local CSV. A missing/temporarily unavailable mapping tab must
+    // never prevent a student with a registered name from opening handwriting.
+    let fullName: string | null = null;
+    try {
+      fullName = await getHandwritingNameForStudent(studentId);
+    } catch (error) {
+      console.warn("[transcription/handwriting-folder] mapping lookup unavailable:", error);
+    }
+
     if (!fullName) {
-      const registered = findLocalRegistration(studentId).studentName;
-      if (registered) {
-        const saved = await saveHandwritingNameForStudent(studentId, registered);
+      try {
+        const target = await resolveTarget({ webhookUrl: "" });
+        if (target && target.method !== "webhook") {
+          const registration = await checkExistingRegistration(target, studentId);
+          if (registration.firstName?.trim() && registration.lastName?.trim()) {
+            fullName = registration.firstName.trim() + " " + registration.lastName.trim();
+          }
+        }
+      } catch (error) {
+        console.warn("[transcription/handwriting-folder] registration lookup unavailable:", error);
+      }
+    }
+
+    if (!fullName) {
+      try {
+        fullName = findLocalRegistration(studentId).studentName || null;
+      } catch (error) {
+        console.warn("[transcription/handwriting-folder] local registration lookup unavailable:", error);
+      }
+    }
+
+    if (fullName) {
+      try {
+        const saved = await saveHandwritingNameForStudent(studentId, fullName);
         fullName = saved.fullName;
+      } catch (error) {
+        // The local-only search path needs no Google mapping table.
+        if (!access.config.localHandwritingSearchEnabled) {
+          console.warn("[transcription/handwriting-folder] name mapping could not be persisted:", error);
+        }
       }
     }
     if (access.config.localHandwritingSearchEnabled && fullName) {
@@ -156,11 +193,13 @@ export async function POST(req: Request) {
       return Response.json({ error: "יש להזין שם מלא תקין (שם פרטי ושם משפחה)." }, { status: 400 });
     }
 
-    const saved = await saveHandwritingNameForStudent(studentId, fullName);
     if (access.config.localHandwritingSearchEnabled) {
-      const files = searchLocalHandwritingFolder(access.config.localHandwritingSearchPath, saved.fullName);
-      return Response.json({ ok: true, needsAssociation: false, studentName: saved.fullName, folderId: "local:" + saved.fullName, files });
+      // For a separate local handwriting directory, the name is enough to locate
+      // the folder; do not require a Google Sheets mapping connection.
+      const files = searchLocalHandwritingFolder(access.config.localHandwritingSearchPath, fullName);
+      return Response.json({ ok: true, needsAssociation: false, studentName: fullName, folderId: "local:" + fullName, files });
     }
+    const saved = await saveHandwritingNameForStudent(studentId, fullName);
     const result = await resolveFolderResult(saved.fullName, access.config.transcriptionHandwritingRootFolderId);
     return Response.json({ ok: true, ...result });
   } catch (error) {
