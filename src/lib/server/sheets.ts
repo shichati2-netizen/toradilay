@@ -633,6 +633,150 @@ export function validateRegistration(
 }
 
 
+
+/* ------------------------------------------------------------------ */
+/* מיפוי תעודת זהות לשם מלא עבור תיקיות תמלול כתב יד                   */
+/* ------------------------------------------------------------------ */
+
+const HANDWRITING_MAPPING_TAB = "מיפוי תמלול כתב יד";
+const HANDWRITING_MAPPING_HEADERS = ["תעודת זהות", "שם מלא"];
+
+async function getHandwritingMappingTarget(): Promise<SheetsTarget> {
+  const config = await getStoredConfig();
+  const target = await resolveTarget({ spreadsheetId: config.spreadsheetId, webhookUrl: "" });
+  if (!target || target.method === "webhook") {
+    throw new Error("לא נמצא חיבור Google Sheets ישיר. יש לוודא שחשבון השירות הקיים מוגדר וזמין.");
+  }
+
+  const metadata = await sheetsRequest<{
+    sheets?: Array<{ properties?: { title?: string } }>;
+  }>(target, "?fields=sheets.properties.title");
+  const exists = (metadata.sheets ?? []).some(
+    (sheet) => sheet.properties?.title === HANDWRITING_MAPPING_TAB,
+  );
+
+  if (!exists) {
+    await sheetsRequest(target, ":batchUpdate", {
+      method: "POST",
+      body: JSON.stringify({
+        requests: [{ addSheet: { properties: { title: HANDWRITING_MAPPING_TAB } } }],
+      }),
+    });
+  }
+
+  const range = sheetRange(HANDWRITING_MAPPING_TAB, "A1:B10000");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    target,
+    "/values/" + encodeURIComponent(range),
+  );
+  const rows = data.values ?? [];
+  if (!rows.length || !(rows[0] ?? []).some((cell) => String(cell ?? "").trim())) {
+    const headerRange = sheetRange(HANDWRITING_MAPPING_TAB, "A1:B1");
+    await sheetsRequest(target, "/values/" + encodeURIComponent(headerRange) + "?valueInputOption=RAW", {
+      method: "PUT",
+      body: JSON.stringify({
+        range: headerRange,
+        majorDimension: "ROWS",
+        values: [HANDWRITING_MAPPING_HEADERS],
+      }),
+    });
+  } else {
+    const headers = (rows[0] ?? []).map((cell) => normalizePersonName(cell));
+    if (headers[0] !== normalizePersonName(HANDWRITING_MAPPING_HEADERS[0]) ||
+        headers[1] !== normalizePersonName(HANDWRITING_MAPPING_HEADERS[1])) {
+      throw new Error('לשונית "' + HANDWRITING_MAPPING_TAB + '" קיימת אך הכותרות שלה אינן תואמות. לא שינינו את תוכנה.');
+    }
+  }
+
+  return target;
+}
+
+export async function getHandwritingNameForStudent(studentId: string): Promise<string | null> {
+  const cleanId = String(studentId ?? "").replace(/\\D/g, "");
+  if (!/^\\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+  const target = await getHandwritingMappingTarget();
+  const range = sheetRange(HANDWRITING_MAPPING_TAB, "A1:B10000");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    target,
+    "/values/" + encodeURIComponent(range),
+  );
+  const rows = data.values ?? [];
+  for (let index = 1; index < rows.length; index++) {
+    const row = rows[index] ?? [];
+    if (cleanIdCell(row[0]) !== cleanId) continue;
+    const name = String(row[1] ?? "").trim();
+    return name || null;
+  }
+  return null;
+}
+
+export async function saveHandwritingNameForStudent(
+  studentId: string,
+  fullName: string,
+): Promise<{ studentId: string; fullName: string }> {
+  const cleanId = String(studentId ?? "").replace(/\\D/g, "");
+  const cleanName = String(fullName ?? "").replace(/\\s+/g, " ").trim().slice(0, 120);
+  if (!/^\\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+  if (cleanName.length < 3 || !/[\\p{L}]{2}/u.test(cleanName)) {
+    throw new Error("יש להזין שם מלא תקין.");
+  }
+
+  const target = await getHandwritingMappingTarget();
+  const range = sheetRange(HANDWRITING_MAPPING_TAB, "A1:B10000");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    target,
+    "/values/" + encodeURIComponent(range),
+  );
+  const rows = data.values ?? [];
+  const normalizedName = normalizePersonName(cleanName);
+  let existingRow = -1;
+
+  for (let index = 1; index < rows.length; index++) {
+    const row = rows[index] ?? [];
+    const rowId = cleanIdCell(row[0]);
+    const rowName = String(row[1] ?? "").trim();
+    if (rowId === cleanId) {
+      existingRow = index + 1;
+      continue;
+    }
+    if (rowName && normalizePersonName(rowName) === normalizedName) {
+      throw new Error("השם הזה כבר משויך למספר תעודת זהות אחר. יש לבדוק את הרישום בגיליון.");
+    }
+  }
+
+  if (existingRow > 0) {
+    const updateRange = sheetRange(HANDWRITING_MAPPING_TAB, "A" + existingRow + ":B" + existingRow);
+    await sheetsRequest(
+      target,
+      "/values/" + encodeURIComponent(updateRange) + "?valueInputOption=RAW",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          range: updateRange,
+          majorDimension: "ROWS",
+          values: [[cleanId, cleanName]],
+        }),
+      },
+    );
+  } else {
+    const appendRange = sheetRange(HANDWRITING_MAPPING_TAB, "A2:B");
+    await sheetsRequest(
+      target,
+      "/values/" + encodeURIComponent(appendRange) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          range: appendRange,
+          majorDimension: "ROWS",
+          values: [[cleanId, cleanName]],
+        }),
+      },
+    );
+  }
+
+  return { studentId: cleanId, fullName: cleanName };
+}
+
 /* ------------------------------------------------------------------ */
 /* חיפוש קוד אישי בגיליון הנתונים השני                                 */
 /* ------------------------------------------------------------------ */
