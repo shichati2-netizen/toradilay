@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const saved = await saveRegistrationNameById(target, idNumber, firstName, lastName);
     let backupWarning: string | undefined;
     try {
-      upsertLocalRegistrationName(idNumber, saved.studentName.split(" ")[0] || firstName, saved.studentName.split(" ").slice(1).join(" ") || lastName);
+      upsertLocalRegistrationName(idNumber, saved.firstName, saved.lastName);
     } catch (error) {
       backupWarning = error instanceof Error ? error.message : "גיבוי השם המקומי לא נשמר.";
       console.warn("[register/complete-name] local backup failed:", backupWarning);
