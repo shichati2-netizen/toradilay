@@ -47,6 +47,7 @@ function formatSize(bytes?: number) {
 export function StudentFilesScreen({
   folder,
   studentId,
+  studentName,
   files,
   source,
   handwritingFiles,
@@ -77,6 +78,7 @@ export function StudentFilesScreen({
 }: {
   folder: KioskFolder;
   studentId: string;
+  studentName: string;
   files: KioskFile[];
   source?: "drive" | "local";
   handwritingFiles: TranscriptionDriveFile[];
@@ -167,8 +169,8 @@ export function StudentFilesScreen({
           </div>
           <div>
             <h2 className="flex flex-wrap items-baseline gap-x-2 text-2xl font-black text-white">
-              <span className="text-lg font-bold text-slate-300">תעודת זהות:</span>
-              <span className="font-mono tracking-wider text-gold-gradient">{folder.name}</span>
+              <span className="text-lg font-bold text-slate-300">שלום,</span>
+              <span className="text-gold-gradient">{studentName || folder.name}</span>
             </h2>
             <p className="mt-0.5 flex items-center gap-2 text-sm font-medium text-slate-400">
               {activeFolder === "folders"
