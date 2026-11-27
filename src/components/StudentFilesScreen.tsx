@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, Clock, Download, FileText, Folder, FolderOpen, Loader2,
-  LogOut, Mic, PenLine, Timer, Usb, Database, Printer, Copy
+  ArrowLeft, CheckCircle2, Clock, Download, FileText, Folder, FolderOpen, Loader2,
+  LogOut, Mic, PenLine, Timer, Usb, Database, Printer
 } from "lucide-react";
 import type { KioskFile, KioskFolder, TranscriptionDriveFile } from "@/lib/types";
 import { useFx } from "@/lib/client/fx";
@@ -262,26 +262,40 @@ export function StudentFilesScreen({
               {handwritingFiles.map((file) => {
                 const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
                 const ext = (file.name.match(/\.([^.]+)$/)?.[1] || (isPdf ? "pdf" : "docx")).toUpperCase();
-                const baseName = file.name.replace(/\.[^.]+$/, "");
+                const title = file.name.replace(/\.[^.]+$/, "");
+                const previewUrl = isPdf
+                  ? handwritingUrl(file.id)
+                  : "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id);
                 return (
-                  <article key={file.id} className="panel flex items-center gap-3 rounded-2xl p-4">
-                    <div className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border " + (isPdf ? "border-rose-300/25 bg-rose-400/10 text-rose-300" : "border-sky-300/25 bg-sky-400/10 text-sky-300")}>
-                      <FileText className="h-5 w-5" />
+                  <article key={file.id} className="panel flex h-full select-none flex-col rounded-3xl p-4">
+                    <div className="mb-3 flex items-start gap-3">
+                      <div className={"flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border " + (isPdf ? "border-rose-300/20 bg-rose-400/10 text-rose-300" : "border-sky-300/20 bg-sky-400/10 text-sky-300")}>
+                        <FileText className="h-5 w-5" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-white" title={file.name}>{title}</h3>
+                        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] font-medium text-slate-400">
+                          <span className={"rounded px-1.5 py-px font-mono text-[10px] " + (isPdf ? "bg-rose-400/15 text-rose-200" : "bg-sky-400/15 text-sky-200")}>{ext}</span>
+                          {file.size ? <span>{formatSize(file.size)}</span> : null}
+                          {file.modifiedTime ? <span>· עודכן {new Date(file.modifiedTime).toLocaleDateString("he-IL")}</span> : null}
+                        </div>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="break-words text-sm font-bold text-white">{baseName}</h3>
-                        <span className={"rounded-md px-2 py-1 text-[10px] font-black " + (isPdf ? "bg-rose-400/15 text-rose-200" : "bg-sky-400/15 text-sky-200")}>{ext}</span>
+                    <div className="relative mb-3.5 h-64 w-full overflow-hidden rounded-xl bg-white ring-1 ring-white/10" aria-label={"תצוגה מקדימה של " + title}>
+                      <iframe title={"תצוגה מקדימה: " + file.name} src={previewUrl} className="h-full w-full border-0 bg-white" />
+                      <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
+                        {handwritingCopiedIds.has(file.id) && <span className="flex items-center gap-1 rounded-lg border border-emerald-300/50 bg-emerald-500/90 px-2 py-0.5 text-[11px] font-bold text-white shadow-lg"><CheckCircle2 className="h-3.5 w-3.5" /> הועתק</span>}
                       </div>
-                      <p className="mt-1 text-[11px] text-slate-400">{file.size ? formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button type="button" onClick={() => onPrintHandwriting(file)} disabled={handwritingPrintingId === file.id} className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-bold text-white disabled:opacity-50">
-                          {handwritingPrintingId === file.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />} הדפסה
-                        </button>
-                        <button type="button" onClick={() => onCopyHandwriting(file)} disabled={handwritingCopyingId === file.id || handwritingCopiedIds.has(file.id)} className="flex h-9 items-center gap-2 rounded-lg bg-emerald-400/15 px-3 text-xs font-bold text-emerald-100 disabled:opacity-50">
-                          {handwritingCopyingId === file.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />} {handwritingCopiedIds.has(file.id) ? "הועתק" : "העתק לאונקי"}
-                        </button>
-                      </div>
+                    </div>
+                    <div className="mt-auto grid grid-cols-[1fr_1.45fr] gap-2.5">
+                      <FxButton variant="navy" disabled={handwritingPrintingId === file.id} onClick={() => onPrintHandwriting(file)} className="h-12 px-2 text-[13px] leading-tight">
+                        {handwritingPrintingId === file.id ? <Loader2 className="keep-anim h-4 w-4 shrink-0 animate-spin" /> : <Printer className="h-4 w-4 shrink-0" />}
+                        <span>{handwritingPrintingId === file.id ? "שולח..." : "הדפסה"}</span>
+                      </FxButton>
+                      <FxButton variant={handwritingCopiedIds.has(file.id) ? "done" : "emerald"} disabled={handwritingCopyingId === file.id} onClick={() => onCopyHandwriting(file)} className="h-12 px-2 text-[13px] leading-tight" title={"העתק לדיסק און קי (כונן " + targetDriveLetter + ":)"}>
+                        {handwritingCopyingId === file.id ? <Loader2 className="keep-anim h-4 w-4 shrink-0 animate-spin" /> : <Usb className="h-4 w-4 shrink-0" />}
+                        <span>{handwritingCopyingId === file.id ? "מעתיק..." : handwritingCopiedIds.has(file.id) ? "הועתק" : "העתק לדיסק און קי"}</span>
+                      </FxButton>
                     </div>
                   </article>
                 );
