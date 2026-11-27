@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:app": "npm run build && node scripts/prepare-standalone.cjs",
+    "build:app": "node scripts/copy-pdfjs-client-assets.cjs && npm run build && node scripts/prepare-standalone.cjs",
     "start": "next start",
     "start:desktop": "node standalone/server.js",
     "build:electron": "npm run build:app && electron-builder --win --x64 --dir --publish never",
