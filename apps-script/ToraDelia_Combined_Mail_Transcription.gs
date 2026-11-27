@@ -502,14 +502,7 @@ function saveTranscriptionReplySenders_(input) {
     return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ||
       address.indexOf('@example.com') !== -1;
   });
-  const invalidOptional = ['handwritingModel1', 'handwritingModel2'].filter(function(key) {
-    const address = senders[key];
-    return address && (
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ||
-      address.indexOf('@example.com') !== -1
-    );
-  });
-  if (invalidRequired.length > 0 || invalidOptional.length > 0) {
+  if (invalidRequired.length > 0) {
     throw new Error('יש להגדיר שתי כתובות שולח תקינות לתמלול הקולי. כתובות כתב היד אינן נדרשות יותר.');
   }
 
@@ -1052,9 +1045,10 @@ function isTranscriptionModelSender(fromValue) {
 
 function getTranscriptionReplySenders_() {
   const senders = getTranscriptionReplySenderMap_();
+  // רק תשובות תמלול קולי נשמרות בתיקייה לפי מספר זהות.
+  // תמלול כתב יד מנוהל בנפרד דרך תיקיות Google Drive לפי שם התלמיד.
   return senders
-    ? [senders.audioModel1, senders.audioModel2, senders.handwritingModel1, senders.handwritingModel2]
-        .filter(Boolean)
+    ? [senders.audioModel1, senders.audioModel2].filter(Boolean)
     : [];
 }
 
@@ -1066,8 +1060,6 @@ function getTranscriptionModelType_(sender) {
   if (!senders) return null;
   if (normalized === senders.audioModel1) return 'מודל 1 · תמלול קולי';
   if (normalized === senders.audioModel2) return 'מודל 2 · תמלול קולי';
-  if (normalized === senders.handwritingModel1) return 'מודל 1 · תמלול כתבי יד';
-  if (normalized === senders.handwritingModel2) return 'מודל 2 · תמלול כתבי יד';
   return null;
 }
 
@@ -1096,12 +1088,8 @@ function validateTranscriptionConfig_() {
   if (!senders ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senders.audioModel1) ||
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senders.audioModel2) ||
-      [senders.audioModel1, senders.audioModel2, senders.handwritingModel1, senders.handwritingModel2]
-        .filter(Boolean)
-        .some(function(sender) {
-          return sender.indexOf('@example.com') !== -1 ||
-            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
-        })) {
+      senders.audioModel1.indexOf('@example.com') !== -1 ||
+      senders.audioModel2.indexOf('@example.com') !== -1) {
     throw new Error(
       'כתובות השולח של תמלול קולי עדיין לא התקבלו מ-ToraDelia. שמור את הגדרות התמלול ושלח בקשת תמלול קולי אחת.'
     );
