@@ -73,14 +73,14 @@ export function DriveTab({
   return (
     <div className="space-y-4">
       <SectionCard
-        title="מקור חיפוש קבצי תלמידים"
+        title="מקור חיפוש קובצי תמלול קולי"
         icon={<FolderOpen className="h-4 w-4 text-sky-300" />}
-        hint="אפשר להמשיך להשתמש ב-Google Drive, או לבחור תיקייה מקומית שבה נמצאות תיקיות התלמידים."
+        hint="הנתיב הזה משמש את התמלול הקולי בלבד. לתמלול כתבי יד יש הגדרה ונתיב נפרדים בהמשך."
       >
         <div className="space-y-3">
           <ToggleRow
-            title="חיפוש קבצים מתיקייה במחשב"
-            description="כאשר האפשרות מופעלת, החיפוש יתבצע רק בתיקייה שנבחרה כאן ולא יפנה ל-Google Drive."
+            title="חיפוש תמלול קולי בתיקייה מקומית"
+            description="כאשר האפשרות מופעלת, קובצי התמלול הקולי ייטענו מהנתיב הזה במקום מ-Google Drive."
             checked={draft.localSearchEnabled}
             onChange={(v) => update({ localSearchEnabled: v })}
           />
