@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { AlertCircle, Loader2, UserRound, X } from "lucide-react";
 import { FxButton } from "./FxButton";
@@ -35,7 +35,7 @@ export function StudentNameUpdateDialog({
     setLastName(initialLastName);
   }, [open, studentId, initialFirstName, initialLastName]);
 
-  const submit = (event: React.FormEvent) => {
+  const submit = (event: FormEvent) => {
     event.preventDefault();
     const first = firstName.trim();
     const last = lastName.trim();
