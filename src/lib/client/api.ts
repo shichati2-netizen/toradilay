@@ -40,7 +40,20 @@ export async function fetchPreview(
   return { html: data.html, fallback: Boolean(data.fallback) };
 }
 
-export async function copyHandwritingFile(file: TranscriptionDriveFile, studentId: string): Promise<CopyResult> {\n  try {\n    const res = await fetch("/api/transcription/handwriting-copy", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileId: file.id, fileName: file.name, studentId }) });\n    return await json<CopyResult>(res);\n  } catch { return { success: false, mode: "server", message: "ההעתקה נכשלה. אנא נסה שוב." }; }\n}\n\nexport interface CopyResult {
+export async function copyHandwritingFile(file: TranscriptionDriveFile, studentId: string): Promise<CopyResult> {
+  try {
+    const res = await fetch("/api/transcription/handwriting-copy", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fileId: file.id, fileName: file.name, studentId }),
+    });
+    return await json<CopyResult>(res);
+  } catch {
+    return { success: false, mode: "server", message: "ההעתקה נכשלה. אנא נסה שוב." };
+  }
+}
+
+export interface CopyResult {
   success: boolean;
   mode: "server" | "download";
   message: string;
