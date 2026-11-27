@@ -238,6 +238,9 @@ export function searchLocalHandwritingFolder(
   rootPath: string,
   fullName: string,
 ): TranscriptionDriveFile[] {
+  if (typeof rootPath !== "string" || !rootPath.trim()) {
+    throw new TypeError("נתיב תיקיית כתב היד חייב להיות מחרוזת תקינה.");
+  }
   const root = path.resolve(rootPath);
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
     throw new Error("תיקיית כתב היד המקומית שנבחרה אינה קיימת או אינה נגישה.");
@@ -275,7 +278,15 @@ export function getLocalHandwritingFile(
 ): { path: string; name: string } | undefined {
   if (!/^local:[a-f0-9]{18}$/.test(fileId)) return undefined;
   const entry = getRegisteredLocalFile(fileId);
-  if (!entry || !/\.(pdf|docx?)$/i.test(entry.name)) return undefined;
+  if (
+    !entry ||
+    typeof entry.path !== "string" ||
+    !entry.path.trim() ||
+    typeof entry.name !== "string" ||
+    !/\.(pdf|docx?)$/i.test(entry.name) ||
+    typeof rootPath !== "string" ||
+    !rootPath.trim()
+  ) return undefined;
   const root = path.resolve(rootPath);
   const filePath = path.resolve(entry.path);
   const relative = path.relative(root, filePath);
