@@ -7,10 +7,7 @@ import {
   scrapeFolder,
 } from "@/lib/server/drive";
 import { getLocalHandwritingFile } from "@/lib/server/drives";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
 
-const nodeRequire = createRequire(import.meta.url);
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -33,39 +30,6 @@ function plainTextHtml(value: string): string {
     ? paragraphs.map((line) => "<p>" + escapeHtml(line) + "</p>").join("")
     : "<p>לא נמצא טקסט להצגה בקובץ.</p>";
   return "<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;color:#111}body{box-sizing:border-box;padding:10px 12px;font-family:Arial,sans-serif;font-size:15px;line-height:1.55;text-align:right;direction:rtl;overflow:hidden}main{margin:0;padding:0;overflow:hidden}p{margin:0 0 9px;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><main>" + content + "</main></body></html>";
-}
-
-async function extractPdfText(buffer: Buffer): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // ביישום Portable יש להצביע במפורש על ה-worker שמגיע עם pdfjs-dist.
-  // בלי זה PDF.js מנסה לטעון worker יחסי מתוך chunks של Next שאינו נארז שם.
-  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
-    nodeRequire.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs"),
-  ).href;
-  const task = pdfjs.getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-    disableFontFace: true,
-  });
-  const pdf = await task.promise;
-  try {
-    const pages: string[] = [];
-    const maxPages = Math.min(pdf.numPages, 40);
-    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const content = await page.getTextContent();
-      const pageText = content.items
-        .map((item) => ("str" in item ? item.str : ""))
-        .filter(Boolean)
-        .join(" ")
-        .replace(/\s+/g, " ")
-        .trim();
-      if (pageText) pages.push(pageText);
-    }
-    return pages.join("\n");
-  } finally {
-    await pdf.destroy();
-  }
 }
 
 async function getFileInfo(fileId: string, studentId: string) {
@@ -121,13 +85,22 @@ export async function GET(req: Request) {
       return new Response("הגישה לתמלול כתב יד מוגבלת לחשבונות מורשים בלבד.", { status: 403 });
     }
     const file = await getFileInfo(fileId, studentId);
-    let text: string;
     if (/\.pdf$/i.test(file.name)) {
-      text = await extractPdfText(file.buffer);
-      if (!text.trim()) {
-        text = "לא נמצא טקסט קריא בקובץ PDF. ייתכן שמדובר בסריקה כתמונה.";
-      }
-    } else if (/\.docx$/i.test(file.name)) {
+      // Return the original PDF. The client/Windows PDF viewer handles rendering;
+      // this avoids server-side PDF.js parsing and worker/path resolution entirely.
+      return new Response(new Uint8Array(file.buffer), {
+        headers: {
+          "Content-Type": "application/pdf",
+          "Content-Length": String(file.buffer.length),
+          "Content-Disposition": "inline; filename*=UTF-8''" + encodeURIComponent(file.name.replace(/[\\/:*?"<>|\\r\\n]/g, "_")),
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
+    let text: string;
+    if (/\.docx$/i.test(file.name)) {
       const mammoth = await import("mammoth");
       const result = await mammoth.extractRawText({ buffer: file.buffer });
       text = result.value || "";
