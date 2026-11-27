@@ -249,13 +249,13 @@ export function searchLocalHandwritingFolder(
   if (!folder) return [];
   const folderPath = path.join(root, folder.name);
   return fs.readdirSync(folderPath, { withFileTypes: true })
-    .filter((entry) => entry.isFile() && /\\.(pdf|docx?)$/i.test(entry.name))
+    .filter((entry) => entry.isFile() && /\.(pdf|docx?)$/i.test(entry.name))
     .map((entry) => {
       const fullPath = path.join(folderPath, entry.name);
       const stat = fs.statSync(fullPath);
       const id = registerLocalFile(fullPath, entry.name);
-      const isPdf = /\\.pdf$/i.test(entry.name);
-      const isDoc = /\\.doc$/i.test(entry.name);
+      const isPdf = /\.pdf$/i.test(entry.name);
+      const isDoc = /\.doc$/i.test(entry.name);
       return {
         id,
         name: entry.name,
@@ -276,7 +276,7 @@ export function getLocalHandwritingFile(
 ): { path: string; name: string } | undefined {
   if (!/^local:[a-f0-9]{18}$/.test(fileId)) return undefined;
   const entry = state.localFiles.get(fileId);
-  if (!entry || !/\\.(pdf|docx?)$/i.test(entry.name)) return undefined;
+  if (!entry || !/\.(pdf|docx?)$/i.test(entry.name)) return undefined;
   const root = path.resolve(rootPath);
   const filePath = path.resolve(entry.path);
   const relative = path.relative(root, filePath);
