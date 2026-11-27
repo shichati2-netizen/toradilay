@@ -99,6 +99,9 @@ export interface TranscriptionSettings {
   appsScriptTokenConfigured: boolean;
   /** תיקיית האב בדרייב שבה נשמרים תמלולי כתב היד לפי שם מלא */
   handwritingRootFolderId: string;
+  /** חשבון השירות הייעודי לתיקיית כתב היד — פרטי המפתח עצמם אינם נשלחים ללקוח */
+  handwritingDriveAccountConfigured: boolean;
+  handwritingDriveAccountEmail: string;
   /** אזהרה נקודתית בעת שמירה מוצלחת של שאר ההגדרות. */
   saveWarning?: string;
 }
@@ -156,6 +159,8 @@ export interface StoredConfig extends KioskConfig {
   transcriptionAppsScriptUrl: string;
   transcriptionAppsScriptToken: string;
   transcriptionHandwritingRootFolderId: string;
+  /** JSON חשבון שירות ייעודי לתיקיית כתב היד; נשמר מקומית בלבד */
+  transcriptionHandwritingDriveServiceAccountJson: string;
 }
 
 export interface GoogleAuthStatus {
