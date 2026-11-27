@@ -5,6 +5,7 @@ import {
 } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
 import { findLocalRegistration } from "@/lib/server/registrations";
+import { searchLocalHandwritingFolder } from "@/lib/server/drives";
 import type { TranscriptionDriveFile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,13 @@ async function getFolderSettings(studentId: string) {
     };
   }
   const config = await getStoredConfig();
-  if (!/^[A-Za-z0-9_-]{10,120}$/.test(config.transcriptionHandwritingRootFolderId || "")) {
+  if (config.localHandwritingSearchEnabled && !config.localHandwritingSearchPath) {
+    return {
+      ok: false as const,
+      response: Response.json({ error: "חיפוש מקומי לכתב יד מופעל, אך לא נבחר נתיב מקומי בהגדרות." }, { status: 503 }),
+    };
+  }
+  if (!config.localHandwritingSearchEnabled && !/^[A-Za-z0-9_-]{10,120}$/.test(config.transcriptionHandwritingRootFolderId || "")) {
     return {
       ok: false as const,
       response: Response.json({ error: "תיקיית האב של תמלולי כתב היד עדיין לא הוגדרה בהגדרות." }, { status: 503 }),
@@ -103,6 +110,16 @@ export async function GET(req: Request) {
         fullName = saved.fullName;
       }
     }
+    if (access.config.localHandwritingSearchEnabled && fullName) {
+      const files = searchLocalHandwritingFolder(access.config.localHandwritingSearchPath, fullName);
+      return Response.json({
+        needsAssociation: false,
+        studentName: fullName,
+        folderId: "local:" + fullName,
+        files,
+      } satisfies HandwritingFolderResult);
+    }
+
     if (!fullName) {
       return Response.json({
         needsAssociation: true,
@@ -137,6 +154,10 @@ export async function POST(req: Request) {
     }
 
     const saved = await saveHandwritingNameForStudent(studentId, fullName);
+    if (access.config.localHandwritingSearchEnabled) {
+      const files = searchLocalHandwritingFolder(access.config.localHandwritingSearchPath, saved.fullName);
+      return Response.json({ ok: true, needsAssociation: false, studentName: saved.fullName, folderId: "local:" + saved.fullName, files });
+    }
     const result = await resolveFolderResult(saved.fullName, access.config.transcriptionHandwritingRootFolderId);
     return Response.json({ ok: true, ...result });
   } catch (error) {
