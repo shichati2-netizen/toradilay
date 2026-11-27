@@ -9,10 +9,17 @@ export async function POST(req: Request) {
     const studentId = String(body.studentId || "").replace(/\D/g, "").slice(0, 12);
     const valid = /^\d{9}$/.test(studentId);
     const config = await getStoredConfig();
-    const handwritingAllowed = valid && isHandwritingAccessAllowed(studentId, config);
+    const handwritingConfigured = config.localHandwritingSearchEnabled
+      ? Boolean(config.localHandwritingSearchPath.trim())
+      : /^[A-Za-z0-9_-]{10,120}$/.test(config.transcriptionHandwritingRootFolderId || "");
+    const handwritingAllowed =
+      valid &&
+      handwritingConfigured &&
+      isHandwritingAccessAllowed(studentId, config);
     return Response.json({
       enabled: valid,
       allowed: valid,
+      handwritingConfigured,
       handwritingAllowed,
       handwritingRestricted: config.transcriptionHandwritingAccessRestricted,
     });
