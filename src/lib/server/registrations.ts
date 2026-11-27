@@ -102,6 +102,62 @@ export function findLocalRegistration(idNumber: string): {
   };
 }
 
+export function upsertLocalRegistrationName(
+  idNumber: string,
+  firstNameInput: string,
+  lastNameInput: string,
+): { rowNumber: number; studentName: string } {
+  const cleanId = String(idNumber).replace(/\\D/g, "");
+  const firstName = String(firstNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
+  const lastName = String(lastNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
+  if (!/^\\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
+    throw new Error("פרטי תעודת הזהות או השם אינם תקינים.");
+  }
+
+  const file = ensureFile();
+  const records = readLocalRegistrations();
+  const existingIndex = records.findIndex((row) => row.idNumber === cleanId);
+  let rowNumber: number;
+  if (existingIndex >= 0) {
+    const existing = records[existingIndex];
+    if (existing.firstName && existing.firstName !== firstName) {
+      throw new Error("בקובץ הרישום המקומי מופיע שם פרטי אחר לתעודת זהות זו.");
+    }
+    if (existing.lastName && existing.lastName !== lastName) {
+      throw new Error("בקובץ הרישום המקומי מופיע שם משפחה אחר לתעודת זהות זו.");
+    }
+    records[existingIndex] = {
+      ...existing,
+      firstName: existing.firstName || firstName,
+      lastName: existing.lastName || lastName,
+    };
+    rowNumber = existing.rowNumber;
+  } else {
+    rowNumber = records.length + 2;
+    records.push({
+      firstName,
+      lastName,
+      idNumber: cleanId,
+      vaad: 0,
+      registeredAt: new Date().toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" }),
+      rowNumber,
+    });
+  }
+
+  const lines = [
+    HEADERS.map((header) => csvCell(header)).join(","),
+    ...records.map((row) => [
+      csvCell(row.firstName),
+      csvCell(row.lastName),
+      csvCell(row.idNumber, true),
+      row.vaad > 0 ? csvCell(row.vaad) : '""',
+      csvCell(row.registeredAt),
+    ].join(",")),
+  ];
+  fs.writeFileSync(file, "\\uFEFF" + lines.join("\\r\\n") + "\\r\\n", "utf8");
+  return { rowNumber, studentName: firstName + " " + lastName };
+}
+
 export function appendLocalRegistration(payload: RegistrationPayload): {
   filePath: string;
   rowNumber: number;
