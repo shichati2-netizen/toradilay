@@ -246,6 +246,48 @@ export async function testDriveFolder(
   }
 }
 
+export async function saveTranscriptionHandwritingDriveAccountApi(
+  pin: string,
+  payload: { json?: string; clear?: boolean },
+): Promise<{ ok: boolean; settings?: import("@/lib/types").TranscriptionSettings; error?: string }> {
+  try {
+    const res = await fetch("/api/transcription/handwriting-drive-account", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin, ...payload }),
+    });
+    return await json(res);
+  } catch {
+    return { ok: false, error: "שגיאת תקשורת בשמירת חשבון הגישה לכתב היד." };
+  }
+}
+
+export async function testTranscriptionHandwritingDriveAccessApi(
+  pin: string,
+  rootFolderId: string,
+): Promise<{
+  ok: boolean;
+  authMode?: "oauth" | "service-account" | "public";
+  accountEmail?: string;
+  dedicatedAccount?: boolean;
+  folderCount?: number;
+  fileCount?: number;
+  sample?: string[];
+  ms?: number;
+  error?: string;
+}> {
+  try {
+    const res = await fetch("/api/transcription/handwriting-drive-access", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ pin, rootFolderId }),
+    });
+    return await json(res);
+  } catch {
+    return { ok: false, error: "שגיאת תקשורת בבדיקת הגישה לתיקיית כתב היד." };
+  }
+}
+
 /* ------------------------------ חשבון Google קבוע (OAuth) ------------------------------ */
 
 export async function fetchGoogleAuthStatus(pin: string): Promise<GoogleAuthStatus | null> {
