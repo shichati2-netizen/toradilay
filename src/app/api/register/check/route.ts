@@ -19,11 +19,11 @@ export async function POST(req: Request) {
 
   try {
     const target = await resolveTarget({ webhookUrl: "" });
-    if (!target || target.method !== "service-account" || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
+    if (!target || (target.method !== "service-account" && target.method !== "oauth") || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
       return Response.json(
         {
           exists: false,
-          error: "הרישום ל-Google Sheets אינו מוגדר. יש להגדיר חשבון שירות ומזהה גיליון במסך הניהול.",
+          error: "החיבור ל-Google Sheets אינו מוגדר. יש להגדיר חשבון Google מורשה ומזהה גיליון במסך הניהול.",
           code: "NOT_CONFIGURED",
         },
         { status: 503 },
