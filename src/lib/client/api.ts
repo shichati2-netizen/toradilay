@@ -15,6 +15,18 @@ async function json<T>(res: Response): Promise<T> {
   return (await res.json()) as T;
 }
 
+export async function lookupStudentByName(firstName: string, lastName: string): Promise<{ found: boolean; studentId?: string; studentName?: string; ambiguous?: boolean; error?: string }> {
+  try {
+    const res = await fetch("/api/register/lookup-name", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName, lastName }), cache: "no-store",
+    });
+    return await json(res);
+  } catch {
+    return { found: false, error: "שגיאת תקשורת בחיפוש השם." };
+  }
+}
+
 export async function searchStudent(studentId: string): Promise<SearchResponse> {
   const res = await fetch("/api/drive/search", {
     method: "POST",
