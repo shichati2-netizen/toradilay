@@ -248,7 +248,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         const audioDocumentCount = audioFiles.filter((file) =>
           file.isWordDoc ||
           file.mimeType === "application/pdf" ||
-          /\\.pdf$/i.test(file.name),
+          /\.pdf$/i.test(file.name),
         ).length;
         const handwritingFiles = handwritingResult?.files ?? [];
         const handwritingHasFiles = handwritingFiles.length > 0;
@@ -367,7 +367,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         const audioDocumentCount = files.filter((file) =>
           file.isWordDoc ||
           file.mimeType === "application/pdf" ||
-          /\\.pdf$/i.test(file.name),
+          /\.pdf$/i.test(file.name),
         ).length;
 
         if (!audioDocumentCount && !nextHandwritingFiles.length) {
