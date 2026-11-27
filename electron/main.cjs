@@ -7,6 +7,8 @@ const net = require("node:net");
 process.env.NODE_ENV = "production";
 process.env.NEXT_TELEMETRY_DISABLED = "1";
 app.commandLine.appendSwitch("disable-dev-shm-usage");
+// Print HTML documents silently to the default Windows printer, without Chrome print preview.
+app.commandLine.appendSwitch("kiosk-printing");
 
 let mainWindow = null;
 let activePort = 3210;
