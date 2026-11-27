@@ -3,7 +3,7 @@ import fs from "node:fs";
 import crypto from "node:crypto";
 import type { KioskFile, KioskFolder } from "@/lib/types";
 import { getGoogleAuthToken } from "./google-oauth";
-import { getServiceAccountToken, loadServiceAccount } from "./sheets";
+import { getServiceAccountToken, loadServiceAccount, parseServiceAccountJson } from "./sheets";
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -111,11 +111,18 @@ export function toKioskFile(item: DriveItem): KioskFile {
 }
 
 /** מאתר טוקן גישה ל-Google Drive API (חשבון Google מחובר או חשבון שירות) */
-async function resolveDriveAuth(): Promise<{
+async function resolveDriveAuth(serviceAccountJson?: string): Promise<{
   token: string;
   mode: "oauth" | "service-account";
   identity: string;
 } | null> {
+  // חשבון ייעודי לכתב היד גובר על חשבון Google הכללי, כדי לבודד הרשאות.
+  if (serviceAccountJson?.trim()) {
+    const dedicated = parseServiceAccountJson(serviceAccountJson);
+    if (!dedicated) throw new Error("פרטי חשבון הגישה הייעודי לכתב היד אינם תקינים.");
+    const token = await getServiceAccountToken(dedicated, DRIVE_READ_SCOPE);
+    return { token, mode: "service-account", identity: dedicated.client_email };
+  }
   const oauth = await getGoogleAuthToken();
   if (oauth) {
     return { token: oauth.token, mode: "oauth", identity: oauth.email };
@@ -250,7 +257,7 @@ function decodeDriveIvd(html: string): unknown[] {
  */
 export async function scrapeFolder(
   folderId: string,
-  opts: { fresh?: boolean } = {},
+  opts: { fresh?: boolean; serviceAccountJson?: string } = {},
 ): Promise<{
   ok: boolean;
   folders: KioskFolder[];
@@ -272,7 +279,7 @@ export async function scrapeFolder(
 
   // 1. ניסיון ראשון: Google Drive API v3 מאומת (עובד גם כשהתיקייה פרטית לחלוטין)
   try {
-    const auth = await resolveDriveAuth();
+    const auth = await resolveDriveAuth(opts.serviceAccountJson);
     if (auth) {
       const apiRes = await listFolderViaApi(folderId, auth.token, auth.identity);
       state.folderCache.set(folderId, {
