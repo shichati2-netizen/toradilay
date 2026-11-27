@@ -29,7 +29,7 @@ export function HandwritingAssociationDialog({
   }, [open, studentId]);
 
   const submit = async () => {
-    const name = fullName.replace(/\\s+/g, " ").trim();
+    const name = fullName.replace(/\s+/g, " ").trim();
     if (name.split(/\s+/).filter((part) => part.length >= 2).length < 2) {
       setError("יש להזין שם פרטי ושם משפחה.");
       return;
