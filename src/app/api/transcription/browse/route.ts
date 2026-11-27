@@ -11,7 +11,10 @@ export async function GET(req: Request) {
     const kind: TranscriptionKind | null =
       kindRaw === "audio" ? "audio" : kindRaw === "handwriting" ? "handwriting" : null;
     const config = await getStoredConfig();
-    if (!kind || !config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
+    if (kind !== "audio") {
+      return Response.json({ error: "עיון בקובצי תמלול מתוך האפליקציה זמין לתמלול קולי בלבד." }, { status: 400 });
+    }
+    if (!config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
       return Response.json({ error: "הגישה לתמלול אינה מאושרת לחשבון זה." }, { status: 403 });
     }
     const drive = url.searchParams.get("drive") || undefined;
