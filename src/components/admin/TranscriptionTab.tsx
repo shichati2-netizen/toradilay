@@ -13,6 +13,8 @@ import { Field, SectionCard, inputClass } from "./ui";
 
 const EMPTY: TranscriptionSettings = {
   enabled: true,
+  handwritingAccessRestricted: false,
+  handwritingAllowedStudentIds: [],
   allowedStudentIds: [],
   audioModelOneEmail: "",
   audioModelTwoEmail: "",
@@ -32,6 +34,7 @@ const EMPTY: TranscriptionSettings = {
 export function TranscriptionTab({ pin }: { pin: string }) {
   const [settings, setSettings] = useState<TranscriptionSettings>(EMPTY);
   const [appsScriptToken, setAppsScriptToken] = useState("");
+  const [handwritingAllowedIdsText, setHandwritingAllowedIdsText] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +54,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       if (cancelled) return;
       if (result.settings) {
         setSettings(result.settings);
+        setHandwritingAllowedIdsText(result.settings.handwritingAllowedStudentIds.join("\n"));
       } else {
         setError(result.error || "לא ניתן לטעון את הגדרות התמלול.");
       }
@@ -71,6 +75,8 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     setSaved(false);
     const input: TranscriptionSettingsInput = {
       enabled: true,
+      handwritingAccessRestricted: settings.handwritingAccessRestricted,
+      handwritingAllowedStudentIds: handwritingAllowedIdsText.split(/[\\s,;]+/).map((value) => value.replace(/\\D/g, "")).filter((value) => value.length === 9),
       allowedStudentIds: [],
       audioModelOneEmail: settings.audioModelOneEmail,
       audioModelTwoEmail: settings.audioModelTwoEmail,
@@ -274,6 +280,40 @@ export function TranscriptionTab({ pin }: { pin: string }) {
             )}
           </div>
         </div>
+      </SectionCard>
+
+      <SectionCard
+        title="הרשאות לתמלול כתב יד"
+        icon={<ShieldCheck className="h-4 w-4 text-amber-300" />}
+        hint="כברירת מחדל הגישה פתוחה לכולם. אפשר להפעיל הגבלה כך שרק חשבונות ברשימה יוכלו לפתוח קובצי כתב יד."
+      >
+        <label className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3 text-sm text-white">
+          <input
+            type="checkbox"
+            checked={settings.handwritingAccessRestricted}
+            onChange={(event) => update({ handwritingAccessRestricted: event.target.checked })}
+            className="h-4 w-4 accent-amber-400"
+          />
+          <span>
+            <span className="block font-bold">הגבלת תמלול כתב יד לחשבונות מורשים בלבד</span>
+            <span className="mt-1 block text-xs text-slate-400">כבוי = פתוח לכולם (ברירת מחדל). מופעל = רק מספרי הזהות שברשימה יקבלו גישה.</span>
+          </span>
+        </label>
+        {settings.handwritingAccessRestricted && (
+          <Field label="מספרי תעודת זהות מורשים (9 ספרות, אחד בכל שורה)">
+            <textarea
+              value={handwritingAllowedIdsText}
+              onChange={(event) => { setHandwritingAllowedIdsText(event.target.value); setSaved(false); setError(null); }}
+              rows={5}
+              placeholder={"123456789\n987654321"}
+              className={inputClass + " min-h-28"}
+              dir="ltr"
+            />
+          </Field>
+        )}
+        {settings.handwritingAccessRestricted && (
+          <p className="text-[11px] text-amber-200">במצב מוגבל, חשבון שלא מופיע ברשימה לא יוכל לראות, לפתוח, להוריד, להעתיק או להציג תצוגה מקדימה של קובצי כתב היד.</p>
+        )}
       </SectionCard>
 
       <SectionCard
