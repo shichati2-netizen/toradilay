@@ -107,10 +107,10 @@ export function upsertLocalRegistrationName(
   firstNameInput: string,
   lastNameInput: string,
 ): { rowNumber: number; studentName: string } {
-  const cleanId = String(idNumber).replace(/\\D/g, "");
-  const firstName = String(firstNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
-  const lastName = String(lastNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
-  if (!/^\\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
+  const cleanId = String(idNumber).replace(/\D/g, "");
+  const firstName = String(firstNameInput).trim().replace(/[\r\n]+/g, " ").slice(0, 60);
+  const lastName = String(lastNameInput).trim().replace(/[\r\n]+/g, " ").slice(0, 60);
+  if (!/^\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
     throw new Error("פרטי תעודת הזהות או השם אינם תקינים.");
   }
 
@@ -154,7 +154,7 @@ export function upsertLocalRegistrationName(
       csvCell(row.registeredAt),
     ].join(",")),
   ];
-  fs.writeFileSync(file, "\\uFEFF" + lines.join("\\r\\n") + "\\r\\n", "utf8");
+  fs.writeFileSync(file, "\uFEFF" + lines.join("\r\n") + "\r\n", "utf8");
   return { rowNumber, studentName: firstName + " " + lastName };
 }
 
