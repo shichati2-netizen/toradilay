@@ -1,9 +1,13 @@
 import vm from "node:vm";
 import fs from "node:fs";
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
 import type { KioskFile, KioskFolder } from "@/lib/types";
 import { getGoogleAuthToken } from "./google-oauth";
 import { getServiceAccountToken, loadServiceAccount, parseServiceAccountJson } from "./sheets";
+
+const nodeRequire = createRequire(import.meta.url);
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -408,9 +412,21 @@ export function getRegisteredLocalFile(fileId: string): { path: string; name: st
 }
 
 export function registerLocalFile(filePath: string, name: string): string {
+  // Never allow a file's numeric size/metadata to be mistaken for a filesystem path.
+  if (typeof filePath !== "string" || !filePath.trim()) {
+    throw new TypeError("נתיב הקובץ המקומי חייב להיות מחרוזת תקינה.");
+  }
+  if (typeof name !== "string" || !name.trim()) {
+    throw new TypeError("שם הקובץ המקומי חייב להיות מחרוזת תקינה.");
+  }
   const token = "local:" + crypto.randomBytes(9).toString("hex");
   state.localFiles.set(token, { path: filePath, name });
-  state.meta.set(token, { name, mimeType: DOCX_MIME });
+  const mimeType = /\\.pdf$/i.test(name)
+    ? "application/pdf"
+    : /\\.doc$/i.test(name)
+      ? "application/msword"
+      : DOCX_MIME;
+  state.meta.set(token, { name, mimeType });
   if (state.localFiles.size > 500) {
     const first = state.localFiles.keys().next().value;
     if (first) state.localFiles.delete(first);
@@ -474,9 +490,15 @@ export async function getFileBuffer(fileId: string): Promise<Buffer> {
 
   let buffer: Buffer | null = null;
 
+  if (typeof fileId !== "string" || !fileId.trim()) {
+    throw new TypeError("מזהה הקובץ חייב להיות מחרוזת תקינה.");
+  }
+
   if (fileId.startsWith("local:")) {
     const entry = state.localFiles.get(fileId);
-    if (!entry) throw new Error("הקובץ המקומי כבר אינו זמין. אנא חפש שוב.");
+    if (!entry || typeof entry.path !== "string" || !entry.path.trim()) {
+      throw new Error("נתיב הקובץ המקומי אינו תקין או שהקובץ כבר אינו זמין. אנא חפש שוב.");
+    }
     buffer = await fs.promises.readFile(entry.path);
   } else {
     if (!/^[A-Za-z0-9_-]{5,120}$/.test(fileId)) {
@@ -589,6 +611,10 @@ function isPdfBuffer(buffer: Buffer): boolean {
 
 async function convertPdfToHtml(buffer: Buffer, mode: "thumb" | "full"): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // Resolve the packaged worker explicitly. This avoids PDF.js falling back to a
+  // relative worker path that does not exist in Next.js/Electron standalone.
+  const workerPath = nodeRequire.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
+  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
