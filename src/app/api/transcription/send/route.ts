@@ -70,6 +70,12 @@ export async function POST(req: Request) {
       return Response.json({ error: "פרטי בקשת התמלול אינם תקינים." }, { status: 400 });
     }
 
+    if (kind !== "audio") {
+      return Response.json({
+        error: "תמלול כתב יד אינו נשלח מתוך האפליקציה. פתח את תיקיית תמלול כתב היד של התלמיד.",
+      }, { status: 400 });
+    }
+
     const config = await getStoredConfig();
     if (!config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
       return Response.json({ error: "החשבון אינו מורשה להשתמש בתמלול." }, { status: 403 });
@@ -92,12 +98,13 @@ export async function POST(req: Request) {
       handwritingModel1: config.transcriptionHandwritingModelOneReplyEmail,
       handwritingModel2: config.transcriptionHandwritingModelTwoReplyEmail,
     };
-    const invalidSender = Object.values(replySenders).some((email) =>
+    const requiredAudioSenders = [replySenders.audioModel1, replySenders.audioModel2];
+    const invalidSender = requiredAudioSenders.some((email) =>
       typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
     );
     if (invalidSender) {
       return Response.json({
-        error: "יש להגדיר בהגדרות התמלול את כל ארבע כתובות הדואר של מודל 1 ומודל 2, לתמלול קולי ולכתב יד.",
+        error: "יש להגדיר את כתובות השולח של שני מודלי התמלול הקולי.",
       }, { status: 400 });
     }
 
