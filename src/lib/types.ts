@@ -61,6 +61,9 @@ export interface KioskConfig {
   localSearchEnabled: boolean;
   /** נתיב תיקיית השורש שבה נמצאות תיקיות התלמידים */
   localSearchPath: string;
+  /** חיפוש כתבי יד בתיקייה מקומית נפרדת */
+  localHandwritingSearchEnabled: boolean;
+  localHandwritingSearchPath: string;
   fallbackDriveCount: number;
   autoDetectRemovableDrive: boolean;
   limitToDEOnly: boolean;

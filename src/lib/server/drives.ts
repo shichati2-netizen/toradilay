@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
 import { getDriveSequence } from "@/lib/defaults";
-import type { KioskConfig, KioskFile, RemovableDrive } from "@/lib/types";
+import type { KioskConfig, KioskFile, RemovableDrive, TranscriptionDriveFile } from "@/lib/types";
 import { isWordItem, normalizeFolderName, registerLocalFile, toKioskFile } from "./drive";
 
 export const isWindows = process.platform === "win32";
@@ -230,4 +230,39 @@ export async function searchLocalFolder(
     }
   }
   return null;
+}
+
+
+/** חיפוש תיקיית כתב יד מקומית לפי שם מלא, בנפרד מנתיב התמלול הקולי. */
+export function searchLocalHandwritingFolder(
+  rootPath: string,
+  fullName: string,
+): TranscriptionDriveFile[] {
+  const root = path.resolve(rootPath);
+  if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) {
+    throw new Error("תיקיית כתב היד המקומית שנבחרה אינה קיימת או אינה נגישה.");
+  }
+  const expected = normalizeFolderName(fullName);
+  const folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
+  const folder = folders.find((entry) => normalizeFolderName(entry.name) === expected)
+    || folders.find((entry) => normalizeFolderName(entry.name).includes(expected));
+  if (!folder) return [];
+  const folderPath = path.join(root, folder.name);
+  return fs.readdirSync(folderPath, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\\.(pdf|docx?)$/i.test(entry.name))
+    .map((entry) => {
+      const fullPath = path.join(folderPath, entry.name);
+      const stat = fs.statSync(fullPath);
+      const id = registerLocalFile(fullPath, entry.name);
+      const isPdf = /\\.pdf$/i.test(entry.name);
+      const isDoc = /\\.doc$/i.test(entry.name);
+      return {
+        id,
+        name: entry.name,
+        mimeType: isPdf ? "application/pdf" : isDoc ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size: stat.size,
+        modifiedTime: stat.mtime.toISOString(),
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name, "he"));
 }

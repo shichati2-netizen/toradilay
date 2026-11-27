@@ -49,6 +49,8 @@ export const DEFAULT_CONFIG: KioskConfig = {
   targetFolderName: "תורה דיליה",
   localSearchEnabled: false,
   localSearchPath: "",
+  localHandwritingSearchEnabled: false,
+  localHandwritingSearchPath: "",
   fallbackDriveCount: 5,
   autoDetectRemovableDrive: true,
   limitToDEOnly: false,
@@ -296,6 +298,8 @@ export function normalizeConfig(raw: unknown): KioskConfig {
     ),
     localSearchEnabled: bool(r.localSearchEnabled, d.localSearchEnabled),
     localSearchPath: typeof r.localSearchPath === "string" ? r.localSearchPath.trim().slice(0, 1000) : d.localSearchPath,
+    localHandwritingSearchEnabled: bool(r.localHandwritingSearchEnabled, d.localHandwritingSearchEnabled),
+    localHandwritingSearchPath: typeof r.localHandwritingSearchPath === "string" ? r.localHandwritingSearchPath.trim().slice(0, 1000) : d.localHandwritingSearchPath,
     fallbackDriveCount: num(r.fallbackDriveCount, d.fallbackDriveCount, 0, 20),
     autoDetectRemovableDrive: bool(
       r.autoDetectRemovableDrive,
