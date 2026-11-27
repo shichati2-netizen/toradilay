@@ -421,9 +421,9 @@ export function registerLocalFile(filePath: string, name: string): string {
   }
   const token = "local:" + crypto.randomBytes(9).toString("hex");
   state.localFiles.set(token, { path: filePath, name });
-  const mimeType = /\\.pdf$/i.test(name)
+  const mimeType = /\.pdf$/i.test(name)
     ? "application/pdf"
-    : /\\.doc$/i.test(name)
+    : /\.doc$/i.test(name)
       ? "application/msword"
       : DOCX_MIME;
   state.meta.set(token, { name, mimeType });
@@ -485,14 +485,13 @@ async function downloadViaDriveApi(
 }
 
 export async function getFileBuffer(fileId: string): Promise<Buffer> {
+  if (typeof fileId !== "string" || !fileId.trim()) {
+    throw new TypeError("מזהה הקובץ חייב להיות מחרוזת תקינה.");
+  }
   const hit = state.fileCache.get(fileId);
   if (hit && Date.now() - hit.ts < FILE_CACHE_TTL) return hit.buffer;
 
   let buffer: Buffer | null = null;
-
-  if (typeof fileId !== "string" || !fileId.trim()) {
-    throw new TypeError("מזהה הקובץ חייב להיות מחרוזת תקינה.");
-  }
 
   if (fileId.startsWith("local:")) {
     const entry = state.localFiles.get(fileId);
