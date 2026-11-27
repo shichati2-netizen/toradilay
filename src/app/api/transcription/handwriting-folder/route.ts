@@ -1,4 +1,4 @@
-import { getStoredConfig } from "@/lib/server/settings";
+import { getStoredConfig, getTranscriptionHandwritingDriveServiceAccountJson } from "@/lib/server/settings";
 import { getHandwritingNameForStudent, saveHandwritingNameForStudent } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
 
@@ -34,7 +34,8 @@ async function resolveFolderResult(
   fullName: string,
   rootFolderId: string,
 ): Promise<HandwritingFolderResult> {
-  const root = await scrapeFolder(rootFolderId, { fresh: true });
+  const serviceAccountJson = await getTranscriptionHandwritingDriveServiceAccountJson();
+  const root = await scrapeFolder(rootFolderId, { fresh: true, serviceAccountJson: serviceAccountJson || undefined });
   if (!root.ok) {
     throw new Error(root.authError || "לא ניתן לקרוא את תיקיית האב של תמלולי כתב היד. בדוק שחשבון השירות שותף בתיקייה.");
   }
