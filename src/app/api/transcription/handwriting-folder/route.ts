@@ -1,7 +1,4 @@
-import {
-  getStoredConfig,
-  getTranscriptionHandwritingDriveServiceAccountJson,
-} from "@/lib/server/settings";
+import { getStoredConfig } from "@/lib/server/settings";
 import {
   getHandwritingNameForStudent,
   saveHandwritingNameForStudent,
@@ -46,11 +43,7 @@ async function resolveFolderResult(
   fullName: string,
   rootFolderId: string,
 ): Promise<HandwritingFolderResult> {
-  const serviceAccountJson = await getTranscriptionHandwritingDriveServiceAccountJson();
-  const root = await scrapeFolder(rootFolderId, {
-    fresh: true,
-    serviceAccountJson: serviceAccountJson || undefined,
-  });
+  const root = await scrapeFolder(rootFolderId, { fresh: true });
   if (!root.ok) {
     throw new Error(
       root.authError ||
@@ -70,10 +63,7 @@ async function resolveFolderResult(
     };
   }
 
-  const contents = await scrapeFolder(folder.id, {
-    fresh: true,
-    serviceAccountJson: serviceAccountJson || undefined,
-  });
+  const contents = await scrapeFolder(folder.id, { fresh: true });
   if (!contents.ok) {
     throw new Error(contents.authError || "לא ניתן לקרוא את הקבצים שבתיקיית כתב היד של התלמיד.");
   }

@@ -1,7 +1,4 @@
-import {
-  getStoredConfig,
-  getTranscriptionHandwritingDriveServiceAccountJson,
-} from "@/lib/server/settings";
+import { getStoredConfig } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
@@ -36,11 +33,7 @@ export async function GET(req: Request) {
       return new Response("לא נמצאה תיקיית כתב היד של התלמיד.", { status: 404 });
     }
 
-    const serviceAccountJson = await getTranscriptionHandwritingDriveServiceAccountJson();
-    const root = await scrapeFolder(rootFolderId, {
-      fresh: true,
-      serviceAccountJson: serviceAccountJson || undefined,
-    });
+    const root = await scrapeFolder(rootFolderId, { fresh: true });
     if (!root.ok) throw new Error(root.authError || "אין גישה לתיקיית האב.");
 
     const folder = root.folders.find(
@@ -48,10 +41,7 @@ export async function GET(req: Request) {
     );
     if (!folder) return new Response("תיקיית כתב היד לא נמצאה.", { status: 404 });
 
-    const contents = await scrapeFolder(folder.id, {
-      fresh: true,
-      serviceAccountJson: serviceAccountJson || undefined,
-    });
+    const contents = await scrapeFolder(folder.id, { fresh: true });
     if (!contents.ok) throw new Error(contents.authError || "אין גישה לתיקיית כתב היד.");
 
     const file = contents.files.find((item) => item.id === fileId);
@@ -70,7 +60,7 @@ export async function GET(req: Request) {
       });
     }
 
-    const buffer = await getRawDriveFileBuffer(fileId, serviceAccountJson || undefined, file.mimeType);
+    const buffer = await getRawDriveFileBuffer(fileId, undefined, file.mimeType);
     const mammoth = await import("mammoth");
     const result = await mammoth.convertToHtml({ buffer });
     const body = result.value?.trim() || "<p>לא נמצאה תצוגה מקדימה למסמך.</p>";
