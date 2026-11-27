@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     if (!access.ok) return access.response;
 
     const fullName = String(body.fullName ?? "").replace(/\s+/g, " ").trim();
-    if (fullName.length < 3 || fullName.length > 120 || !/[\p{L}]{2}/u.test(fullName)) {
+    if (fullName.length > 120 || fullName.split(/\s+/).filter((part) => part.length >= 2).length < 2 || !/[\p{L}]{2}/u.test(fullName)) {
       return Response.json({ error: "יש להזין שם מלא תקין (שם פרטי ושם משפחה)." }, { status: 400 });
     }
 
