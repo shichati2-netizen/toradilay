@@ -162,6 +162,8 @@ export interface StoredConfig extends KioskConfig {
   /** מפתח JSON של חשבון שירות ל-Google Sheets/Drive שנשמר מקומית בלבד */
   googleServiceAccountJson?: string | null;
   transcriptionEnabled: boolean;
+  transcriptionHandwritingAccessRestricted: boolean;
+  transcriptionHandwritingAllowedStudentIds: string[];
   transcriptionAllowedStudentIds: string[];
   transcriptionAudioModelOneEmail: string;
   transcriptionAudioModelTwoEmail: string;
