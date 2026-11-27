@@ -8,18 +8,9 @@ import { logActivity } from "@/lib/server/activity";
 export const dynamic = "force-dynamic";
 export const maxDuration = 180;
 
-function getRecipient(
-  config: Awaited<ReturnType<typeof getStoredConfig>>,
-  kind: TranscriptionKind,
-  model: TranscriptionModel,
-): string {
-  const configured = kind === "audio"
-    ? (model === "model1"
-      ? config.transcriptionAudioModelOneEmail
-      : config.transcriptionAudioModelTwoEmail)
-    : (model === "model1"
-      ? config.transcriptionHandwritingModelOneEmail
-      : config.transcriptionHandwritingModelTwoEmail);
+function getRecipient(config: Awaited<ReturnType<typeof getStoredConfig>>): string {
+  // התמלול הקולי משתמש ביעד הקבוע היחיד שנשמר בעבר תחת מודל 1.
+  const configured = config.transcriptionAudioModelOneEmail;
 
   // Extract only the email itself. A corrupted quote prefix such as â€œ
   // is discarded even if its byte sequence differs from the known variants.
@@ -56,17 +47,15 @@ export async function POST(req: Request) {
       folderName?: string;
       source?: string;
       kind?: string;
-      model?: string;
       fileTokens?: string[];
     };
     const studentId = String(body.studentId || "").replace(/\D/g, "").slice(0, 12);
     const kind: TranscriptionKind | null =
       body.kind === "audio" ? "audio" : body.kind === "handwriting" ? "handwriting" : null;
-    const model: TranscriptionModel | null =
-      body.model === "model1" ? "model1" : body.model === "model2" ? "model2" : null;
+    const model: TranscriptionModel = "model1";
     fileTokens = Array.isArray(body.fileTokens) ? body.fileTokens : [];
 
-    if (studentId.length !== 9 || !kind || !model || !Array.isArray(body.fileTokens)) {
+    if (studentId.length !== 9 || !kind || !Array.isArray(body.fileTokens)) {
       return Response.json({ error: "פרטי בקשת התמלול אינם תקינים." }, { status: 400 });
     }
 
@@ -84,29 +73,23 @@ export async function POST(req: Request) {
       return Response.json({ error: "יש להגדיר כתובת Google Apps Script ומפתח חיבור בהגדרות התמלול." }, { status: 400 });
     }
 
-    const recipient = getRecipient(config, kind, model);
+    const recipient = getRecipient(config);
     if (!recipient) {
-      const typeName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
-      return Response.json({ error: "כתובת הדואר של " + typeName + " – " + (model === "model1" ? "מודל 1" : "מודל 2") + " עדיין לא הוגדרה." }, { status: 400 });
+      return Response.json({ error: "כתובת יעד לתמלול הקולי עדיין לא הוגדרה במחשב זה." }, { status: 400 });
     }
-    // The selected destination address is passed through; only outer whitespace is trimmed in getRecipient().
-    // מעבירים בנפרד את כתובות From של תשובות המודלים; recipient נשאר רק
-    // כתובת היעד היחידה של המודל שנבחר ונשלחת בשדה recipient.
-    const replySenders = {
-      audioModel1: config.transcriptionAudioModelOneReplyEmail,
-      audioModel2: config.transcriptionAudioModelTwoReplyEmail,
-      handwritingModel1: config.transcriptionHandwritingModelOneReplyEmail,
-      handwritingModel2: config.transcriptionHandwritingModelTwoReplyEmail,
-    };
-    const requiredAudioSenders = [replySenders.audioModel1, replySenders.audioModel2];
-    const invalidSender = requiredAudioSenders.some((email) =>
-      typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()),
-    );
-    if (invalidSender) {
+    // נשמרת תאימות לסקריפט הקיים: כתובת השולח היחידה מוגדרת בשני השדות הישנים.
+    const audioReplySender = config.transcriptionAudioModelOneReplyEmail.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(audioReplySender)) {
       return Response.json({
-        error: "יש להגדיר את כתובות השולח של שני מודלי התמלול הקולי.",
+        error: "כתובת השולח שמחזירה את תוצאת התמלול הקולי לא הוגדרה.",
       }, { status: 400 });
     }
+    const replySenders = {
+      audioModel1: audioReplySender,
+      audioModel2: audioReplySender,
+      handwritingModel1: "",
+      handwritingModel2: "",
+    };
 
     const files = readSelectedTranscriptionFiles(fileTokens, kind, studentId);
     const counts = new Map<string, number>();
@@ -141,8 +124,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const modelName = model === "model1" ? "מודל 1" : "מודל 2";
-    const kindName = kind === "audio" ? "תמלול קולי" : "תמלול כתבי יד";
+    const kindName = "תמלול קולי";
     addTranscriptionRequest({
       id: requestId,
       studentId,
@@ -219,7 +201,7 @@ export async function POST(req: Request) {
     await logActivity({
       type: "transcription",
       studentId,
-      detail: kindName + " נשלח דרך Google Apps Script ל-" + modelName + " · בקשה " + requestId,
+      detail: kindName + " נשלח דרך Google Apps Script · בקשה " + requestId,
     });
 
     return Response.json({
