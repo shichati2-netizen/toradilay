@@ -77,7 +77,7 @@ export function StudentFilesScreen({
   handwritingLoading: boolean;
   handwritingError: string | null;
   pendingTranscriptions: number;
-  onTranscription: (kind: "audio") => void;
+  onTranscription: () => void;
   onOpenHandwriting: () => void;
   autoLogoutSeconds: number;
   targetPath: string;
@@ -166,6 +166,11 @@ export function StudentFilesScreen({
               <ArrowLeft className="h-4 w-4" /><span>חזרה לתיקיות</span>
             </FxButton>
           )}
+          {activeFolder === "audio" && (
+            <FxButton variant="ghost" onClick={onTranscription} className="h-11 px-4 text-sm">
+              <Mic className="h-4 w-4 text-sky-300" /><span>שליחת קבצים לתמלול</span>
+            </FxButton>
+          )}
           {activeFolder === "audio" && pendingTranscriptions > 0 && (
             <div className="flex h-10 items-center gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-3 text-xs font-bold text-amber-100"><Clock className="h-4 w-4" /> {pendingTranscriptions} בתהליך תמלול</div>
           )}
@@ -183,7 +188,7 @@ export function StudentFilesScreen({
 
       {activeFolder === "folders" ? (
         <div className="grid grid-cols-1 gap-5 pb-4 sm:grid-cols-2">
-          <button type="button" onClick={() => { setActiveFolder("audio"); onTranscription("audio"); }} className="panel group flex min-h-48 items-center gap-5 rounded-3xl p-6 text-right transition hover:-translate-y-1 hover:border-sky-300/40 hover:bg-sky-300/[0.06]">
+          <button type="button" onClick={() => setActiveFolder("audio")} className="panel group flex min-h-48 items-center gap-5 rounded-3xl p-6 text-right transition hover:-translate-y-1 hover:border-sky-300/40 hover:bg-sky-300/[0.06]">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-sky-300/20 bg-sky-400/10 text-sky-300"><Folder className="h-10 w-10 transition group-hover:scale-110" /></div>
             <div className="min-w-0 flex-1">
               <h3 className="text-xl font-black text-white">תמלול קולי</h3>

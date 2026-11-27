@@ -7,6 +7,7 @@ import {
   saveHandwritingNameForStudent,
 } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
+import { findLocalRegistration } from "@/lib/server/registrations";
 import type { TranscriptionDriveFile } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -98,12 +99,19 @@ export async function GET(req: Request) {
     const access = await getFolderSettings(studentId);
     if (!access.ok) return access.response;
 
-    const fullName = await getHandwritingNameForStudent(studentId);
+    let fullName = await getHandwritingNameForStudent(studentId);
+    if (!fullName) {
+      const registered = findLocalRegistration(studentId).studentName;
+      if (registered) {
+        const saved = await saveHandwritingNameForStudent(studentId, registered);
+        fullName = saved.fullName;
+      }
+    }
     if (!fullName) {
       return Response.json({
         needsAssociation: true,
         studentId,
-        message: "נדרש לשייך פעם אחת את תעודת הזהות לשם המלא שמופיע בשם תיקיית הסריקות.",
+        message: "לא נמצא שם מלא ברישום המקומי. יש להזין את השם פעם אחת כפי שהוא מופיע בשם תיקיית הסריקות.",
       } satisfies HandwritingFolderResult & { studentId: string });
     }
 
