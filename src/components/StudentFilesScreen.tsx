@@ -160,7 +160,7 @@ export function StudentFilesScreen({
                 ? "בחר תיקיית תמלול כדי להציג את הקבצים שבתוכה"
                 : activeFolder === "audio"
                   ? "קובצי התמלול הקולי של החשבון · " + documentFiles.length + " מסמכים"
-                  : "קובצי הסריקה ותמלול כתב היד · " + handwritingFiles.length + " קבצים"}
+                  : "מסמכי Word וקובצי PDF של כתב היד · " + handwritingFiles.length + " קבצים"}
               {source === "local" && <span className="flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-bold text-amber-200"><Database className="h-3 w-3" /> מכונן מקומי</span>}
             </p>
           </div>
@@ -199,7 +199,7 @@ export function StudentFilesScreen({
             <div className="min-w-0 flex-1">
               <h3 className="text-xl font-black text-white">תמלול קולי</h3>
               <p className="mt-2 text-sm leading-relaxed text-slate-400">המסמכים שהתקבלו עבור החשבון מתהליך התמלול הקולי</p>
-              <p className="mt-3 text-xs font-bold text-sky-200">{wordFiles.length} קבצים</p>
+              <p className="mt-3 text-xs font-bold text-sky-200">{documentFiles.length} קבצים</p>
             </div>
             <ArrowLeft className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:-translate-x-1 group-hover:text-sky-200" />
           </button>
@@ -260,7 +260,7 @@ export function StudentFilesScreen({
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/10 text-rose-300"><FileText className="h-5 w-5" /></div>
                     <div className="min-w-0 flex-1">
                       <h3 className="break-words text-sm font-bold text-white">{file.name}</h3>
-                      <p className="mt-1 text-[11px] text-slate-400">PDF{file.size ? " · " + formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
+                      <p className="mt-1 text-[11px] text-slate-400">{file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name) ? "PDF" : "Word"}{file.size ? " · " + formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
                     </div>
                   </div>
                   {/\.(pdf)$/i.test(file.name) || file.mimeType === "application/pdf" ? (
