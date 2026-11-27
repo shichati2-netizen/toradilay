@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, Clock, FileText, Folder, FolderOpen, Loader2,
+  ArrowLeft, Clock, Download, FileText, Folder, FolderOpen, Loader2,
   LogOut, Mic, PenLine, Timer, Usb, Database, Printer, Copy
 } from "lucide-react";
 import type { KioskFile, KioskFolder, TranscriptionDriveFile } from "@/lib/types";
