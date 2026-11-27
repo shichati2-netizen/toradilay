@@ -4,6 +4,7 @@ import {
   DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
   normalizeConfig,
   normalizeWebhookUrl,
+  extractGoogleId,
 } from "@/lib/defaults";
 import type {
   GoogleOAuthClientConfig,
@@ -165,9 +166,12 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       ),
       transcriptionAppsScriptToken: typeof raw.transcriptionAppsScriptToken === "string"
         ? raw.transcriptionAppsScriptToken.trim().slice(0, 256) : "",
-      transcriptionHandwritingRootFolderId: typeof raw.transcriptionHandwritingRootFolderId === "string"
-        ? raw.transcriptionHandwritingRootFolderId.trim().replace(/^.*\\/folders\\//, "").slice(0, 200)
-        : DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
+      transcriptionHandwritingRootFolderId: (() => {
+        const value = typeof raw.transcriptionHandwritingRootFolderId === "string"
+          ? extractGoogleId(raw.transcriptionHandwritingRootFolderId.trim()).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 120)
+          : DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID;
+        return /^[A-Za-z0-9_-]{10,120}$/.test(value) ? value : "";
+      })(),
     };
   } catch (err) {
     console.error("[settings] failed to load, using defaults:", err);
@@ -415,7 +419,10 @@ export async function saveTranscriptionSettings(
     transcriptionAppsScriptUrl: appsScriptUrl,
     transcriptionAppsScriptToken: appsScriptToken,
     transcriptionHandwritingRootFolderId: typeof input.handwritingRootFolderId === "string"
-      ? (input.handwritingRootFolderId.trim().match(/(?:\\/folders\\/)?([A-Za-z0-9_-]{10,})/)?.[1] || "")
+      ? (() => {
+          const value = extractGoogleId(input.handwritingRootFolderId.trim()).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 120);
+          return /^[A-Za-z0-9_-]{10,120}$/.test(value) ? value : current.transcriptionHandwritingRootFolderId;
+        })()
       : current.transcriptionHandwritingRootFolderId,
   });
 
