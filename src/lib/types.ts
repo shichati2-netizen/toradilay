@@ -97,6 +97,8 @@ export interface TranscriptionDriveFile {
 
 export interface TranscriptionSettings {
   enabled: boolean;
+  handwritingAccessRestricted: boolean;
+  handwritingAllowedStudentIds: string[];
   allowedStudentIds: string[];
   audioModelOneEmail: string;
   audioModelTwoEmail: string;
@@ -119,6 +121,8 @@ export interface TranscriptionSettings {
 
 export interface TranscriptionSettingsInput {
   enabled: boolean;
+  handwritingAccessRestricted: boolean;
+  handwritingAllowedStudentIds: string[];
   allowedStudentIds: string[];
   audioModelOneEmail: string;
   audioModelTwoEmail: string;
