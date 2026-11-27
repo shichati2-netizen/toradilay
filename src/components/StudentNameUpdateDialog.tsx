@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertCircle, Loader2, UserRound, X } from "lucide-react";
+import { AlertCircle, Loader2, UserRound } from "lucide-react";
 import { FxButton } from "./FxButton";
 
 interface StudentNameUpdateDialogProps {
@@ -13,7 +13,6 @@ interface StudentNameUpdateDialogProps {
   saving: boolean;
   error: string | null;
   onSubmit: (firstName: string, lastName: string) => void;
-  onSkip: () => void;
 }
 
 export function StudentNameUpdateDialog({
@@ -24,7 +23,6 @@ export function StudentNameUpdateDialog({
   saving,
   error,
   onSubmit,
-  onSkip,
 }: StudentNameUpdateDialogProps) {
   const [firstName, setFirstName] = useState(initialFirstName);
   const [lastName, setLastName] = useState(initialLastName);
@@ -72,15 +70,7 @@ export function StudentNameUpdateDialog({
                   <p className="text-xs text-slate-400">הכניסה נשארת באמצעות תעודת הזהות</p>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={onSkip}
-                disabled={saving}
-                aria-label="סגירה והמשך"
-                className="flex h-9 w-9 items-center justify-center rounded-lg text-slate-400 transition hover:bg-white/10 hover:text-white disabled:opacity-40"
-              >
-                <X className="h-5 w-5" />
-              </button>
+
             </div>
 
             <form onSubmit={submit} className="space-y-4 p-5">
@@ -125,9 +115,6 @@ export function StudentNameUpdateDialog({
               <FxButton type="submit" variant="gold" disabled={saving || firstName.trim().length < 2 || lastName.trim().length < 2} className="h-12 w-full">
                 {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserRound className="h-5 w-5" />}
                 {saving ? "שומר את השם..." : "עדכן שם והמשך"}
-              </FxButton>
-              <FxButton type="button" variant="ghost" onClick={onSkip} disabled={saving} className="h-11 w-full">
-                המשך בלי לעדכן שם
               </FxButton>
             </form>
           </motion.div>
