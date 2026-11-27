@@ -692,8 +692,8 @@ async function getHandwritingMappingTarget(): Promise<SheetsTarget> {
 }
 
 export async function getHandwritingNameForStudent(studentId: string): Promise<string | null> {
-  const cleanId = String(studentId ?? "").replace(/\\D/g, "");
-  if (!/^\\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+  const cleanId = String(studentId ?? "").replace(/\D/g, "");
+  if (!/^\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
   const target = await getHandwritingMappingTarget();
   const range = sheetRange(HANDWRITING_MAPPING_TAB, "A1:B10000");
   const data = await sheetsRequest<{ values?: unknown[][] }>(
@@ -714,10 +714,10 @@ export async function saveHandwritingNameForStudent(
   studentId: string,
   fullName: string,
 ): Promise<{ studentId: string; fullName: string }> {
-  const cleanId = String(studentId ?? "").replace(/\\D/g, "");
-  const cleanName = String(fullName ?? "").replace(/\\s+/g, " ").trim().slice(0, 120);
-  if (!/^\\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
-  if (cleanName.length < 3 || !/[\\p{L}]{2}/u.test(cleanName)) {
+  const cleanId = String(studentId ?? "").replace(/\D/g, "");
+  const cleanName = String(fullName ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  if (!/^\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+  if (cleanName.length < 3 || !/[\p{L}]{2}/u.test(cleanName)) {
     throw new Error("יש להזין שם מלא תקין.");
   }
 
