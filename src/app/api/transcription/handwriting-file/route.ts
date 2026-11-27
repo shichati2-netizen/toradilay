@@ -1,4 +1,4 @@
-import { getStoredConfig } from "@/lib/server/settings";
+import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
@@ -45,6 +45,9 @@ export async function GET(req: Request) {
     }
 
     const config = await getStoredConfig();
+    if (!isHandwritingAccessAllowed(studentId, config)) {
+      return Response.json({ error: "הגישה לתמלול כתב יד מוגבלת לחשבונות מורשים בלבד." }, { status: 403 });
+    }
     const fullName = await getHandwritingNameForStudent(studentId);
     if (!fullName) return Response.json({ error: "לא נמצא שיוך שם עבור התלמיד." }, { status: 404 });
 
