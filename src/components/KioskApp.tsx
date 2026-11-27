@@ -621,6 +621,11 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     onPrint={handlePrint}
                     onCopy={handleCopy}
                     onCopyAll={handleCopyAll}
+                    onPrintHandwriting={handlePrintHandwriting}
+                    onCopyHandwriting={handleCopyHandwriting}
+                    handwritingPrintingId={handwritingPrintingId}
+                    handwritingCopyingId={handwritingCopyingId}
+                    handwritingCopiedIds={handwritingCopiedIds}
                   />
                 </ScreenFrame>
               )
