@@ -424,9 +424,10 @@ function looksLikeHtml(buf: Buffer): boolean {
 
 function looksLikeOffice(buf: Buffer): boolean {
   if (buf.length < 8) return false;
-  const zip = buf[0] === 0x50 && buf[1] === 0x4b; // PK (docx)
-  const ole = buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11; // doc
-  return zip || ole;
+  const zip = buf[0] === 0x50 && buf[1] === 0x4b; // DOCX
+  const ole = buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11; // DOC
+  const pdf = buf.subarray(0, 5).toString("ascii") === "%PDF-";
+  return zip || ole || pdf;
 }
 
 /** הורדת קובץ ישירות דרך Google Drive API v3 (תומך בקבצים פרטיים ובייצוא Google Docs) */
@@ -616,14 +617,20 @@ export async function getPreviewHtml(
 export async function getRawDriveFileBuffer(
   fileId: string,
   serviceAccountJson?: string,
+  knownMimeType?: string,
 ): Promise<Buffer> {
   if (!/^[A-Za-z0-9_-]{5,120}$/.test(fileId)) {
     throw new Error("מזהה קובץ לא תקין.");
   }
   const auth = await resolveDriveAuth(serviceAccountJson);
   if (!auth) {
-    throw new Error("לא הוגדר חיבור Google לקריאת קובצי כתב היד.");
+    throw new Error("לא הוגדר חיבור Google לקריאת קובצי התמלול.");
   }
+
+  // Google Docs אינם מאוחסנים כקובץ DOCX רגיל; יש לייצא אותם דרך Drive API.
+  const exported = await downloadViaDriveApi(fileId, auth.token, knownMimeType);
+  if (exported) return exported;
+
   const url = getDriveApiBase() + "/files/" + encodeURIComponent(fileId) + "?alt=media&supportsAllDrives=true";
   const response = await fetch(url, {
     headers: { Authorization: "Bearer " + auth.token },
@@ -640,8 +647,8 @@ export async function getRawDriveFileBuffer(
     throw new Error("הורדת הקובץ מ-Google Drive נכשלה: " + message);
   }
   const buffer = Buffer.from(await response.arrayBuffer());
-  if (!buffer.length || looksLikeHtml(buffer)) {
-    throw new Error("Google Drive לא החזיר קובץ תקין.");
+  if (!buffer.length || looksLikeHtml(buffer) || !looksLikeOffice(buffer)) {
+    throw new Error("Google Drive לא החזיר קובץ Word או PDF תקין.");
   }
   return buffer;
 }

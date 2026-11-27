@@ -79,11 +79,17 @@ async function resolveFolderResult(
   }
 
   const files = contents.files
-    .filter((item) => item.mimeType === "application/pdf" || /\.pdf$/i.test(item.name))
+    .filter((item) =>
+      item.mimeType === "application/pdf" ||
+      item.mimeType === "application/msword" ||
+      item.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+      item.mimeType === "application/vnd.google-apps.document" ||
+      /\.(pdf|docx?)$/i.test(item.name),
+    )
     .map((item) => ({
       id: item.id,
       name: item.name,
-      mimeType: item.mimeType || "application/pdf",
+      mimeType: item.mimeType,
       size: item.size,
       modifiedTime: item.modifiedTime,
     }))

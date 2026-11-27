@@ -127,7 +127,13 @@ export function StudentFilesScreen({
     };
   }, [autoLogoutSeconds]);
 
-  const wordFiles = files.filter((file) => file.isWordDoc);
+  const documentFiles = files.filter((file) =>
+    file.isWordDoc || file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name),
+  );
+  const isPdfFile = (file: KioskFile) =>
+    file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
+  const audioPdfUrl = (fileId: string, inline = false) =>
+    "/api/drive/download?fileId=" + encodeURIComponent(fileId) + (inline ? "&inline=1" : "");
   const handwritingUrl = (fileId: string, download = false) =>
     "/api/transcription/handwriting-file?studentId=" + encodeURIComponent(studentId) +
     "&fileId=" + encodeURIComponent(fileId) + (download ? "&download=1" : "");
@@ -153,7 +159,7 @@ export function StudentFilesScreen({
               {activeFolder === "folders"
                 ? "בחר תיקיית תמלול כדי להציג את הקבצים שבתוכה"
                 : activeFolder === "audio"
-                  ? "קובצי התמלול הקולי של החשבון · " + wordFiles.length + " מסמכים"
+                  ? "קובצי התמלול הקולי של החשבון · " + documentFiles.length + " מסמכים"
                   : "קובצי הסריקה ותמלול כתב היד · " + handwritingFiles.length + " קבצים"}
               {source === "local" && <span className="flex items-center gap-1 rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-bold text-amber-200"><Database className="h-3 w-3" /> מכונן מקומי</span>}
             </p>
@@ -174,7 +180,7 @@ export function StudentFilesScreen({
           {activeFolder === "audio" && pendingTranscriptions > 0 && (
             <div className="flex h-10 items-center gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-3 text-xs font-bold text-amber-100"><Clock className="h-4 w-4" /> {pendingTranscriptions} בתהליך תמלול</div>
           )}
-          {activeFolder === "audio" && wordFiles.length > 1 && (
+          {activeFolder === "audio" && documentFiles.length > 1 && (
             <FxButton variant="emerald" onClick={onCopyAll} disabled={isCopyingAll} className="h-12 px-4 text-sm" title={"העתקת כל המסמכים אל " + targetPath}>
               {isCopyingAll ? <Loader2 className="keep-anim h-4 w-4 animate-spin" /> : <Usb className="h-4 w-4" />}
               <span>העתק הכל לדיסק און קי</span>
@@ -202,16 +208,31 @@ export function StudentFilesScreen({
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-300"><Folder className="h-10 w-10 transition group-hover:scale-110" /></div>
             <div className="min-w-0 flex-1">
               <h3 className="text-xl font-black text-white">תמלול כתבי יד</h3>
-              <p className="mt-2 text-sm leading-relaxed text-slate-400">סריקות וקובצי PDF השייכים לתלמיד</p>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">מסמכי Word וקובצי PDF של התלמיד</p>
               <p className="mt-3 text-xs font-bold text-rose-200">{handwritingLoading ? "טוען..." : handwritingFiles.length + " קבצים"}</p>
             </div>
             {handwritingLoading ? <Loader2 className="h-5 w-5 animate-spin text-rose-200" /> : <ArrowLeft className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:-translate-x-1 group-hover:text-rose-200" />}
           </button>
         </div>
       ) : activeFolder === "audio" ? (
-        wordFiles.length > 0 ? (
+        documentFiles.length > 0 ? (
           <div className="grid grid-cols-1 gap-5 pb-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {wordFiles.map((file, index) => (
+            {documentFiles.map((file, index) => isPdfFile(file) ? (
+              <article key={file.id} className="panel flex flex-col gap-3 rounded-3xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/10 text-rose-300"><FileText className="h-5 w-5" /></div>
+                  <div className="min-w-0 flex-1">
+                    <h3 className="break-words text-sm font-bold text-white">{file.name}</h3>
+                    <p className="mt-1 text-[11px] text-slate-400">PDF{file.size ? " · " + formatSize(file.size) : ""}</p>
+                  </div>
+                </div>
+                <iframe title={"תצוגה מקדימה: " + file.name} src={audioPdfUrl(file.id, true)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
+                <div className="flex gap-2">
+                  <a href={audioPdfUrl(file.id, true)} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחת PDF</a>
+                  <a href={audioPdfUrl(file.id)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-3 text-sm font-bold text-sky-100 hover:bg-sky-400/25"><Download className="h-4 w-4" /> הורדה</a>
+                </div>
+              </article>
+            ) : (
               <FileCard key={file.id} file={file} index={index} driveLabel={targetDriveLetter}
                 isPrinting={printingFileId === file.id} isCopying={copyingFileId === file.id}
                 isCopied={copiedFileIds.has(file.id)} isPrinted={printedFileIds.has(file.id)}
@@ -242,9 +263,15 @@ export function StudentFilesScreen({
                       <p className="mt-1 text-[11px] text-slate-400">PDF{file.size ? " · " + formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
                     </div>
                   </div>
-                  <iframe title={"תצוגה מקדימה: " + file.name} src={handwritingUrl(file.id)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
+                  {/\.(pdf)$/i.test(file.name) || file.mimeType === "application/pdf" ? (
+                    <iframe title={"תצוגה מקדימה: " + file.name} src={handwritingUrl(file.id)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
+                  ) : /\.docx$/i.test(file.name) || file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.mimeType === "application/vnd.google-apps.document" ? (
+                    <iframe title={"תצוגה מקדימה: " + file.name} src={"/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id)} sandbox="" className="h-72 w-full rounded-xl border border-white/10 bg-white" />
+                  ) : (
+                    <div className="flex h-72 items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.03] text-center text-sm text-slate-300">קובץ Word ישן ‎.doc‎ — ניתן להוריד ולפתוח ב-Word</div>
+                  )}
                   <div className="flex gap-2">
-                    <a href={handwritingUrl(file.id)} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחת הקובץ</a>
+                    <a href={handwritingUrl(file.id, !(/\.pdf$/i.test(file.name) || file.mimeType === "application/pdf"))} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחה</a>
                     <a href={handwritingUrl(file.id, true)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-400/15 px-3 text-sm font-bold text-rose-100 hover:bg-rose-400/25"><Download className="h-4 w-4" /> הורדה</a>
                   </div>
                 </article>
@@ -253,8 +280,8 @@ export function StudentFilesScreen({
           ) : (
             <div className="panel mx-auto my-auto w-full max-w-md p-10 text-center">
               <FileText className="mx-auto mb-4 h-10 w-10 text-slate-400" />
-              <h3 className="mb-1 font-serif text-xl font-bold text-white">לא נמצאו סריקות כתב יד</h3>
-              <p className="text-sm text-slate-400">כאשר יועלו קובצי PDF לתיקיית התלמיד ב-Google Drive, הם יופיעו כאן.</p>
+              <h3 className="mb-1 font-serif text-xl font-bold text-white">לא נמצאו מסמכי Word או PDF בכתב היד</h3>
+              <p className="text-sm text-slate-400">כאשר יועלו מסמכי Word או PDF לתיקיית התלמיד ב-Google Drive, הם יופיעו כאן.</p>
             </div>
           )}
         </div>

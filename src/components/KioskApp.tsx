@@ -374,12 +374,12 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   );
 
   const handleCopyAll = useCallback(async () => {
-    const wordFiles = files.filter((f) => f.isWordDoc);
-    if (wordFiles.length === 0) return;
+    const documentFiles = files.filter((f) => f.isWordDoc || f.mimeType === "application/pdf" || /\.pdf$/i.test(f.name));
+    if (documentFiles.length === 0) return;
     setIsCopyingAll(true);
     let ok = 0;
     let lastMessage = "";
-    for (const file of wordFiles) {
+    for (const file of documentFiles) {
       const res = await copyFile(file, studentId);
       lastMessage = res.message;
       if (res.success) {
@@ -398,7 +398,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     addToast({
       type: ok > 0 ? "success" : "error",
       title: "העתקה מרוכזת",
-      message: ok > 0 ? `${ok} מתוך ${wordFiles.length} קבצים הועתקו בהצלחה` : lastMessage,
+      message: ok > 0 ? `${ok} מתוך ${documentFiles.length} קבצים הועתקו בהצלחה` : lastMessage,
       actionType: "copy",
     });
   }, [addToast, celebrate, files, studentId]);

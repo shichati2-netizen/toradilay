@@ -217,7 +217,9 @@ export async function searchLocalFolder(
             name: f.name,
             mimeType: isWordItem(f.name, "")
               ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-              : "application/octet-stream",
+              : /\.pdf$/i.test(f.name)
+                ? "application/pdf"
+                : "application/octet-stream",
             size: st.size,
             modifiedTime: st.mtime.toISOString(),
           });
