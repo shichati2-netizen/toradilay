@@ -7,6 +7,7 @@ import {
   scrapeFolder,
 } from "@/lib/server/drive";
 import { getLocalHandwritingFile } from "@/lib/server/drives";
+import { findLocalRegistration } from "@/lib/server/registrations";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -48,8 +49,22 @@ export async function GET(req: Request) {
     if (!isHandwritingAccessAllowed(studentId, config)) {
       return Response.json({ error: "הגישה לתמלול כתב יד מוגבלת לחשבונות מורשים בלבד." }, { status: 403 });
     }
-    const fullName = await getHandwritingNameForStudent(studentId);
-    if (!fullName) return Response.json({ error: "לא נמצא שיוך שם עבור התלמיד." }, { status: 404 });
+    let fullName: string | null = null;
+    try {
+      fullName = await getHandwritingNameForStudent(studentId);
+    } catch (error) {
+      console.warn("[transcription/handwriting-file] mapping lookup unavailable:", error);
+    }
+    if (!fullName) {
+      try {
+        fullName = findLocalRegistration(studentId).studentName || null;
+      } catch (error) {
+        console.warn("[transcription/handwriting-file] local registration lookup unavailable:", error);
+      }
+    }
+    if (!fullName) {
+      return Response.json({ error: "לא נמצא שם משויך לתלמיד. בדוק את רישום התלמיד." }, { status: 404 });
+    }
 
     if (config.localHandwritingSearchEnabled) {
       const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
