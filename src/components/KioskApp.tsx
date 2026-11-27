@@ -447,8 +447,37 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     async (file: KioskFile) => {
       setPrintingId(file.id);
       try {
-        const { html } = await fetchPreview(file.id, "full");
-        await printHtmlDocument(file.name, html);
+        const isPdf = file.mimeType === "application/pdf" || /\\.pdf$/i.test(file.name);
+        if (isPdf) {
+          const response = await fetch(
+            "/api/drive/download?fileId=" + encodeURIComponent(file.id) +
+              "&name=" + encodeURIComponent(file.name) + "&inline=1",
+          );
+          if (!response.ok) throw new Error("לא ניתן לטעון את קובץ ה-PDF להדפסה.");
+          const blob = await response.blob();
+          const objectUrl = URL.createObjectURL(blob);
+          const frame = document.createElement("iframe");
+          Object.assign(frame.style, {
+            position: "fixed", width: "1px", height: "1px",
+            opacity: "0", pointerEvents: "none", border: "0",
+          });
+          const loaded = new Promise<void>((resolve, reject) => {
+            frame.onload = () => resolve();
+            frame.onerror = () => reject(new Error("טעינת PDF נכשלה"));
+          });
+          frame.src = objectUrl;
+          document.body.appendChild(frame);
+          await loaded;
+          frame.contentWindow?.focus();
+          frame.contentWindow?.print();
+          window.setTimeout(() => {
+            frame.remove();
+            URL.revokeObjectURL(objectUrl);
+          }, 60000);
+        } else {
+          const { html } = await fetchPreview(file.id, "full");
+          await printHtmlDocument(file.name, html);
+        }
         setPrintedIds((prev) => new Set(prev).add(file.id));
         logClientActivity({ type: "print", studentId, fileName: file.name });
         playSound("success");
