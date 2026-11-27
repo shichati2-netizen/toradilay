@@ -330,9 +330,11 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           pending.studentId,
           result.studentName || firstName + " " + lastName,
         );
-        if (result.warning) {
-          console.warn("[registration] name saved but local backup warning:", result.warning);
-        }
+        addToast({
+          type: result.warning ? "info" : "success",
+          title: "השם נשמר",
+          message: result.warning || "השם נשמר בהצלחה, ממשיכים לכניסה לתיקייה.",
+        });
       } catch (error) {
         setNameUpdateError(
           error instanceof Error ? error.message : "שמירת השם נכשלה. נסה שוב.",
