@@ -15,7 +15,7 @@ import {
   copyHandwritingFile,
   fetchPreview,
   logClientActivity,
-  searchStudent,
+  searchStudent,\n  lookupStudentByName,
   fetchTranscriptionStatus,
   fetchTranscriptionAccess,
   fetchHandwritingFolderApi,
@@ -205,15 +205,30 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   /* ------------------------------ חיפוש ------------------------------ */
 
   const handleSearch = useCallback(
-    async (id: string): Promise<boolean> => {
+    async (fullName: string): Promise<boolean> => {
       setIsLoading(true);
       setErrorMessage(null);
       try {
+        const parts = fullName.trim().replace(/\\s+/g, " ").split(" ");
+        if (parts.length < 2 || parts.some((part) => part.length < 2)) {
+          setErrorMessage("יש להזין שם פרטי ושם משפחה מלאים.");
+          return false;
+        }
+        const lookup = await lookupStudentByName(parts[0], parts.slice(1).join(" "));
+        if (lookup.ambiguous) {
+          setErrorMessage("נמצאו כמה תלמידים בעלי שם זהה. יש לפנות למנהל לעדכון הרשומה.");
+          return false;
+        }
+        if (!lookup.found || !lookup.studentId) {
+          setErrorMessage(lookup.error || "השם לא נמצא בגיליון הרישום. בדוק את האיות או פנה למנהל.");
+          return false;
+        }
+        const id = lookup.studentId;
         const res = await searchStudent(id);
         if (!res.found || !res.folder) {
           setErrorMessage(
             res.message ||
-              `לא נמצאה תיקייה עבור תעודת זהות "${id}". אנא בדוק את המספר שהוקלד.`,
+              `לא נמצאה תיקייה עבור ${lookup.studentName || fullName}. ודא שהתיקייה קיימת.`,
           );
           return false;
         }
