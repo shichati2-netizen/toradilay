@@ -120,7 +120,7 @@ export async function GET(req: Request) {
     if (!fullName) {
       try {
         const target = await resolveTarget({ webhookUrl: "" });
-        if (target && target.method !== "webhook") {
+        if (target) {
           const registration = await checkExistingRegistration(target, studentId);
           if (registration.firstName?.trim() && registration.lastName?.trim()) {
             fullName = registration.firstName.trim() + " " + registration.lastName.trim();
