@@ -447,7 +447,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     async (file: KioskFile) => {
       setPrintingId(file.id);
       try {
-        const isPdf = file.mimeType === "application/pdf" || /\\.pdf$/i.test(file.name);
+        const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
         if (isPdf) {
           const response = await fetch(
             "/api/drive/download?fileId=" + encodeURIComponent(file.id) +
