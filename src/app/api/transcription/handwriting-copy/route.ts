@@ -1,4 +1,4 @@
-import { getStoredConfig } from "@/lib/server/settings";
+import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import { getRawDriveFileBuffer, getFileBuffer, normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
 import { getLocalHandwritingFile } from "@/lib/server/drives";
@@ -17,6 +17,9 @@ export async function POST(req: Request) {
       return Response.json({ success: false, mode: "server", message: "פרטי הקובץ אינם תקינים." }, { status: 400 });
     }
     const cfg = await getStoredConfig();
+    if (!isHandwritingAccessAllowed(studentId, cfg)) {
+      return Response.json({ success: false, mode: "server", message: "הגישה לתמלול כתב יד מוגבלת לחשבונות מורשים בלבד." }, { status: 403 });
+    }
     const fullName = await getHandwritingNameForStudent(studentId);
     if (!fullName) return Response.json({ success: false, mode: "server", message: "לא נמצא שיוך לתלמיד." }, { status: 404 });
     if (cfg.localHandwritingSearchEnabled) {
