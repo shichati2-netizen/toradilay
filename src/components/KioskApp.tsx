@@ -346,7 +346,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setNameUpdateSaving(false);
       }
     },
-    [nameUpdateSaving, openStudentFolder, pendingNameUpdate],
+    [addToast, nameUpdateSaving, pendingNameUpdate],
   );
 
   const handleSkipNameUpdate = useCallback(() => {
