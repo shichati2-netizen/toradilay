@@ -25,6 +25,12 @@ function cleanStudentId(value: unknown): string {
   return String(value ?? "").replace(/\D/g, "").slice(0, 12);
 }
 
+function usableStudentName(value: unknown): string | null {
+  const name = String(value ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
+  const parts = name.split(" ").filter((part) => part.length >= 2);
+  return parts.length >= 2 && /[\p{L}]{2}/u.test(name) ? name : null;
+}
+
 async function getFolderSettings(studentId: string) {
   if (!/^\d{9}$/.test(studentId)) {
     return {
@@ -112,7 +118,7 @@ export async function GET(req: Request) {
     // never prevent a student with a registered name from opening handwriting.
     let fullName: string | null = null;
     try {
-      fullName = await getHandwritingNameForStudent(studentId);
+      fullName = usableStudentName(await getHandwritingNameForStudent(studentId));
     } catch (error) {
       console.warn("[transcription/handwriting-folder] mapping lookup unavailable:", error);
     }
@@ -123,7 +129,7 @@ export async function GET(req: Request) {
         if (target) {
           const registration = await checkExistingRegistration(target, studentId);
           if (registration.firstName?.trim() && registration.lastName?.trim()) {
-            fullName = registration.firstName.trim() + " " + registration.lastName.trim();
+            fullName = usableStudentName(registration.firstName.trim() + " " + registration.lastName.trim());
           }
         }
       } catch (error) {
@@ -133,7 +139,7 @@ export async function GET(req: Request) {
 
     if (!fullName) {
       try {
-        fullName = findLocalRegistration(studentId).studentName || null;
+        fullName = usableStudentName(findLocalRegistration(studentId).studentName);
       } catch (error) {
         console.warn("[transcription/handwriting-folder] local registration lookup unavailable:", error);
       }
