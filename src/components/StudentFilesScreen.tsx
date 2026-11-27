@@ -291,8 +291,11 @@ export function StudentFilesScreen({
                 const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
                 const ext = (file.name.match(/\.([^.]+)$/)?.[1] || (isPdf ? "pdf" : "docx")).toUpperCase();
                 const title = file.name.replace(/\.[^.]+$/, "");
-                // PDF ו-Word עוברים לאותה תצוגת טקסט פשוטה; אין הטמעה של מציג PDF.
-                const previewUrl = "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id);
+                // PDF מוצג ישירות בדפדפן מהקובץ המקורי. כך נמנעת המרת PDF בשרת
+                // שעלולה להיכשל בזמן יצירת תמונה/תצוגת טקסט; Word נשאר בתצוגת הטקסט.
+                const previewUrl = isPdf
+                  ? handwritingUrl(file.id)
+                  : "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id);
                 return (
                   <article key={file.id} className="panel flex h-full select-none flex-col rounded-3xl p-4">
                     <div className="mb-3 flex items-start gap-3">
