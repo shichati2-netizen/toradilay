@@ -7,6 +7,10 @@ import {
   scrapeFolder,
 } from "@/lib/server/drive";
 import { getLocalHandwritingFile } from "@/lib/server/drives";
+import { createRequire } from "node:module";
+import { pathToFileURL } from "node:url";
+
+const nodeRequire = createRequire(import.meta.url);
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -33,6 +37,11 @@ function plainTextHtml(value: string): string {
 
 async function extractPdfText(buffer: Buffer): Promise<string> {
   const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  // ביישום Portable יש להצביע במפורש על ה-worker שמגיע עם pdfjs-dist.
+  // בלי זה PDF.js מנסה לטעון worker יחסי מתוך chunks של Next שאינו נארז שם.
+  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(
+    nodeRequire.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs"),
+  ).href;
   const task = pdfjs.getDocument({
     data: new Uint8Array(buffer),
     useSystemFonts: true,
