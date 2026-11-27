@@ -9,6 +9,7 @@ import type { KioskFile, KioskFolder, TranscriptionDriveFile } from "@/lib/types
 import { useFx } from "@/lib/client/fx";
 import { FileCard } from "./FileCard";
 import { FxButton } from "./FxButton";
+import { PdfTextPreview } from "./PdfTextPreview";
 
 function CountdownRing({ timeLeft, total }: { timeLeft: number; total: number }) {
   const { on } = useFx();
@@ -238,10 +239,13 @@ export function StudentFilesScreen({
                     <p className="mt-1 text-[11px] text-slate-400">PDF{file.size ? " · " + formatSize(file.size) : ""}</p>
                   </div>
                 </div>
-                <iframe title={"תצוגה מקדימה: " + file.name} src={audioPdfUrl(file.id, true)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
-                <div className="flex gap-2">
-                  <a href={audioPdfUrl(file.id, true)} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחת PDF</a>
-                  <a href={audioPdfUrl(file.id, false) + "&name=" + encodeURIComponent(file.name)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-3 text-sm font-bold text-sky-100 hover:bg-sky-400/25"><Download className="h-4 w-4" /> הורדה</a>
+                <PdfTextPreview
+                  src={audioPdfUrl(file.id, true)}
+                  className="h-72 w-full"
+                  title={"תצוגת טקסט: " + file.name}
+                />
+                <div className="flex justify-end">
+                  <a href={audioPdfUrl(file.id, false) + "&name=" + encodeURIComponent(file.name)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-3 text-sm font-bold text-sky-100 hover:bg-sky-400/25"><Download className="h-4 w-4" /> הורדת קובץ PDF</a>
                 </div>
                 <div className="grid grid-cols-[1fr_1.45fr] gap-2.5">
                   <FxButton
@@ -291,11 +295,8 @@ export function StudentFilesScreen({
                 const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
                 const ext = (file.name.match(/\.([^.]+)$/)?.[1] || (isPdf ? "pdf" : "docx")).toUpperCase();
                 const title = file.name.replace(/\.[^.]+$/, "");
-                // PDF מוצג ישירות בדפדפן מהקובץ המקורי. כך נמנעת המרת PDF בשרת
-                // שעלולה להיכשל בזמן יצירת תמונה/תצוגת טקסט; Word נשאר בתצוגת הטקסט.
-                const previewUrl = isPdf
-                  ? handwritingUrl(file.id)
-                  : "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id);
+                const previewUrl =
+                  "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id);
                 return (
                   <article key={file.id} className="panel flex h-full select-none flex-col rounded-3xl p-4">
                     <div className="mb-3 flex items-start gap-3">
@@ -312,7 +313,15 @@ export function StudentFilesScreen({
                       </div>
                     </div>
                     <div className="relative mb-3.5 h-64 w-full overflow-hidden rounded-xl bg-white ring-1 ring-white/10" aria-label={"תצוגה מקדימה של " + title}>
-                      <iframe title={"תצוגה מקדימה: " + file.name} src={previewUrl} scrolling="no" className="h-full w-full border-0 bg-white" />
+                      {isPdf ? (
+                        <PdfTextPreview
+                          src={handwritingUrl(file.id)}
+                          className="h-full w-full"
+                          title={"תצוגת טקסט: " + file.name}
+                        />
+                      ) : (
+                        <iframe title={"תצוגה מקדימה: " + file.name} src={previewUrl} scrolling="no" className="h-full w-full border-0 bg-white" />
+                      )}
                       <div className="absolute left-2 top-2 z-10 flex flex-col gap-1.5">
                         {handwritingCopiedIds.has(file.id) && <span className="flex items-center gap-1 rounded-lg border border-emerald-300/50 bg-emerald-500/90 px-2 py-0.5 text-[11px] font-bold text-white shadow-lg"><CheckCircle2 className="h-3.5 w-3.5" /> הועתק</span>}
                       </div>
