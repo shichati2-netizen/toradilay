@@ -96,6 +96,8 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     googleServiceAccountJson: null,
     transcriptionEnabled: false,
     transcriptionAllowedStudentIds: [],
+    transcriptionHandwritingAccessRestricted: false,
+    transcriptionHandwritingAllowedStudentIds: [],
     transcriptionAudioModelOneEmail: "",
     transcriptionAudioModelTwoEmail: "",
     transcriptionHandwritingModelOneEmail: "",
@@ -138,6 +140,13 @@ export async function getStoredConfig(): Promise<StoredConfig> {
           ? raw.transcriptionHandwritingDriveServiceAccountJson.slice(0, 100_000)
           : "",
       transcriptionEnabled: raw.transcriptionEnabled === true,
+      transcriptionHandwritingAccessRestricted: raw.transcriptionHandwritingAccessRestricted === true,
+      transcriptionHandwritingAllowedStudentIds: Array.isArray(raw.transcriptionHandwritingAllowedStudentIds)
+        ? [...new Set(raw.transcriptionHandwritingAllowedStudentIds
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => value.replace(/\D/g, "").slice(0, 12))
+            .filter((value) => value.length === 9))]
+        : [],
       transcriptionAllowedStudentIds: Array.isArray(raw.transcriptionAllowedStudentIds)
         ? [...new Set(raw.transcriptionAllowedStudentIds
             .filter((value): value is string => typeof value === "string")
@@ -189,6 +198,8 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       googleServiceAccountJson: null,
       transcriptionEnabled: false,
       transcriptionAllowedStudentIds: [],
+      transcriptionHandwritingAccessRestricted: false,
+      transcriptionHandwritingAllowedStudentIds: [],
       transcriptionAudioModelOneEmail: "",
       transcriptionAudioModelTwoEmail: "",
       transcriptionHandwritingModelOneEmail: "",
@@ -355,6 +366,8 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
   const stored = await getStoredConfig();
   return {
     enabled: stored.transcriptionEnabled,
+    handwritingAccessRestricted: stored.transcriptionHandwritingAccessRestricted,
+    handwritingAllowedStudentIds: stored.transcriptionHandwritingAllowedStudentIds,
     allowedStudentIds: stored.transcriptionAllowedStudentIds,
     audioModelOneEmail: stored.transcriptionAudioModelOneEmail,
     audioModelTwoEmail: stored.transcriptionAudioModelTwoEmail,
@@ -396,6 +409,12 @@ export async function saveTranscriptionSettings(
   input: TranscriptionSettingsInput,
 ): Promise<TranscriptionSettings> {
   const current = await getStoredConfig();
+  const handwritingAllowedStudentIds = Array.isArray(input.handwritingAllowedStudentIds)
+    ? [...new Set(input.handwritingAllowedStudentIds
+        .filter((value): value is string => typeof value === "string")
+        .map((value) => value.replace(/\D/g, "").slice(0, 12))
+        .filter((value) => value.length === 9))]
+    : [];
   const allowedStudentIds = Array.isArray(input.allowedStudentIds)
     ? [...new Set(input.allowedStudentIds
         .filter((value): value is string => typeof value === "string")
@@ -432,6 +451,8 @@ export async function saveTranscriptionSettings(
 
   await mergeStoredFields({
     transcriptionEnabled: input.enabled === true,
+    transcriptionHandwritingAccessRestricted: input.handwritingAccessRestricted === true,
+    transcriptionHandwritingAllowedStudentIds: handwritingAllowedStudentIds,
     transcriptionAllowedStudentIds: allowedStudentIds,
     transcriptionAudioModelOneEmail: validEmail(input.audioModelOneEmail),
     transcriptionAudioModelTwoEmail: validEmail(input.audioModelTwoEmail),
@@ -455,4 +476,14 @@ export async function saveTranscriptionSettings(
   return warnings.length
     ? { ...savedSettings, saveWarning: warnings.join(" ") }
     : savedSettings;
+}
+
+/** בדיקת הרשאה מרכזית לכל נקודות הגישה לקובצי כתב היד. */
+export function isHandwritingAccessAllowed(
+  studentId: string,
+  config: Pick<StoredConfig, "transcriptionHandwritingAccessRestricted" | "transcriptionHandwritingAllowedStudentIds">,
+): boolean {
+  if (!/^\d{9}$/.test(studentId)) return false;
+  if (!config.transcriptionHandwritingAccessRestricted) return true;
+  return config.transcriptionHandwritingAllowedStudentIds.includes(studentId);
 }
