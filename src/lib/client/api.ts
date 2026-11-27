@@ -495,6 +495,7 @@ export async function lookupPersonalCode(
 export interface TranscriptionAccess {
   enabled: boolean;
   allowed: boolean;
+  handwritingConfigured?: boolean;
   handwritingAllowed?: boolean;
   handwritingRestricted?: boolean;
 }
