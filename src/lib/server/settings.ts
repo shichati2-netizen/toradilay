@@ -1,6 +1,7 @@
 import {
   DEFAULT_ADMIN_PIN,
   DEFAULT_CONFIG,
+  DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
   normalizeConfig,
   normalizeWebhookUrl,
 } from "@/lib/defaults";
@@ -104,6 +105,7 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     transcriptionHandwritingModelTwoReplyEmail: "",
     transcriptionAppsScriptUrl: "",
     transcriptionAppsScriptToken: "",
+    transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
     ...(patch as Partial<StoredConfig>),
   };
   await mergeLocalSettings(
@@ -163,6 +165,9 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       ),
       transcriptionAppsScriptToken: typeof raw.transcriptionAppsScriptToken === "string"
         ? raw.transcriptionAppsScriptToken.trim().slice(0, 256) : "",
+      transcriptionHandwritingRootFolderId: typeof raw.transcriptionHandwritingRootFolderId === "string"
+        ? raw.transcriptionHandwritingRootFolderId.trim().replace(/^.*\\/folders\\//, "").slice(0, 200)
+        : DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
     };
   } catch (err) {
     console.error("[settings] failed to load, using defaults:", err);
@@ -185,6 +190,7 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       transcriptionHandwritingModelTwoReplyEmail: "",
       transcriptionAppsScriptUrl: "",
       transcriptionAppsScriptToken: "",
+      transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
     };
   }
 }
@@ -209,6 +215,7 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     transcriptionHandwritingModelTwoReplyEmail: _transcriptionHandwritingModelTwoReplyEmail,
     transcriptionAppsScriptUrl: _transcriptionAppsScriptUrl,
     transcriptionAppsScriptToken: _transcriptionAppsScriptToken,
+    transcriptionHandwritingRootFolderId: _transcriptionHandwritingRootFolderId,
     ...config
   } = await getStoredConfig();
   void _pin;
@@ -228,6 +235,7 @@ export async function getPublicConfig(): Promise<KioskConfig> {
   void _transcriptionHandwritingModelTwoReplyEmail;
   void _transcriptionAppsScriptUrl;
   void _transcriptionAppsScriptToken;
+  void _transcriptionHandwritingRootFolderId;
   return config;
 }
 
@@ -346,6 +354,7 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
     handwritingModelTwoReplyEmail: stored.transcriptionHandwritingModelTwoReplyEmail,
     appsScriptUrl: stored.transcriptionAppsScriptUrl,
     appsScriptTokenConfigured: Boolean(stored.transcriptionAppsScriptToken),
+    handwritingRootFolderId: stored.transcriptionHandwritingRootFolderId,
   };
 }
 
@@ -405,6 +414,9 @@ export async function saveTranscriptionSettings(
     transcriptionHandwritingModelTwoReplyEmail: validEmail(input.handwritingModelTwoReplyEmail),
     transcriptionAppsScriptUrl: appsScriptUrl,
     transcriptionAppsScriptToken: appsScriptToken,
+    transcriptionHandwritingRootFolderId: typeof input.handwritingRootFolderId === "string"
+      ? (input.handwritingRootFolderId.trim().match(/(?:\\/folders\\/)?([A-Za-z0-9_-]{10,})/)?.[1] || "")
+      : current.transcriptionHandwritingRootFolderId,
   });
 
   const savedSettings = await getTranscriptionSettings();
