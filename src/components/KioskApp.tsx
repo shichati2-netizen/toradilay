@@ -314,6 +314,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     setTranscriptionAllowed(false);
     setPendingTranscriptions(0);
     setTranscriptionKind(null);
+    setHandwritingAssociationOpen(false);
+    setHandwritingFolderUrl("");
+    setHandwritingOpening(false);
     setErrorMessage(null);
   }, []);
 
