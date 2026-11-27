@@ -1,13 +1,10 @@
 import vm from "node:vm";
 import fs from "node:fs";
 import crypto from "node:crypto";
-import { createRequire } from "node:module";
-import { pathToFileURL } from "node:url";
 import type { KioskFile, KioskFolder } from "@/lib/types";
 import { getGoogleAuthToken } from "./google-oauth";
 import { getServiceAccountToken, loadServiceAccount, parseServiceAccountJson } from "./sheets";
 
-const nodeRequire = createRequire(import.meta.url);
 
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36";
@@ -586,6 +583,14 @@ function fallbackHtml(name: string): string {
   </div>`;
 }
 
+function fallbackPdfHtml(name: string): string {
+  return `<div style="text-align:center;padding:24px">
+    <div style="font-size:13px;color:#64748b;margin-bottom:12px">PDF</div>
+    <h2 style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#1e293b">${escapeHtml(name)}</h2>
+    <p style="font-size:13px;color:#475569">הקובץ מוצג באמצעות מציג ה-PDF המקורי של Windows/הדפדפן.</p>
+  </div>`;
+}
+
 function makeThumbHtml(html: string): string {
   const noImages = html.replace(/<img[^>]*>/gi, "");
   const LIMIT = 4200;
@@ -608,46 +613,6 @@ function isPdfBuffer(buffer: Buffer): boolean {
   return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
 }
 
-async function convertPdfToHtml(buffer: Buffer, mode: "thumb" | "full"): Promise<string> {
-  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-  // Resolve the packaged worker explicitly. This avoids PDF.js falling back to a
-  // relative worker path that does not exist in Next.js/Electron standalone.
-  const workerPath = nodeRequire.resolve("pdfjs-dist/legacy/build/pdf.worker.mjs");
-  pdfjs.GlobalWorkerOptions.workerSrc = pathToFileURL(workerPath).href;
-  const loadingTask = pdfjs.getDocument({
-    data: new Uint8Array(buffer),
-    useSystemFonts: true,
-    isEvalSupported: false,
-    disableFontFace: true,
-  });
-  const pdf = await loadingTask.promise;
-  const pageLimit = mode === "thumb" ? 1 : Math.min(pdf.numPages, 30);
-  const pages: string[] = [];
-
-  try {
-    for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber++) {
-      const page = await pdf.getPage(pageNumber);
-      const textContent = await page.getTextContent();
-      const lines: Array<{ y: number; text: string }> = [];
-      for (const item of textContent.items) {
-        if (!("str" in item) || !item.str.trim()) continue;
-        const y = Math.round(item.transform[5]);
-        const existing = lines.find((line) => Math.abs(line.y - y) <= 3);
-        if (existing) existing.text += " " + item.str;
-        else lines.push({ y, text: item.str });
-      }
-      lines.sort((a, b) => b.y - a.y);
-      const body = lines.map((line) => "<p>" + escapeHtml(line.text) + "</p>").join("");
-      pages.push('<section class="pdf-text-page" dir="auto">' + (body || "<p>לא נמצא טקסט בעמוד זה</p>") + "</section>");
-      page.cleanup();
-    }
-  } finally {
-    await pdf.destroy();
-  }
-
-  return pages.join("");
-}
-
 /** תצוגה מקדימה למסמכי Word ול-PDF. קובצי PDF מפוענחים כנתונים בינאריים ולא כנתיב קובץ. */
 export async function getPreviewHtml(
   fileId: string,
@@ -662,20 +627,23 @@ export async function getPreviewHtml(
   let usedFallback = false;
 
   if (!full) {
-    try {
-      if (pdf) {
-        full = await convertPdfToHtml(buffer, mode);
-      } else {
+    if (pdf) {
+      // Never parse PDFs through a server-side path/worker pipeline for card previews.
+      // PDF cards use the original bytes with the browser's built-in PDF viewer.
+      full = fallbackPdfHtml(name);
+      usedFallback = true;
+    } else {
+      try {
         const mammoth = await import("mammoth");
         const result = await mammoth.convertToHtml({ buffer });
         if (result.value && result.value.trim().length > 0) full = result.value;
+      } catch (err) {
+        console.warn("[drive] document preview conversion failed:", err);
       }
-    } catch (err) {
-      console.warn("[drive] document preview conversion failed:", err);
-    }
-    if (!full) {
-      full = fallbackHtml(name);
-      usedFallback = true;
+      if (!full) {
+        full = fallbackHtml(name);
+        usedFallback = true;
+      }
     }
     if (entry && mode === "full") entry.fullHtml = full;
   }
