@@ -515,6 +515,98 @@ export async function checkExistingRegistration(
   return { exists: false };
 }
 
+export async function saveRegistrationNameById(
+  t: SheetsTarget,
+  idNumber: string,
+  firstNameInput: string,
+  lastNameInput: string,
+): Promise<{ studentName: string; updatedRange?: string; alreadyComplete?: boolean }> {
+  if (t.method === "webhook") {
+    throw new Error("עדכון שם דורש חיבור Google Sheets ישיר.");
+  }
+  const cleanId = String(idNumber).replace(/\\D/g, "");
+  const firstName = String(firstNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
+  const lastName = String(lastNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
+  if (!/^\\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
+    throw new Error("פרטי תעודת הזהות או השם אינם תקינים.");
+  }
+
+  const location = await findSheetHeaderLocation(t, "registration");
+  const range = sheetRange(location.title, "A1:ZZ10000");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    t,
+    "/values/" + encodeURIComponent(range),
+  );
+  const rows = data.values ?? [];
+  const firstColumn = location.firstNameColumn!;
+  const lastColumn = location.lastNameColumn!;
+  const idColumn = location.idColumn!;
+  const normalize = (value: string) => normalizePersonName(value);
+
+  let matchIndex = -1;
+  for (let i = location.headerRowIndex + 1; i < rows.length; i++) {
+    if (cleanIdCell((rows[i] ?? [])[idColumn]) === cleanId) {
+      matchIndex = i;
+      break;
+    }
+  }
+
+  if (matchIndex >= 0) {
+    const row = rows[matchIndex] ?? [];
+    const oldFirst = String(row[firstColumn] ?? "").trim().replace(/^'/, "");
+    const oldLast = String(row[lastColumn] ?? "").trim().replace(/^'/, "");
+    if (oldFirst && normalize(oldFirst) !== normalize(firstName)) {
+      throw new Error("תעודת הזהות כבר משויכת לשם פרטי אחר. לא שינינו את הרשומה.");
+    }
+    if (oldLast && normalize(oldLast) !== normalize(lastName)) {
+      throw new Error("תעודת הזהות כבר משויכת לשם משפחה אחר. לא שינינו את הרשומה.");
+    }
+    if (oldFirst && oldLast) {
+      return { studentName: (oldFirst + " " + oldLast).trim(), alreadyComplete: true };
+    }
+
+    const rowNumber = matchIndex + 1;
+    const updates: Array<{ col: number; value: string }> = [];
+    if (!oldFirst) updates.push({ col: firstColumn, value: firstName });
+    if (!oldLast) updates.push({ col: lastColumn, value: lastName });
+    for (const update of updates) {
+      const cellRange = sheetRange(location.title, columnLabel(update.col) + rowNumber);
+      await sheetsRequest(
+        t,
+        "/values/" + encodeURIComponent(cellRange) + "?valueInputOption=RAW",
+        {
+          method: "PUT",
+          body: JSON.stringify({ range: cellRange, majorDimension: "ROWS", values: [[update.value]] }),
+        },
+      );
+    }
+    return {
+      studentName: (oldFirst || firstName) + " " + (oldLast || lastName),
+      updatedRange: location.title + "!" + columnLabel(firstColumn) + rowNumber + ":" + columnLabel(lastColumn) + rowNumber,
+    };
+  }
+
+  const maxColumn = Math.max(firstColumn, lastColumn, idColumn, location.dateColumn ?? -1);
+  const values = Array.from({ length: maxColumn + 1 }, () => "");
+  values[firstColumn] = firstName;
+  values[lastColumn] = lastName;
+  values[idColumn] = cleanId;
+  if (location.dateColumn !== undefined) values[location.dateColumn] = israelTimestamp();
+  const appendRange = sheetRange(location.title, "A" + (location.headerRowIndex + 2) + ":ZZ");
+  const result = await sheetsRequest<{ updates?: { updatedRange?: string } }>(
+    t,
+    "/values/" + encodeURIComponent(appendRange) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
+    {
+      method: "POST",
+      body: JSON.stringify({ range: appendRange, majorDimension: "ROWS", values: [values] }),
+    },
+  );
+  return {
+    studentName: firstName + " " + lastName,
+    updatedRange: result.updates?.updatedRange,
+  };
+}
+
 function israelTimestamp(): string {
   return new Date().toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" });
 }
