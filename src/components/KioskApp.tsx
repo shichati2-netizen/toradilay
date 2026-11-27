@@ -16,7 +16,8 @@ import {
   fetchPreview,
   logClientActivity,
   searchStudent,
-  lookupStudentByName,
+  checkRegistration,
+  completeStudentName,
   fetchTranscriptionStatus,
   fetchTranscriptionAccess,
   fetchHandwritingFolderApi,
@@ -29,6 +30,7 @@ import { IdEntryScreen } from "./IdEntryScreen";
 import { PathLabel } from "./PathLabel";
 import { RegistrationModal } from "./RegistrationModal";
 import { StudentFilesScreen } from "./StudentFilesScreen";
+import { StudentNameUpdateDialog } from "./StudentNameUpdateDialog";
 import { TranscriptionDialog } from "./TranscriptionDialog";
 import { HandwritingAssociationDialog } from "./HandwritingAssociationDialog";
 import { TorahLogo } from "./TorahLogo";
@@ -159,6 +161,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [source, setSource] = useState<"drive" | "local" | undefined>();
   const [studentId, setStudentId] = useState("");
   const [studentName, setStudentName] = useState("");
+  const [pendingNameUpdate, setPendingNameUpdate] = useState<{ studentId: string; firstName: string; lastName: string } | null>(null);
+  const [nameUpdateSaving, setNameUpdateSaving] = useState(false);
+  const [nameUpdateError, setNameUpdateError] = useState<string | null>(null);
   const [pendingTranscriptions, setPendingTranscriptions] = useState(0);
   const [transcriptionKind, setTranscriptionKind] = useState<"audio" | null>(null);
   const [handwritingAssociationOpen, setHandwritingAssociationOpen] = useState(false);
@@ -206,35 +211,24 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
   /* ------------------------------ חיפוש ------------------------------ */
 
-  const handleSearch = useCallback(
-    async (fullName: string): Promise<boolean> => {
+  const openStudentFolder = useCallback(
+    async (id: string, displayName = ""): Promise<boolean> => {
       setIsLoading(true);
       setErrorMessage(null);
       try {
-        const parts = fullName.trim().replace(/\\s+/g, " ").split(" ");
-        if (parts.length < 2 || parts.some((part) => part.length < 2)) {
-          setErrorMessage("יש להזין שם פרטי ושם משפחה מלאים.");
-          return false;
-        }
-        const lookup = await lookupStudentByName(parts[0], parts.slice(1).join(" "));
-        if (lookup.ambiguous) {
-          setErrorMessage("נמצאו כמה תלמידים בעלי שם זהה. יש לפנות למנהל לעדכון הרשומה.");
-          return false;
-        }
-        if (!lookup.found || !lookup.studentId) {
-          setErrorMessage(lookup.error || "השם לא נמצא בגיליון הרישום. בדוק את האיות או פנה למנהל.");
-          return false;
-        }
-        const id = lookup.studentId;
         const res = await searchStudent(id);
         if (!res.found || !res.folder) {
           setErrorMessage(
             res.message ||
-              `לא נמצאה תיקייה עבור ${lookup.studentName || fullName}. ודא שהתיקייה קיימת.`,
+              `לא נמצאה תיקייה עבור תעודת זהות "${id}". ודא שהתיקייה קיימת.`,
           );
           return false;
         }
-        const [requests, access] = await Promise.all([fetchTranscriptionStatus(id), fetchTranscriptionAccess(id)]);
+
+        const [requests, access] = await Promise.all([
+          fetchTranscriptionStatus(id),
+          fetchTranscriptionAccess(id),
+        ]);
         const canOpenHandwriting = access.handwritingAllowed === true;
         setHandwritingAccessAllowed(canOpenHandwriting);
         setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
@@ -243,28 +237,37 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setHandwritingLoading(canOpenHandwriting);
         setTranscriptionKind(null);
         setStudentId(id);
-        setStudentName(lookup.studentName || fullName.trim());
+        setStudentName(displayName.trim() || res.folder.name);
         setFolder(res.folder);
         setFiles(res.files ?? []);
         setSource(res.source);
         setCopiedIds(new Set());
         setPrintedIds(new Set());
         setView("student-files");
-        // טען קובצי כתב יד רק לחשבונות שקיבלו הרשאה. חשבונות אחרים נכנסים ישירות לקולי.
-        if (canOpenHandwriting) void fetchHandwritingFolderApi(id)
-          .then((handwriting) => {
-            if (handwriting.needsAssociation) return;
-            if (handwriting.error) {
-              setHandwritingError(handwriting.error);
-              return;
-            }
-            setHandwritingFiles(handwriting.files ?? []);
-            setHandwritingError(handwriting.folderMissing ? (handwriting.message || "תיקיית כתב היד עדיין לא נמצאה.") : null);
-          })
-          .catch((error) => {
-            setHandwritingError(error instanceof Error ? error.message : "לא ניתן לטעון את מספר קובצי כתב היד.");
-          })
-          .finally(() => setHandwritingLoading(false));
+
+        if (canOpenHandwriting) {
+          void fetchHandwritingFolderApi(id)
+            .then((handwriting) => {
+              if (handwriting.needsAssociation) return;
+              if (handwriting.error) {
+                setHandwritingError(handwriting.error);
+                return;
+              }
+              setHandwritingFiles(handwriting.files ?? []);
+              setHandwritingError(
+                handwriting.folderMissing
+                  ? handwriting.message || "תיקיית כתב היד עדיין לא נמצאה."
+                  : null,
+              );
+            })
+            .catch((error) => {
+              setHandwritingError(
+                error instanceof Error ? error.message : "לא ניתן לטעון את קובצי כתב היד.",
+              );
+            })
+            .finally(() => setHandwritingLoading(false));
+        }
+
         playSound("found");
         return true;
       } catch {
@@ -276,6 +279,80 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     },
     [],
   );
+
+  /* ------------------------------ כניסה לפי תעודת זהות ------------------------------ */
+
+  const handleSearch = useCallback(
+    async (id: string): Promise<boolean> => {
+      setErrorMessage(null);
+      setNameUpdateError(null);
+      try {
+        const registration = await checkRegistration(id);
+        if (
+          !registration.error &&
+          (!registration.exists ||
+            !registration.firstName?.trim() ||
+            !registration.lastName?.trim())
+        ) {
+          setPendingNameUpdate({
+            studentId: id,
+            firstName: registration.firstName || "",
+            lastName: registration.lastName || "",
+          });
+          return true;
+        }
+
+        const displayName =
+          registration.studentName ||
+          [registration.firstName, registration.lastName].filter(Boolean).join(" ");
+        return await openStudentFolder(id, displayName);
+      } catch {
+        // A temporary registration lookup failure must not disable ID-based access.
+        return await openStudentFolder(id);
+      }
+    },
+    [openStudentFolder],
+  );
+
+  const handleCompleteStudentName = useCallback(
+    async (firstName: string, lastName: string) => {
+      const pending = pendingNameUpdate;
+      if (!pending || nameUpdateSaving) return;
+      setNameUpdateSaving(true);
+      setNameUpdateError(null);
+      try {
+        const result = await completeStudentName(pending.studentId, firstName, lastName);
+        if (!result.success) {
+          throw new Error(result.error || "לא ניתן לשמור את השם. נסה שוב.");
+        }
+        setPendingNameUpdate(null);
+        await openStudentFolder(
+          pending.studentId,
+          result.studentName || firstName + " " + lastName,
+        );
+        if (result.warning) {
+          console.warn("[registration] name saved but local backup warning:", result.warning);
+        }
+      } catch (error) {
+        setNameUpdateError(
+          error instanceof Error ? error.message : "שמירת השם נכשלה. נסה שוב.",
+        );
+      } finally {
+        setNameUpdateSaving(false);
+      }
+    },
+    [nameUpdateSaving, openStudentFolder, pendingNameUpdate],
+  );
+
+  const handleSkipNameUpdate = useCallback(() => {
+    const pending = pendingNameUpdate;
+    if (!pending || nameUpdateSaving) return;
+    setPendingNameUpdate(null);
+    void openStudentFolder(
+      pending.studentId,
+      [pending.firstName, pending.lastName].filter(Boolean).join(" "),
+    );
+  }, [nameUpdateSaving, openStudentFolder, pendingNameUpdate]);
 
   // Poll Gmail/Apps Script while this student has outstanding transcription requests.
   useEffect(() => {
@@ -631,7 +708,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                   isLoading={isLoading}
                   errorMessage={errorMessage}
                   onClearError={() => setErrorMessage(null)}
-                  keyboardEnabled={!adminOpen && !exitOpen && !registerOpen && !isShutDown}
+                  keyboardEnabled={!adminOpen && !exitOpen && !registerOpen && !pendingNameUpdate && !isShutDown}
                   onOpenRegistration={openRegistration}
                 />
               </ScreenFrame>
@@ -712,6 +789,17 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           open={registerOpen}
           initialId={registerInitialId}
           onClose={closeRegistration}
+        />
+
+        <StudentNameUpdateDialog
+          open={Boolean(pendingNameUpdate)}
+          studentId={pendingNameUpdate?.studentId ?? ""}
+          initialFirstName={pendingNameUpdate?.firstName ?? ""}
+          initialLastName={pendingNameUpdate?.lastName ?? ""}
+          saving={nameUpdateSaving}
+          error={nameUpdateError}
+          onSubmit={handleCompleteStudentName}
+          onSkip={handleSkipNameUpdate}
         />
 
         {folder && transcriptionKind === "audio" && (
