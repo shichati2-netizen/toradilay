@@ -543,7 +543,7 @@ export async function browseTranscriptionFiles(
 }
 export async function sendTranscriptionFiles(payload: {
   studentId: string; folderId: string; folderName: string; source?: "drive" | "local";
-  kind: "audio" | "handwriting"; model: "model1" | "model2"; fileTokens: string[];
+  kind: "audio" | "handwriting"; fileTokens: string[];
 }): Promise<{ ok: boolean; requestId?: string; fileNames?: string[]; error?: string }> {
   try {
     const res = await fetch("/api/transcription/send", {
