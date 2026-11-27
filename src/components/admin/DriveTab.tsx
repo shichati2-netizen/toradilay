@@ -21,6 +21,7 @@ export function DriveTab({
   const [isWindows, setIsWindows] = useState(true);
   const [loading, setLoading] = useState(false);
   const [pickingFolder, setPickingFolder] = useState(false);
+  const [pickingHandwritingFolder, setPickingHandwritingFolder] = useState(false);
 
   const chooseLocalFolder = useCallback(async () => {
     const desktop = (window as Window & {
@@ -33,6 +34,20 @@ export function DriveTab({
       if (!result.canceled && result.path) update({ localSearchPath: result.path });
     } finally {
       setPickingFolder(false);
+    }
+  }, [update]);
+
+  const chooseHandwritingLocalFolder = useCallback(async () => {
+    const desktop = (window as Window & {
+      toradeliaDesktop?: { selectFolder: () => Promise<{ canceled: boolean; path?: string }> };
+    }).toradeliaDesktop;
+    if (!desktop) return;
+    setPickingHandwritingFolder(true);
+    try {
+      const result = await desktop.selectFolder();
+      if (!result.canceled && result.path) update({ localHandwritingSearchPath: result.path });
+    } finally {
+      setPickingHandwritingFolder(false);
     }
   }, [update]);
 
@@ -85,6 +100,40 @@ export function DriveTab({
               </div>
               {!draft.localSearchPath && (
                 <p className="text-xs text-amber-200">יש לבחור את התיקייה שבתוכה נמצאות תיקיות התלמידים.</p>
+              )}
+            </div>
+          )}
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="מקור חיפוש קובצי כתב יד"
+        icon={<FolderOpen className="h-4 w-4 text-rose-300" />}
+        hint="הגדרה נפרדת מתיקיית התמלול הקולי. בתוך תיקיית השורש יש ליצור תיקייה לכל תלמיד לפי שמו המלא כפי שמופיע בגיליון."
+      >
+        <div className="space-y-3">
+          <ToggleRow
+            title="חיפוש כתבי יד בתיקייה מקומית"
+            description="כאשר האפשרות מופעלת, קובצי כתב היד ייטענו מהנתיב הנפרד הזה ולא מ-Google Drive."
+            checked={draft.localHandwritingSearchEnabled}
+            onChange={(v) => update({ localHandwritingSearchEnabled: v })}
+          />
+          {draft.localHandwritingSearchEnabled && (
+            <div className="space-y-2 rounded-xl border border-rose-400/20 bg-rose-400/[0.05] p-3">
+              <button
+                type="button"
+                onClick={chooseHandwritingLocalFolder}
+                disabled={pickingHandwritingFolder}
+                className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-rose-300/30 bg-rose-300/10 px-4 py-2.5 text-sm font-bold text-rose-100 transition hover:bg-rose-300/20 disabled:opacity-50"
+              >
+                <FolderOpen className="h-4 w-4" />
+                {pickingHandwritingFolder ? "פותח בחירת תיקייה..." : "בחירת תיקיית כתב יד במחשב"}
+              </button>
+              <div className="break-all rounded-lg bg-black/20 p-2.5 text-xs text-slate-300" dir="ltr">
+                {draft.localHandwritingSearchPath || "עדיין לא נבחרה תיקייה"}
+              </div>
+              {!draft.localHandwritingSearchPath && (
+                <p className="text-xs text-amber-200">יש לבחור תיקיית שורש שבתוכה תיקיות התלמידים לפי שמם המלא.</p>
               )}
             </div>
           )}
