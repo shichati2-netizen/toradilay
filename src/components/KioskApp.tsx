@@ -10,6 +10,7 @@ import { FxProvider, effectClasses, fireConfetti } from "@/lib/client/fx";
 import { playSound } from "@/lib/client/sound";
 import { applyLiquidGlassRefraction } from "@/lib/client/liquid-glass";
 import { printHtmlDocument } from "@/lib/client/print";
+import { extractPdfTextHtmlFromUrl } from "./PdfTextPreview";
 import {
   copyFile,
   copyHandwritingFile,
@@ -503,36 +504,20 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
       setPrintingId(file.id);
       try {
         const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
+        let html: string;
         if (isPdf) {
-          const response = await fetch(
+          const pdfUrl =
             "/api/drive/download?fileId=" + encodeURIComponent(file.id) +
-              "&name=" + encodeURIComponent(file.name) + "&inline=1",
-          );
-          if (!response.ok) throw new Error("לא ניתן לטעון את קובץ ה-PDF להדפסה.");
-          const blob = await response.blob();
-          const objectUrl = URL.createObjectURL(blob);
-          const frame = document.createElement("iframe");
-          Object.assign(frame.style, {
-            position: "fixed", width: "1px", height: "1px",
-            opacity: "0", pointerEvents: "none", border: "0",
-          });
-          const loaded = new Promise<void>((resolve, reject) => {
-            frame.onload = () => resolve();
-            frame.onerror = () => reject(new Error("טעינת PDF נכשלה"));
-          });
-          frame.src = objectUrl;
-          document.body.appendChild(frame);
-          await loaded;
-          frame.contentWindow?.focus();
-          frame.contentWindow?.print();
-          window.setTimeout(() => {
-            frame.remove();
-            URL.revokeObjectURL(objectUrl);
-          }, 60000);
+            "&name=" + encodeURIComponent(file.name);
+          // Extract text from the PDF and print that HTML, exactly like Word.
+          // The PDF viewer and its print surface are never opened.
+          html = await extractPdfTextHtmlFromUrl(pdfUrl, 40);
         } else {
-          const { html } = await fetchPreview(file.id, "full");
-          await printHtmlDocument(file.name, html);
+          const preview = await fetchPreview(file.id, "full");
+          html = preview.html;
         }
+        await printHtmlDocument(file.name, html);
+
         setPrintedIds((prev) => new Set(prev).add(file.id));
         logClientActivity({ type: "print", studentId, fileName: file.name });
         playSound("success");
@@ -559,28 +544,36 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     setHandwritingPrintingId(file.id);
     try {
       const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
+      let html: string;
       if (isPdf) {
-        const response = await fetch("/api/transcription/handwriting-file?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id));
-        if (!response.ok) throw new Error("לא ניתן לטעון את קובץ ה-PDF להדפסה.");
-        const blob = await response.blob();
-        const objectUrl = URL.createObjectURL(blob);
-        const frame = document.createElement("iframe");
-        Object.assign(frame.style, { position: "fixed", width: "1px", height: "1px", opacity: "0", pointerEvents: "none" });
-        frame.src = objectUrl;
-        document.body.appendChild(frame);
-        await new Promise<void>((resolve, reject) => { frame.onload = () => resolve(); frame.onerror = () => reject(new Error("טעינת PDF נכשלה")); });
-        frame.contentWindow?.focus(); frame.contentWindow?.print();
-        window.setTimeout(() => { frame.remove(); URL.revokeObjectURL(objectUrl); }, 60000);
+        const pdfUrl =
+          "/api/transcription/handwriting-file?studentId=" + encodeURIComponent(studentId) +
+          "&fileId=" + encodeURIComponent(file.id);
+        html = await extractPdfTextHtmlFromUrl(pdfUrl, 40);
       } else {
-        const response = await fetch("/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id));
+        const response = await fetch(
+          "/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) +
+          "&fileId=" + encodeURIComponent(file.id),
+          { cache: "no-store" },
+        );
         if (!response.ok) throw new Error("לא ניתן להמיר את קובץ Word להדפסה.");
-        const html = await response.text();
-        await printHtmlDocument(file.name, html.replace(/^<!doctype html[^>]*>|<html[^>]*>|<\/html>/gi, "").replace(/<head[^>]*>[\s\S]*?<\/head>/i, ""));
+        const documentHtml = await response.text();
+        html = documentHtml
+          .replace(/^<!doctype html[^>]*>|<html[^>]*>|<\/html>/gi, "")
+          .replace(/<head[^>]*>[\s\S]*?<\/head>/i, "");
       }
+      await printHtmlDocument(file.name, html);
       addToast({ type: "success", title: "ההדפסה נשלחה למדפסת", message: file.name, actionType: "print" });
     } catch (error) {
-      addToast({ type: "error", title: "שגיאה בהדפסה", message: error instanceof Error ? error.message : "ההדפסה נכשלה", actionType: "print" });
-    } finally { setHandwritingPrintingId(null); }
+      addToast({
+        type: "error",
+        title: "שגיאה בהדפסה",
+        message: error instanceof Error ? error.message : "ההדפסה נכשלה",
+        actionType: "print",
+      });
+    } finally {
+      setHandwritingPrintingId(null);
+    }
   }, [addToast, studentId]);
 
   const handleCopyHandwriting = useCallback(async (file: TranscriptionDriveFile) => {
