@@ -642,6 +642,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     key={studentId}
                     folder={folder}
                     studentId={studentId}
+                    studentName={studentName}
                     files={files}
                     source={source}
                     handwritingFiles={handwritingFiles}
