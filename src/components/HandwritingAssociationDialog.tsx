@@ -124,7 +124,7 @@ export function HandwritingAssociationDialog({
             <button type="button" onClick={onClose} className="rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-slate-300 hover:bg-white/5">
               סגירה
             </button>
-            <button type="button" onClick={() => void submit()} disabled={saving || fullName.trim().length < 3} className="flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-5 py-2.5 text-sm font-black text-navy-950 disabled:opacity-50">
+            <button type="button" onClick={() => void submit()} disabled={saving || fullName.trim().split(/\s+/).filter((part) => part.length >= 2).length < 2} className="flex min-w-32 items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-5 py-2.5 text-sm font-black text-navy-950 disabled:opacity-50">
               {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               שמירת השיוך
             </button>
