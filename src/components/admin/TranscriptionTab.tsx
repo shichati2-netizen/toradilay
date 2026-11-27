@@ -172,21 +172,6 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       </SectionCard>
 
       <SectionCard
-        title="כתובות תמלול קולי"
-        icon={<Mic className="h-4 w-4 text-sky-300" />}
-        hint="כתובות היעד שאליהן נשלחות בקשות התמלול. בכל שליחה נשלחת רק כתובת המודל שנבחר."
-      >
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="מודל 1 – תמלול קולי">
-            <input type="email" value={settings.audioModelOneEmail} onChange={(event) => update({ audioModelOneEmail: event.target.value })} placeholder="audio-model1@example.com" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="מודל 2 – תמלול קולי">
-            <input type="email" value={settings.audioModelTwoEmail} onChange={(event) => update({ audioModelTwoEmail: event.target.value })} placeholder="audio-model2@example.com" className={inputClass} dir="ltr" />
-          </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard
         title="תיקיית תמלולי כתב יד ב-Google Drive"
         icon={<PenLine className="h-4 w-4 text-rose-300" />}
         hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. את הרשאת הגישה אפשר להגדיר בנפרד בחלק הבא."
@@ -324,24 +309,9 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       </SectionCard>
 
       <SectionCard
-        title="כתובות השולחים של תשובות התמלול הקולי"
-        icon={<Mail className="h-4 w-4 text-amber-300" />}
-        hint="אלה כתובות From שמהן חוזרים קובצי התוצאה של התמלול הקולי. הן נפרדות מכתובות היעד שאליהן נשלחת בקשת התמלול."
-      >
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="From של מודל 1 – תמלול קולי">
-            <input type="email" value={settings.audioModelOneReplyEmail} onChange={(event) => update({ audioModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח של מודל 1" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="From של מודל 2 – תמלול קולי">
-            <input type="email" value={settings.audioModelTwoReplyEmail} onChange={(event) => update({ audioModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח של מודל 2" className={inputClass} dir="ltr" />
-          </Field>
-        </div>
-      </SectionCard>
-
-      <SectionCard
         title="שליחה דרך Google Apps Script"
         icon={<Mail className="h-4 w-4 text-emerald-300" />}
-        hint="התוכנה מעבירה את הקבצים לסקריפט. הסקריפט שולח אותם מחשבון Gmail שלו, ללא שרת SMTP בתוכנה."
+        hint="הקבצים מועברים דרך Google Apps Script ליעד התמלול הקבוע בעמדה. אין בחירת מודול במהלך העבודה."
       >
         <div className="space-y-3">
           <Field label="כתובת Web App של Google Apps Script">
@@ -362,7 +332,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
             <p className="text-[11px] text-emerald-300">מפתח חיבור כבר שמור ואינו מוצג בחזרה. השאר ריק כדי לשמור אותו.</p>
           )}
           <p className="text-[11px] leading-relaxed text-slate-500">
-            יש לשמור את אותו מפתח גם ב-Google Apps Script תחת Project Settings → Script Properties, בשם TORADELIA_INTEGRATION_TOKEN. כתובת זו משמשת גם לשליחה וגם לבדיקת תשובות התמלול.
+            יש לשמור את אותו מפתח גם ב-Google Apps Script תחת Project Settings → Script Properties, בשם TORADELIA_INTEGRATION_TOKEN. כתובת זו משמשת לשליחת בקשות התמלול ולקליטת התוצאות.
           </p>
         </div>
       </SectionCard>
@@ -373,7 +343,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
         hint="עד 20 קבצים ובסך הכול 20MB בכל בקשה."
       >
         <p className="text-xs leading-relaxed text-slate-400">
-          כתובות היעד וכתובות From של התשובות נשמרות במחשב העמדה. בשליחה נשלחת רק כתובת היעד של המודל שנבחר. סיסמאות Gmail אינן נשמרות בתוכנה, ושליחת המייל נעשית מחשבון Google שמפעיל את הסקריפט.
+          כתובת היעד וכתובת השולח של תוצאות התמלול נשמרות בהגדרות המקומיות הקיימות של העמדה. לא מוצגת בחירת מודול. שליחת המייל נעשית מחשבון Google שמפעיל את הסקריפט.
         </p>
       </SectionCard>
 
