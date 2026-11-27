@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Loader2, Mail, Mic, PenLine, Save, ShieldCheck } from "lucide-react";
+import { Check, CheckCircle2, FileUp, Loader2, Mail, Mic, PenLine, PlugZap, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import type { TranscriptionSettings, TranscriptionSettingsInput } from "@/lib/types";
-import { fetchTranscriptionSettingsApi, saveTranscriptionSettingsApi } from "@/lib/client/api";
+import {
+  fetchTranscriptionSettingsApi,
+  saveTranscriptionSettingsApi,
+  saveTranscriptionHandwritingDriveAccountApi,
+  testTranscriptionHandwritingDriveAccessApi,
+} from "@/lib/client/api";
 import { Field, SectionCard, ToggleRow, inputClass } from "./ui";
 
 const EMPTY: TranscriptionSettings = {
@@ -20,6 +25,8 @@ const EMPTY: TranscriptionSettings = {
   appsScriptUrl: "",
   appsScriptTokenConfigured: false,
   handwritingRootFolderId: "1Wc_cw53wLmoxSIqI91Lk8ke4FnOutLaw",
+  handwritingDriveAccountConfigured: false,
+  handwritingDriveAccountEmail: "",
 };
 
 export function TranscriptionTab({ pin }: { pin: string }) {
@@ -30,6 +37,14 @@ export function TranscriptionTab({ pin }: { pin: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [handwritingDriveJson, setHandwritingDriveJson] = useState("");
+  const [handwritingDriveFileName, setHandwritingDriveFileName] = useState("");
+  const [savingHandwritingDrive, setSavingHandwritingDrive] = useState(false);
+  const [testingHandwritingDrive, setTestingHandwritingDrive] = useState(false);
+  const [handwritingDriveTest, setHandwritingDriveTest] = useState<{
+    ok: boolean; authMode?: string; accountEmail?: string; dedicatedAccount?: boolean;
+    folderCount?: number; fileCount?: number; sample?: string[]; ms?: number; error?: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -82,6 +97,43 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     setAppsScriptToken("");
     setSaved(true);
     setError(result.settings.saveWarning || null);
+  };
+
+  const saveHandwritingDriveAccount = async (clear = false) => {
+    setSavingHandwritingDrive(true);
+    setError(null);
+    setHandwritingDriveTest(null);
+    try {
+      const result = await saveTranscriptionHandwritingDriveAccountApi(
+        pin,
+        clear ? { clear: true } : { json: handwritingDriveJson },
+      );
+      if (!result.ok || !result.settings) {
+        setError(result.error || "שמירת חשבון הגישה לכתב היד נכשלה.");
+        return;
+      }
+      setSettings((current) => ({
+        ...current,
+        handwritingDriveAccountConfigured: result.settings!.handwritingDriveAccountConfigured,
+        handwritingDriveAccountEmail: result.settings!.handwritingDriveAccountEmail,
+      }));
+      setHandwritingDriveJson("");
+      setHandwritingDriveFileName("");
+      setSaved(true);
+    } finally {
+      setSavingHandwritingDrive(false);
+    }
+  };
+
+  const testHandwritingDriveAccess = async () => {
+    setTestingHandwritingDrive(true);
+    setHandwritingDriveTest(null);
+    try {
+      const result = await testTranscriptionHandwritingDriveAccessApi(pin, settings.handwritingRootFolderId);
+      setHandwritingDriveTest(result);
+    } finally {
+      setTestingHandwritingDrive(false);
+    }
   };
 
   if (loading) {
@@ -137,7 +189,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       <SectionCard
         title="תיקיית תמלולי כתב יד ב-Google Drive"
         icon={<PenLine className="h-4 w-4 text-rose-300" />}
-        hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. כל תיקיית תלמיד נקראת בשם המלא שלו. הגישה נעשית באמצעות אותו חשבון שירות שמחובר לדרייב."
+        hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. את הרשאת הגישה אפשר להגדיר בנפרד בחלק הבא."
       >
         <Field label="מזהה תיקיית האב של תמלולי כתב היד">
           <input
@@ -152,6 +204,117 @@ export function TranscriptionTab({ pin }: { pin: string }) {
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
           אפשר להדביק מזהה או קישור מלא לתיקיית Google Drive. התוכנה תאתר בתוכה תיקייה ששמה תואם לשם המלא ששויך לתלמיד.
         </p>
+      </SectionCard>
+
+      <SectionCard
+        title="חשבון גישה ייעודי לתיקיית כתב היד"
+        icon={<ShieldCheck className="h-4 w-4 text-rose-300" />}
+        hint="אפשר להגדיר כאן חשבון Google נפרד שיקרא את תיקיית התמלול הידני, בלי לשנות את החיבור הכללי לדרייב."
+      >
+        <div className="space-y-3">
+          <div className="rounded-xl border border-white/10 bg-navy-950/40 p-3 text-xs leading-relaxed text-slate-300">
+            {settings.handwritingDriveAccountConfigured ? (
+              <>
+                <div className="flex items-center gap-2 font-bold text-emerald-200">
+                  <CheckCircle2 className="h-4 w-4" /> חשבון ייעודי שמור
+                </div>
+                <div className="mt-1 font-mono text-emerald-100" dir="ltr">{settings.handwritingDriveAccountEmail}</div>
+              </>
+            ) : (
+              <>
+                <div className="font-bold text-white">לא הוגדר חשבון ייעודי</div>
+                <p className="mt-1">במצב זה התוכנה תנסה להשתמש בחשבון Google הכללי שבלשונית Google.</p>
+              </>
+            )}
+          </div>
+
+          <Field label="קובץ JSON של חשבון השירות עבור תיקיית כתב היד">
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+                if (file.size > 100_000) {
+                  setError("קובץ חשבון השירות גדול מדי. יש לבחור קובץ JSON עד 100KB.");
+                  event.target.value = "";
+                  return;
+                }
+                try {
+                  setHandwritingDriveJson(await file.text());
+                  setHandwritingDriveFileName(file.name);
+                  setHandwritingDriveTest(null);
+                  setError(null);
+                  setSaved(false);
+                } catch {
+                  setError("לא ניתן לקרוא את קובץ JSON של חשבון השירות.");
+                }
+                event.target.value = "";
+              }}
+              className="block w-full text-xs text-slate-300 file:me-3 file:rounded-lg file:border-0 file:bg-white/10 file:px-3 file:py-2 file:text-xs file:font-bold file:text-white"
+            />
+          </Field>
+          {handwritingDriveFileName && (
+            <p className="text-xs text-sky-200">נבחר קובץ: {handwritingDriveFileName}</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void saveHandwritingDriveAccount(false)}
+              disabled={savingHandwritingDrive || !handwritingDriveJson.trim()}
+              className="flex h-10 items-center gap-2 rounded-xl bg-white/10 px-4 text-xs font-bold text-white disabled:opacity-40"
+            >
+              {savingHandwritingDrive ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileUp className="h-4 w-4" />}
+              שמירת חשבון הגישה
+            </button>
+            {settings.handwritingDriveAccountConfigured && (
+              <button
+                type="button"
+                onClick={() => void saveHandwritingDriveAccount(true)}
+                disabled={savingHandwritingDrive}
+                className="flex h-10 items-center gap-2 rounded-xl border border-red-400/30 px-4 text-xs font-bold text-red-200 disabled:opacity-40"
+              >
+                <Trash2 className="h-4 w-4" /> הסרת החשבון הייעודי
+              </button>
+            )}
+          </div>
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            לאחר שמירת החשבון, יש לשתף את תיקיית האב ב-Google Drive עם כתובת האימייל שמוצגת למעלה, בהרשאת צפייה. המפתח הפרטי נשמר בהגדרות המקומיות של העמדה ואינו מוצג בחזרה.
+          </p>
+          <div className="border-t border-white/10 pt-3">
+            <button
+              type="button"
+              onClick={() => void testHandwritingDriveAccess()}
+              disabled={testingHandwritingDrive || !settings.handwritingRootFolderId.trim()}
+              className="flex h-10 items-center gap-2 rounded-xl border border-sky-300/25 bg-sky-300/[0.08] px-4 text-xs font-bold text-sky-100 disabled:opacity-40"
+            >
+              {testingHandwritingDrive ? <Loader2 className="h-4 w-4 animate-spin" /> : <PlugZap className="h-4 w-4" />}
+              בדיקת גישה לתיקיית התמלול הידני
+            </button>
+            {handwritingDriveTest && (
+              <div className={`mt-3 rounded-xl border p-3 text-xs ${handwritingDriveTest.ok ? "border-emerald-400/30 bg-emerald-400/[0.07] text-emerald-100" : "border-red-400/30 bg-red-400/[0.07] text-red-100"}`}>
+                {handwritingDriveTest.ok ? (
+                  <>
+                    <div className="flex items-center gap-2 font-bold">
+                      <CheckCircle2 className="h-4 w-4" /> הגישה לתיקייה תקינה
+                    </div>
+                    <p className="mt-1">
+                      נמצאו {handwritingDriveTest.folderCount ?? 0} תיקיות ו-{handwritingDriveTest.fileCount ?? 0} קבצים.
+                      {handwritingDriveTest.dedicatedAccount ? " נעשה שימוש בחשבון הייעודי." : " נעשה שימוש בחיבור Google הכללי."}
+                    </p>
+                    {handwritingDriveTest.accountEmail && <p className="mt-1 font-mono" dir="ltr">{handwritingDriveTest.accountEmail}</p>}
+                    {handwritingDriveTest.sample?.length ? <p className="mt-1">דוגמאות: {handwritingDriveTest.sample.join(", ")}</p> : null}
+                  </>
+                ) : (
+                  <div className="flex items-start gap-2">
+                    <XCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{handwritingDriveTest.error || "בדיקת הגישה נכשלה."}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard
