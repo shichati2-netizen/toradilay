@@ -466,6 +466,8 @@ export async function lookupPersonalCode(
 export interface TranscriptionAccess {
   enabled: boolean;
   allowed: boolean;
+  handwritingAllowed?: boolean;
+  handwritingRestricted?: boolean;
 }
 export interface TranscriptionBrowseResult {
   drives: Array<{ letter: string; name: string }>;
