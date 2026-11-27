@@ -180,7 +180,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
   const [printedIds, setPrintedIds] = useState<Set<string>>(new Set());
-  const [isCopyingAll, setIsCopyingAll] = useState(false);
+  const [isCopyingAll, setIsCopyingAll] = useState(false);\n  const [handwritingPrintingId, setHandwritingPrintingId] = useState<string | null>(null);\n  const [handwritingCopyingId, setHandwritingCopyingId] = useState<string | null>(null);\n  const [handwritingCopiedIds, setHandwritingCopiedIds] = useState<Set<string>>(new Set());
 
   const celebrate = useCallback(() => {
     if (effects.master && effects.confetti) fireConfetti();
@@ -349,6 +349,46 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     },
     [addToast, celebrate, studentId],
   );
+
+  const handlePrintHandwriting = useCallback(async (file: TranscriptionDriveFile) => {
+    setHandwritingPrintingId(file.id);
+    try {
+      const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
+      if (isPdf) {
+        const response = await fetch("/api/transcription/handwriting-file?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id));
+        if (!response.ok) throw new Error("לא ניתן לטעון את קובץ ה-PDF להדפסה.");
+        const blob = await response.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const frame = document.createElement("iframe");
+        Object.assign(frame.style, { position: "fixed", width: "1px", height: "1px", opacity: "0", pointerEvents: "none" });
+        frame.src = objectUrl;
+        document.body.appendChild(frame);
+        await new Promise<void>((resolve, reject) => { frame.onload = () => resolve(); frame.onerror = () => reject(new Error("טעינת PDF נכשלה")); });
+        frame.contentWindow?.focus(); frame.contentWindow?.print();
+        window.setTimeout(() => { frame.remove(); URL.revokeObjectURL(objectUrl); }, 60000);
+      } else {
+        const response = await fetch("/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id));
+        if (!response.ok) throw new Error("לא ניתן להמיר את קובץ Word להדפסה.");
+        const html = await response.text();
+        await printHtmlDocument(file.name, html.replace(/^<!doctype html[^>]*>|<html[^>]*>|<\/html>/gi, "").replace(/<head[^>]*>[\s\S]*?<\/head>/i, ""));
+      }
+      addToast({ type: "success", title: "ההדפסה נשלחה למדפסת", message: file.name, actionType: "print" });
+    } catch (error) {
+      addToast({ type: "error", title: "שגיאה בהדפסה", message: error instanceof Error ? error.message : "ההדפסה נכשלה", actionType: "print" });
+    } finally { setHandwritingPrintingId(null); }
+  }, [addToast, studentId]);
+
+  const handleCopyHandwriting = useCallback(async (file: TranscriptionDriveFile) => {
+    setHandwritingCopyingId(file.id);
+    try {
+      const result = await copyHandwritingFile(file, studentId);
+      if (!result.success) throw new Error(result.message);
+      setHandwritingCopiedIds(prev => new Set(prev).add(file.id));
+      addToast({ type: "success", title: "הקובץ הועתק בהצלחה", message: result.message, actionType: "copy" });
+    } catch (error) {
+      addToast({ type: "error", title: "שגיאה בהעתקה", message: error instanceof Error ? error.message : "ההעתקה נכשלה", actionType: "copy" });
+    } finally { setHandwritingCopyingId(null); }
+  }, [addToast, studentId]);
 
   /* ------------------------------ העתקה ------------------------------ */
 

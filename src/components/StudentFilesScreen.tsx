@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowLeft, Clock, Download, FileText, Folder, FolderOpen, Loader2,
-  LogOut, Mic, PenLine, Timer, Usb, Database
+  ArrowLeft, Clock, FileText, Folder, FolderOpen, Loader2,
+  LogOut, Mic, PenLine, Timer, Usb, Database, Printer, Copy
 } from "lucide-react";
 import type { KioskFile, KioskFolder, TranscriptionDriveFile } from "@/lib/types";
 import { useFx } from "@/lib/client/fx";
@@ -68,6 +68,11 @@ export function StudentFilesScreen({
   onPrint,
   onCopy,
   onCopyAll,
+  onPrintHandwriting,
+  onCopyHandwriting,
+  handwritingPrintingId,
+  handwritingCopyingId,
+  handwritingCopiedIds,
 }: {
   folder: KioskFolder;
   studentId: string;
@@ -92,6 +97,11 @@ export function StudentFilesScreen({
   onPrint: (f: KioskFile) => void;
   onCopy: (f: KioskFile) => void;
   onCopyAll: () => void;
+  onPrintHandwriting: (file: TranscriptionDriveFile) => void;
+  onCopyHandwriting: (file: TranscriptionDriveFile) => void;
+  handwritingPrintingId: string | null;
+  handwritingCopyingId: string | null;
+  handwritingCopiedIds: Set<string>;
 }) {
   const [timeLeft, setTimeLeft] = useState(autoLogoutSeconds);
   const [activeFolder, setActiveFolder] = useState<"folders" | "audio" | "handwriting">("folders");
@@ -172,11 +182,6 @@ export function StudentFilesScreen({
               <ArrowLeft className="h-4 w-4" /><span>חזרה לתיקיות</span>
             </FxButton>
           )}
-          {activeFolder === "audio" && (
-            <FxButton variant="ghost" onClick={onTranscription} className="h-11 px-4 text-sm">
-              <Mic className="h-4 w-4 text-sky-300" /><span>שליחת קבצים לתמלול</span>
-            </FxButton>
-          )}
           {activeFolder === "audio" && pendingTranscriptions > 0 && (
             <div className="flex h-10 items-center gap-2 rounded-xl border border-amber-300/20 bg-amber-300/[0.07] px-3 text-xs font-bold text-amber-100"><Clock className="h-4 w-4" /> {pendingTranscriptions} בתהליך תמלול</div>
           )}
@@ -254,28 +259,33 @@ export function StudentFilesScreen({
             <div className="panel mx-auto my-auto w-full max-w-xl p-8 text-center"><PenLine className="mx-auto mb-3 h-9 w-9 text-rose-300" /><p className="text-sm leading-relaxed text-rose-100">{handwritingError}</p></div>
           ) : handwritingFiles.length ? (
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {handwritingFiles.map((file) => (
-                <article key={file.id} className="panel flex flex-col gap-3 rounded-3xl p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-rose-300/20 bg-rose-400/10 text-rose-300"><FileText className="h-5 w-5" /></div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="break-words text-sm font-bold text-white">{file.name}</h3>
-                      <p className="mt-1 text-[11px] text-slate-400">{file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name) ? "PDF" : "Word"}{file.size ? " · " + formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
+              {handwritingFiles.map((file) => {
+                const isPdf = file.mimeType === "application/pdf" || /\.pdf$/i.test(file.name);
+                const ext = (file.name.match(/\.([^.]+)$/)?.[1] || (isPdf ? "pdf" : "docx")).toUpperCase();
+                const baseName = file.name.replace(/\.[^.]+$/, "");
+                return (
+                  <article key={file.id} className="panel flex items-center gap-3 rounded-2xl p-4">
+                    <div className={"flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border " + (isPdf ? "border-rose-300/25 bg-rose-400/10 text-rose-300" : "border-sky-300/25 bg-sky-400/10 text-sky-300")}>
+                      <FileText className="h-5 w-5" />
                     </div>
-                  </div>
-                  {/\.(pdf)$/i.test(file.name) || file.mimeType === "application/pdf" ? (
-                    <iframe title={"תצוגה מקדימה: " + file.name} src={handwritingUrl(file.id)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
-                  ) : /\.docx$/i.test(file.name) || file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.mimeType === "application/vnd.google-apps.document" ? (
-                    <iframe title={"תצוגה מקדימה: " + file.name} src={"/api/transcription/handwriting-preview?studentId=" + encodeURIComponent(studentId) + "&fileId=" + encodeURIComponent(file.id)} sandbox="" className="h-72 w-full rounded-xl border border-white/10 bg-white" />
-                  ) : (
-                    <div className="flex h-72 items-center justify-center rounded-xl border border-dashed border-white/15 bg-white/[0.03] text-center text-sm text-slate-300">קובץ Word ישן ‎.doc‎ — ניתן להוריד ולפתוח ב-Word</div>
-                  )}
-                  <div className="flex gap-2">
-                    <a href={handwritingUrl(file.id, !(/\.pdf$/i.test(file.name) || file.mimeType === "application/pdf"))} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחה</a>
-                    <a href={handwritingUrl(file.id, true)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-rose-400/15 px-3 text-sm font-bold text-rose-100 hover:bg-rose-400/25"><Download className="h-4 w-4" /> הורדה</a>
-                  </div>
-                </article>
-              ))}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="break-words text-sm font-bold text-white">{baseName}</h3>
+                        <span className={"rounded-md px-2 py-1 text-[10px] font-black " + (isPdf ? "bg-rose-400/15 text-rose-200" : "bg-sky-400/15 text-sky-200")}>{ext}</span>
+                      </div>
+                      <p className="mt-1 text-[11px] text-slate-400">{file.size ? formatSize(file.size) : ""}{file.modifiedTime ? " · " + new Date(file.modifiedTime).toLocaleDateString("he-IL") : ""}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button type="button" onClick={() => onPrintHandwriting(file)} disabled={handwritingPrintingId === file.id} className="flex h-9 items-center gap-2 rounded-lg bg-white/10 px-3 text-xs font-bold text-white disabled:opacity-50">
+                          {handwritingPrintingId === file.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />} הדפסה
+                        </button>
+                        <button type="button" onClick={() => onCopyHandwriting(file)} disabled={handwritingCopyingId === file.id || handwritingCopiedIds.has(file.id)} className="flex h-9 items-center gap-2 rounded-lg bg-emerald-400/15 px-3 text-xs font-bold text-emerald-100 disabled:opacity-50">
+                          {handwritingCopyingId === file.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />} {handwritingCopiedIds.has(file.id) ? "הועתק" : "העתק לאונקי"}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })}
             </div>
           ) : (
             <div className="panel mx-auto my-auto w-full max-w-md p-10 text-center">
