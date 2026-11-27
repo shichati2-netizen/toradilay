@@ -17,36 +17,41 @@ export async function POST(req: Request) {
     return Response.json({ error: "מספר תעודת זהות לא תקין", code: "INVALID_ID" }, { status: 400 });
   }
 
+  let localMatch = { exists: false as boolean, studentName: undefined as string | undefined, firstName: undefined as string | undefined, lastName: undefined as string | undefined, rowNumber: undefined as number | undefined };
+  try {
+    localMatch = findLocalRegistration(idNumber);
+  } catch (err) {
+    console.warn("[register] local CSV lookup failed:", err);
+  }
+
   try {
     const target = await resolveTarget({ webhookUrl: "" });
-    if (!target || (target.method !== "service-account" && target.method !== "oauth") || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
-      return Response.json(
-        {
-          exists: false,
-          error: "החיבור ל-Google Sheets אינו מוגדר. יש להגדיר חשבון Google מורשה ומזהה גיליון במסך הניהול.",
-          code: "NOT_CONFIGURED",
-        },
-        { status: 503 },
-      );
+    if (!target || target.method === "webhook" || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
+      return Response.json({ ...localMatch, source: localMatch.exists ? "local-csv" : undefined });
     }
 
     const sheetMatch = await checkExistingRegistration(target, idNumber);
     if (sheetMatch.exists) {
-      return Response.json({ ...sheetMatch, source: "sheets" });
+      const firstName = sheetMatch.firstName || localMatch.firstName;
+      const lastName = sheetMatch.lastName || localMatch.lastName;
+      const studentName =
+        firstName && lastName
+          ? firstName + " " + lastName
+          : sheetMatch.studentName || localMatch.studentName;
+      return Response.json({
+        ...sheetMatch,
+        firstName,
+        lastName,
+        studentName,
+        source: "sheets",
+      });
     }
 
-    // מגבה מפני רשומות ישנות ששמורות ב-CSV מלפני החיבור ל-Sheets.
-    try {
-      const localMatch = findLocalRegistration(idNumber);
-      if (localMatch.exists) {
-        return Response.json({ ...localMatch, source: "local-csv" });
-      }
-    } catch (err) {
-      // אם קובץ הגיבוי אינו קריא, לא מייחסים את התקלה ל-Sheets ואפשר להמשיך לפי תוצאת הגיליון.
-      console.warn("[register] local CSV duplicate fallback failed:", err);
+    if (localMatch.exists) {
+      return Response.json({ ...localMatch, source: "local-csv" });
     }
-
     return Response.json({ exists: false });
+
   } catch (err) {
     const message = err instanceof Error ? err.message : "בדיקת הכפילות מול Google Sheets נכשלה";
     return Response.json(
