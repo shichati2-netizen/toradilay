@@ -286,6 +286,12 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     async (id: string): Promise<boolean> => {
       setErrorMessage(null);
       setNameUpdateError(null);
+
+      // First verify that the ID resolves to a real student folder.
+      // Only then ask for the name if the registration record is incomplete.
+      const opened = await openStudentFolder(id);
+      if (!opened) return false;
+
       try {
         const registration = await checkRegistration(id);
         if (
@@ -305,11 +311,11 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         const displayName =
           registration.studentName ||
           [registration.firstName, registration.lastName].filter(Boolean).join(" ");
-        return await openStudentFolder(id, displayName);
+        if (displayName.trim()) setStudentName(displayName.trim());
       } catch {
-        // A temporary registration lookup failure must not disable ID-based access.
-        return await openStudentFolder(id);
+        // Keep ID-based access working if the registration service is temporarily unavailable.
       }
+      return true;
     },
     [openStudentFolder],
   );
@@ -326,10 +332,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           throw new Error(result.error || "לא ניתן לשמור את השם. נסה שוב.");
         }
         setPendingNameUpdate(null);
-        await openStudentFolder(
-          pending.studentId,
-          result.studentName || firstName + " " + lastName,
-        );
+        setStudentName(result.studentName || firstName + " " + lastName);
         addToast({
           type: result.warning ? "info" : "success",
           title: "השם נשמר",
@@ -350,11 +353,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     const pending = pendingNameUpdate;
     if (!pending || nameUpdateSaving) return;
     setPendingNameUpdate(null);
-    void openStudentFolder(
-      pending.studentId,
-      [pending.firstName, pending.lastName].filter(Boolean).join(" "),
-    );
-  }, [nameUpdateSaving, openStudentFolder, pendingNameUpdate]);
+    const existingName = [pending.firstName, pending.lastName].filter(Boolean).join(" ").trim();
+    if (existingName) setStudentName(existingName);
+  }, [nameUpdateSaving, pendingNameUpdate]);
 
   // Poll Gmail/Apps Script while this student has outstanding transcription requests.
   useEffect(() => {
