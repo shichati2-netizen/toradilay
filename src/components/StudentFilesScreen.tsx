@@ -241,7 +241,28 @@ export function StudentFilesScreen({
                 <iframe title={"תצוגה מקדימה: " + file.name} src={audioPdfUrl(file.id, true)} className="h-72 w-full rounded-xl border border-white/10 bg-white" />
                 <div className="flex gap-2">
                   <a href={audioPdfUrl(file.id, true)} target="_blank" rel="noreferrer" className="flex h-10 flex-1 items-center justify-center rounded-xl bg-white/10 px-3 text-sm font-bold text-white hover:bg-white/15">פתיחת PDF</a>
-                  <a href={audioPdfUrl(file.id)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-3 text-sm font-bold text-sky-100 hover:bg-sky-400/25"><Download className="h-4 w-4" /> הורדה</a>
+                  <a href={audioPdfUrl(file.id, false) + "&name=" + encodeURIComponent(file.name)} className="flex h-10 items-center justify-center gap-2 rounded-xl bg-sky-400/15 px-3 text-sm font-bold text-sky-100 hover:bg-sky-400/25"><Download className="h-4 w-4" /> הורדה</a>
+                </div>
+                <div className="grid grid-cols-[1fr_1.45fr] gap-2.5">
+                  <FxButton
+                    variant={printedFileIds.has(file.id) ? "doneBlue" : "navy"}
+                    disabled={printingFileId === file.id}
+                    onClick={() => onPrint(file)}
+                    className="h-12 px-2 text-[13px] leading-tight"
+                  >
+                    {printingFileId === file.id ? <Loader2 className="keep-anim h-4 w-4 shrink-0 animate-spin" /> : <Printer className="h-4 w-4 shrink-0" />}
+                    <span>{printingFileId === file.id ? "שולח..." : printedFileIds.has(file.id) ? "הדפס שוב" : "הדפסה"}</span>
+                  </FxButton>
+                  <FxButton
+                    variant={copiedFileIds.has(file.id) ? "done" : "emerald"}
+                    disabled={copyingFileId === file.id}
+                    onClick={() => onCopy(file)}
+                    className="h-12 px-2 text-[13px] leading-tight"
+                    title={`העתק לדיסק און קי (כונן ${targetDriveLetter}:)`}
+                  >
+                    {copyingFileId === file.id ? <Loader2 className="keep-anim h-4 w-4 shrink-0 animate-spin" /> : <Usb className="h-4 w-4 shrink-0" />}
+                    <span>{copyingFileId === file.id ? "מעתיק..." : copiedFileIds.has(file.id) ? "הועתק" : "העתק ל-USB"}</span>
+                  </FxButton>
                 </div>
               </article>
             ) : (
