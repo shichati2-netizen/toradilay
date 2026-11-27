@@ -444,7 +444,8 @@ function looksLikeOffice(buf: Buffer): boolean {
   if (buf.length < 8) return false;
   const zip = buf[0] === 0x50 && buf[1] === 0x4b; // DOCX
   const ole = buf[0] === 0xd0 && buf[1] === 0xcf && buf[2] === 0x11; // DOC
-  const pdf = buf.subarray(0, 5).toString("ascii") === "%PDF-";
+  // PDF permits a small prefix before its header; scan the first 1 KB.
+  const pdf = buf.subarray(0, 1024).toString("latin1").includes("%PDF-");
   return zip || ole || pdf;
 }
 
@@ -610,7 +611,7 @@ function makeThumbHtml(html: string): string {
 }
 
 function isPdfBuffer(buffer: Buffer): boolean {
-  return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+  return buffer.subarray(0, 1024).toString("latin1").includes("%PDF-");
 }
 
 /** תצוגה מקדימה למסמכי Word ול-PDF. קובצי PDF מפוענחים כנתונים בינאריים ולא כנתיב קובץ. */
@@ -621,7 +622,7 @@ export async function getPreviewHtml(
   const buffer = await getFileBuffer(fileId);
   const entry = state.fileCache.get(fileId);
   const name = getKnownFileName(fileId) ?? "מסמך";
-  const pdf = isPdfBuffer(buffer);
+  const pdf = isPdfBuffer(buffer) || /\.pdf$/i.test(name);
 
   let full = entry?.fullHtml;
   let usedFallback = false;
