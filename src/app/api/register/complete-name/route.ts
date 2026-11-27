@@ -76,7 +76,7 @@ export async function POST(req: Request) {
     await logActivity({
       type: "register",
       studentId: idNumber,
-      fileName: savedName,
+      fileName: firstName + " " + lastName,
       success: false,
       detail: message,
     });
