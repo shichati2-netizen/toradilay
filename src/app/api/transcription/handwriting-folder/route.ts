@@ -13,11 +13,11 @@ type HandwritingFolderResult = {
 };
 
 function cleanStudentId(value: unknown): string {
-  return String(value ?? "").replace(/\\D/g, "").slice(0, 12);
+  return String(value ?? "").replace(/\D/g, "").slice(0, 12);
 }
 
 async function verifyStudentAccess(studentId: string) {
-  if (!/^\\d{9}$/.test(studentId)) {
+  if (!/^\d{9}$/.test(studentId)) {
     return { ok: false as const, response: Response.json({ error: "מספר תעודת הזהות אינו תקין." }, { status: 400 }) };
   }
   const config = await getStoredConfig();
@@ -31,7 +31,6 @@ async function verifyStudentAccess(studentId: string) {
 }
 
 async function resolveFolderResult(
-  studentId: string,
   fullName: string,
   rootFolderId: string,
 ): Promise<HandwritingFolderResult> {
@@ -73,7 +72,6 @@ export async function GET(req: Request) {
     }
 
     const result = await resolveFolderResult(
-      studentId,
       fullName,
       access.config.transcriptionHandwritingRootFolderId,
     );
@@ -92,14 +90,13 @@ export async function POST(req: Request) {
     const access = await verifyStudentAccess(studentId);
     if (!access.ok) return access.response;
 
-    const fullName = String(body.fullName ?? "").replace(/\\s+/g, " ").trim();
-    if (fullName.length < 3 || fullName.length > 120 || !/[\\p{L}]{2}/u.test(fullName)) {
+    const fullName = String(body.fullName ?? "").replace(/\s+/g, " ").trim();
+    if (fullName.length < 3 || fullName.length > 120 || !/[\p{L}]{2}/u.test(fullName)) {
       return Response.json({ error: "יש להזין שם מלא תקין (שם פרטי ושם משפחה)." }, { status: 400 });
     }
 
     const saved = await saveHandwritingNameForStudent(studentId, fullName);
     const result = await resolveFolderResult(
-      studentId,
       saved.fullName,
       access.config.transcriptionHandwritingRootFolderId,
     );
