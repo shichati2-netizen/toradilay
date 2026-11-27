@@ -67,6 +67,8 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   sheetsWebhookUrl: "",
   transcriptionEnabled: false,
   transcriptionAllowedStudentIds: [],
+  transcriptionHandwritingAccessRestricted: false,
+  transcriptionHandwritingAllowedStudentIds: [],
   transcriptionAudioModelOneEmail: "",
   transcriptionAudioModelTwoEmail: "",
   transcriptionHandwritingModelOneEmail: "",
