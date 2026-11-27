@@ -4,6 +4,7 @@ export const DEFAULT_ROOT_FOLDER_ID = "1CXFm0VyVtSZIqONXJYMmIu0hJyxUqj2B";
 export const DEFAULT_SPREADSHEET_ID = "1USjVzJgyDmHfaAnN6MYJ9qrqlh3qhWclgdJ1LDF7UTk";
 // The codes workbook URL previously supplied by the user; kept separate from registration.
 export const DEFAULT_PERSONAL_CODE_SPREADSHEET_ID = "1USjVzJgyDmHfaAnN6MYJ9qrqlh3qhWclgdJ1LDF7UTk";
+export const DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID = "1Wc_cw53wLmoxSIqI91Lk8ke4FnOutLaw";
 export const DEFAULT_ADMIN_PIN = "545454545";
 
 /** מחלץ מזהה גיליון/תיקייה מתוך קישור מלא של Google, או מחזיר את הקלט כפי שהוא */
@@ -74,6 +75,7 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   transcriptionHandwritingModelTwoReplyEmail: "",
   transcriptionAppsScriptUrl: "",
   transcriptionAppsScriptToken: "",
+  transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
 };
 
 export interface EffectMeta {
