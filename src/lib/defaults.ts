@@ -76,6 +76,7 @@ export const DEFAULT_STORED_CONFIG: StoredConfig = {
   transcriptionAppsScriptUrl: "",
   transcriptionAppsScriptToken: "",
   transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
+  transcriptionHandwritingDriveServiceAccountJson: "",
 };
 
 export interface EffectMeta {
