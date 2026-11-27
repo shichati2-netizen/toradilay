@@ -13,7 +13,7 @@ export async function POST(req: Request) {
     const body = await req.json() as { studentId?: string; fileId?: string; fileName?: string };
     const studentId = String(body.studentId || "").replace(/\D/g, "");
     const fileId = String(body.fileId || "").trim();
-    if (!/^\d{9}$/.test(studentId) || !/^[A-Za-z0-9_-]{5,120}$/.test(fileId)) {
+    if (!/^\d{9}$/.test(studentId) || !(/^[A-Za-z0-9_-]{5,120}$/.test(fileId) || /^local:[a-f0-9]{18}$/.test(fileId))) {
       return Response.json({ success: false, mode: "server", message: "פרטי הקובץ אינם תקינים." }, { status: 400 });
     }
     const cfg = await getStoredConfig();

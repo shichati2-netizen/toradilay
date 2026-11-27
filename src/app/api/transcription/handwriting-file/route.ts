@@ -40,7 +40,7 @@ export async function GET(req: Request) {
     const studentId = String(url.searchParams.get("studentId") || "").replace(/\D/g, "").slice(0, 12);
     const fileId = String(url.searchParams.get("fileId") || "").trim();
 
-    if (!/^\d{9}$/.test(studentId) || !/^[A-Za-z0-9_-]{5,120}$/.test(fileId)) {
+    if (!/^\d{9}$/.test(studentId) || !(/^[A-Za-z0-9_-]{5,120}$/.test(fileId) || /^local:[a-f0-9]{18}$/.test(fileId))) {
       return Response.json({ error: "פרטי הקובץ אינם תקינים." }, { status: 400 });
     }
 
