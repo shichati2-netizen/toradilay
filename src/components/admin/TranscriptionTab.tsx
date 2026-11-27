@@ -19,6 +19,7 @@ const EMPTY: TranscriptionSettings = {
   handwritingModelTwoReplyEmail: "",
   appsScriptUrl: "",
   appsScriptTokenConfigured: false,
+  handwritingRootFolderId: "1Wc_cw53wLmoxSIqI91Lk8ke4FnOutLaw",
 };
 
 export function TranscriptionTab({ pin }: { pin: string }) {
@@ -68,6 +69,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       handwritingModelTwoReplyEmail: settings.handwritingModelTwoReplyEmail,
       appsScriptUrl: settings.appsScriptUrl,
       appsScriptToken: appsScriptToken || undefined,
+      handwritingRootFolderId: settings.handwritingRootFolderId,
     };
     const result = await saveTranscriptionSettingsApi(pin, input);
     setSaving(false);
@@ -94,7 +96,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
         hint="כאשר האפשרות מופעלת, הכפתורים יופיעו רק לאחר הזנת תעודת זהות שנמצאת ברשימת המורשים."
       >
         <ToggleRow
-          title="הפעלת תמלול קולי וכתבי יד"
+          title="הפעלת תמלול קולי ותיקיית כתבי יד"
           description="אפשר לכבות בכל עת. כשהאפשרות כבויה, מסך הקבצים נשאר ללא שינוי."
           checked={settings.enabled}
           onChange={(value) => update({ enabled: value })}
@@ -104,7 +106,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       <SectionCard
         title="חשבונות מורשים"
         icon={<ShieldCheck className="h-4 w-4 text-emerald-300" />}
-        hint="הזן תעודות זהות, אחת בכל שורה. רק חשבונות אלה יראו את שני כפתורי התמלול."
+        hint="הזן תעודות זהות, אחת בכל שורה. רק חשבונות אלה יראו את כפתורי התמלול."
       >
         <textarea
           value={allowedIdsText}
@@ -133,42 +135,38 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       </SectionCard>
 
       <SectionCard
-        title="כתובות תמלול כתבי יד"
+        title="תיקיית תמלולי כתב יד ב-Google Drive"
         icon={<PenLine className="h-4 w-4 text-rose-300" />}
-        hint="כתובות היעד שאליהן נשלחות בקשות תמלול כתב יד. בכל שליחה נשלחת רק כתובת המודל שנבחר."
+        hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. כל תיקיית תלמיד נקראת בשם המלא שלו. הגישה נעשית באמצעות אותו חשבון שירות שמחובר לדרייב."
       >
-        <div className="grid gap-3 md:grid-cols-2">
-          <Field label="מודל 1 – תמלול כתבי יד">
-            <input type="email" value={settings.handwritingModelOneEmail} onChange={(event) => update({ handwritingModelOneEmail: event.target.value })} placeholder="handwriting-model1@example.com" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="מודל 2 – תמלול כתבי יד">
-            <input type="email" value={settings.handwritingModelTwoEmail} onChange={(event) => update({ handwritingModelTwoEmail: event.target.value })} placeholder="handwriting-model2@example.com" className={inputClass} dir="ltr" />
-          </Field>
-        </div>
+        <Field label="מזהה תיקיית האב של תמלולי כתב היד">
+          <input
+            type="text"
+            value={settings.handwritingRootFolderId}
+            onChange={(event) => update({ handwritingRootFolderId: event.target.value })}
+            placeholder="מזהה תיקיית Google Drive"
+            className={inputClass}
+            dir="ltr"
+          />
+        </Field>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          אפשר להדביק מזהה או קישור מלא לתיקיית Google Drive. התוכנה תאתר בתוכה תיקייה ששמה תואם לשם המלא ששויך לתלמיד.
+        </p>
       </SectionCard>
 
       <SectionCard
-        title="כתובות השולחים של תשובות המודלים"
+        title="כתובות השולחים של תשובות התמלול הקולי"
         icon={<Mail className="h-4 w-4 text-amber-300" />}
-        hint="כאן מזינים את כתובות From שמהן יגיעו קובצי התוצאה בחזרה. אלה אינן כתובות היעד שאליהן נשלחת בקשת התמלול."
+        hint="אלה כתובות From שמהן חוזרים קובצי התוצאה של התמלול הקולי. הן נפרדות מכתובות היעד שאליהן נשלחת בקשת התמלול."
       >
         <div className="grid gap-3 md:grid-cols-2">
           <Field label="From של מודל 1 – תמלול קולי">
-            <input type="email" value={settings.audioModelOneReplyEmail} onChange={(event) => update({ audioModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 1" className={inputClass} dir="ltr" />
+            <input type="email" value={settings.audioModelOneReplyEmail} onChange={(event) => update({ audioModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח של מודל 1" className={inputClass} dir="ltr" />
           </Field>
           <Field label="From של מודל 2 – תמלול קולי">
-            <input type="email" value={settings.audioModelTwoReplyEmail} onChange={(event) => update({ audioModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 2" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="From של מודל 1 – תמלול כתבי יד">
-            <input type="email" value={settings.handwritingModelOneReplyEmail} onChange={(event) => update({ handwritingModelOneReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 1" className={inputClass} dir="ltr" />
-          </Field>
-          <Field label="From של מודל 2 – תמלול כתבי יד">
-            <input type="email" value={settings.handwritingModelTwoReplyEmail} onChange={(event) => update({ handwritingModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח שממנה מגיעה תשובת מודל 2" className={inputClass} dir="ltr" />
+            <input type="email" value={settings.audioModelTwoReplyEmail} onChange={(event) => update({ audioModelTwoReplyEmail: event.target.value })} placeholder="כתובת השולח של מודל 2" className={inputClass} dir="ltr" />
           </Field>
         </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
-          יש להעתיק את הכתובת המדויקת משדה From של מייל התשובה בפועל. הכתובות יועברו אוטומטית ל-Google Apps Script בעת שליחת בקשת תמלול ראשונה ואחר כך בכל בקשה.
-        </p>
       </SectionCard>
 
       <SectionCard
