@@ -266,3 +266,22 @@ export function searchLocalHandwritingFolder(
     })
     .sort((a, b) => a.name.localeCompare(b.name, "he"));
 }
+
+
+/** מאמת שקובץ מקומי נרשם מתוך תיקיית כתב היד של התלמיד הנוכחי. */
+export function getLocalHandwritingFile(
+  fileId: string,
+  rootPath: string,
+  fullName: string,
+): { path: string; name: string } | undefined {
+  if (!/^local:[a-f0-9]{18}$/.test(fileId)) return undefined;
+  const entry = state.localFiles.get(fileId);
+  if (!entry || !/\\.(pdf|docx?)$/i.test(entry.name)) return undefined;
+  const root = path.resolve(rootPath);
+  const filePath = path.resolve(entry.path);
+  const relative = path.relative(root, filePath);
+  const parts = relative.split(path.sep);
+  if (relative.startsWith("..") || path.isAbsolute(relative) || parts.length !== 2) return undefined;
+  if (normalizeFolderName(parts[0]) !== normalizeFolderName(fullName)) return undefined;
+  return { path: filePath, name: entry.name };
+}
