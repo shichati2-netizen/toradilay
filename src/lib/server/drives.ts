@@ -3,7 +3,7 @@ import path from "node:path";
 import { execSync } from "node:child_process";
 import { getDriveSequence } from "@/lib/defaults";
 import type { KioskConfig, KioskFile, RemovableDrive, TranscriptionDriveFile } from "@/lib/types";
-import { isWordItem, normalizeFolderName, registerLocalFile, toKioskFile } from "./drive";
+import { getRegisteredLocalFile, isWordItem, normalizeFolderName, registerLocalFile, toKioskFile } from "./drive";
 
 export const isWindows = process.platform === "win32";
 
@@ -274,7 +274,7 @@ export function getLocalHandwritingFile(
   fullName: string,
 ): { path: string; name: string } | undefined {
   if (!/^local:[a-f0-9]{18}$/.test(fileId)) return undefined;
-  const entry = state.localFiles.get(fileId);
+  const entry = getRegisteredLocalFile(fileId);
   if (!entry || !/\.(pdf|docx?)$/i.test(entry.name)) return undefined;
   const root = path.resolve(rootPath);
   const filePath = path.resolve(entry.path);
