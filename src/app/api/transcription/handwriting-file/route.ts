@@ -2,9 +2,11 @@ import { getStoredConfig } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
+  getFileBuffer,
   normalizeFolderName,
   scrapeFolder,
 } from "@/lib/server/drive";
+import { getLocalHandwritingFile } from "@/lib/server/drives";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -43,14 +45,30 @@ export async function GET(req: Request) {
     }
 
     const config = await getStoredConfig();
+    const fullName = await getHandwritingNameForStudent(studentId);
+    if (!fullName) return Response.json({ error: "לא נמצא שיוך שם עבור התלמיד." }, { status: 404 });
+
+    if (config.localHandwritingSearchEnabled) {
+      const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
+      if (!local) return Response.json({ error: "הקובץ המקומי אינו נמצא בתיקיית כתב היד של התלמיד." }, { status: 404 });
+      const buffer = await getFileBuffer(fileId);
+      const details = getDownloadDetails({ name: local.name, mimeType: /\\.pdf$/i.test(local.name) ? "application/pdf" : /\\.doc$/i.test(local.name) ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+      const safeName = details.name.replace(/[\\\\/:*?"<>|\\r\\n]/g, "_");
+      const inline = details.isPdf && url.searchParams.get("download") !== "1";
+      return new Response(new Uint8Array(buffer), {
+        headers: {
+          "Content-Type": details.contentType,
+          "Content-Length": String(buffer.length),
+          "Content-Disposition": (inline ? "inline" : "attachment") + "; filename*=UTF-8''" + encodeURIComponent(safeName),
+          "Cache-Control": "private, no-store",
+          "X-Content-Type-Options": "nosniff",
+        },
+      });
+    }
+
     const rootFolderId = config.transcriptionHandwritingRootFolderId;
     if (!/^[A-Za-z0-9_-]{10,120}$/.test(rootFolderId || "")) {
       return Response.json({ error: "תיקיית האב של כתב היד לא הוגדרה." }, { status: 503 });
-    }
-
-    const fullName = await getHandwritingNameForStudent(studentId);
-    if (!fullName) {
-      return Response.json({ error: "לא נמצא שיוך שם עבור התלמיד." }, { status: 404 });
     }
 
     const root = await scrapeFolder(rootFolderId, { fresh: true });

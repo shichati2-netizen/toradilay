@@ -2,9 +2,12 @@ import { getStoredConfig } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
+  getFileBuffer,
+  getPreviewHtml,
   normalizeFolderName,
   scrapeFolder,
 } from "@/lib/server/drive";
+import { getLocalHandwritingFile } from "@/lib/server/drives";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -27,9 +30,25 @@ export async function GET(req: Request) {
     }
 
     const config = await getStoredConfig();
-    const rootFolderId = config.transcriptionHandwritingRootFolderId;
     const fullName = await getHandwritingNameForStudent(studentId);
-    if (!fullName || !/^[A-Za-z0-9_-]{10,120}$/.test(rootFolderId || "")) {
+    if (!fullName) return new Response("לא נמצא שיוך שם עבור התלמיד.", { status: 404 });
+
+    if (config.localHandwritingSearchEnabled) {
+      const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
+      if (!local || !/\\.(docx?)$/i.test(local.name)) return new Response("קובץ Word מקומי זה אינו נמצא בתיקיית כתב היד.", { status: 404 });
+      const buffer = await getFileBuffer(fileId);
+      if (/\\.doc$/i.test(local.name)) {
+        return new Response("<!doctype html><html lang='he' dir='rtl'><meta charset='utf-8'><body style='font:16px Arial;padding:24px;text-align:center'>תצוגה מקדימה לקובצי ‎.doc‎ ישנים אינה זמינה. הורד את הקובץ ופתח אותו ב-Word.</body></html>", { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
+      }
+      const mammoth = await import("mammoth");
+      const result = await mammoth.convertToHtml({ buffer });
+      const body = result.value?.trim() || "<p>לא נמצאה תצוגה מקדימה למסמך.</p>";
+      const html = "<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\"><style>html,body{margin:0;background:#f1f5f9;color:#172033;font-family:Arial,sans-serif}body{padding:14px}.paper{min-height:340px;background:white;padding:28px;box-shadow:0 1px 5px #0002;direction:rtl;text-align:right;overflow-wrap:anywhere}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #cbd5e1;padding:5px}img{max-width:100%;height:auto}</style></head><body><main class='paper'>" + body + "</main></body></html>";
+      return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", "Content-Security-Policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'", "X-Content-Type-Options": "nosniff" } });
+    }
+
+    const rootFolderId = config.transcriptionHandwritingRootFolderId;
+    if (!/^[A-Za-z0-9_-]{10,120}$/.test(rootFolderId || "")) {
       return new Response("לא נמצאה תיקיית כתב היד של התלמיד.", { status: 404 });
     }
 

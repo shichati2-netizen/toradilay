@@ -1,6 +1,7 @@
 import { getStoredConfig } from "@/lib/server/settings";
 import { getHandwritingNameForStudent } from "@/lib/server/sheets";
-import { getRawDriveFileBuffer, normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
+import { getRawDriveFileBuffer, getFileBuffer, normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
+import { getLocalHandwritingFile } from "@/lib/server/drives";
 import { copyToTarget } from "@/lib/server/drives";
 import { logActivity } from "@/lib/server/activity";
 
@@ -18,6 +19,14 @@ export async function POST(req: Request) {
     const cfg = await getStoredConfig();
     const fullName = await getHandwritingNameForStudent(studentId);
     if (!fullName) return Response.json({ success: false, mode: "server", message: "לא נמצא שיוך לתלמיד." }, { status: 404 });
+    if (cfg.localHandwritingSearchEnabled) {
+      const local = getLocalHandwritingFile(fileId, cfg.localHandwritingSearchPath, fullName);
+      if (!local) return Response.json({ success: false, mode: "server", message: "הקובץ אינו נמצא בתיקיית כתב היד של התלמיד." }, { status: 404 });
+      const buffer = await getFileBuffer(fileId);
+      const result = copyToTarget(buffer, local.name || body.fileName || "document", cfg);
+      await logActivity({ type: "copy", studentId, fileName: local.name, success: result.success, detail: result.path || result.message });
+      return Response.json(result);
+    }
     const root = await scrapeFolder(cfg.transcriptionHandwritingRootFolderId, { fresh: true });
     if (!root.ok) throw new Error(root.authError || "אין גישה לתיקיית כתב היד.");
     const folder = root.folders.find(x => normalizeFolderName(x.name) === normalizeFolderName(fullName));
