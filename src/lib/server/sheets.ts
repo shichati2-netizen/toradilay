@@ -717,7 +717,7 @@ export async function saveHandwritingNameForStudent(
   const cleanId = String(studentId ?? "").replace(/\D/g, "");
   const cleanName = String(fullName ?? "").replace(/\s+/g, " ").trim().slice(0, 120);
   if (!/^\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
-  if (cleanName.length < 3 || !/[\p{L}]{2}/u.test(cleanName)) {
+  if (cleanName.split(/\s+/).filter((part) => part.length >= 2).length < 2 || !/[\p{L}]{2}/u.test(cleanName)) {
     throw new Error("יש להזין שם מלא תקין.");
   }
 
@@ -759,7 +759,7 @@ export async function saveHandwritingNameForStudent(
       },
     );
   } else {
-    const appendRange = sheetRange(HANDWRITING_MAPPING_TAB, "A2:B");
+    const appendRange = sheetRange(HANDWRITING_MAPPING_TAB, "A2:B10000");
     await sheetsRequest(
       target,
       "/values/" + encodeURIComponent(appendRange) + ":append?valueInputOption=RAW&insertDataOption=INSERT_ROWS",
