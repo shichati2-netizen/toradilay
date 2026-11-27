@@ -588,7 +588,7 @@ function fallbackPdfHtml(name: string): string {
   return `<div style="text-align:center;padding:24px">
     <div style="font-size:13px;color:#64748b;margin-bottom:12px">PDF</div>
     <h2 style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#1e293b">${escapeHtml(name)}</h2>
-    <p style="font-size:13px;color:#475569">הקובץ מוצג באמצעות מציג ה-PDF המקורי של Windows/הדפדפן.</p>
+    <p style="font-size:13px;color:#475569">תצוגת הטקסט של קובץ זה אינה זמינה כרגע. נסה לטעון שוב.</p>
   </div>`;
 }
 
