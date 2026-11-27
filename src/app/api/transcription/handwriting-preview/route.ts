@@ -35,9 +35,9 @@ export async function GET(req: Request) {
 
     if (config.localHandwritingSearchEnabled) {
       const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
-      if (!local || !/\\.(docx?)$/i.test(local.name)) return new Response("קובץ Word מקומי זה אינו נמצא בתיקיית כתב היד.", { status: 404 });
+      if (!local || !/\.(docx?)$/i.test(local.name)) return new Response("קובץ Word מקומי זה אינו נמצא בתיקיית כתב היד.", { status: 404 });
       const buffer = await getFileBuffer(fileId);
-      if (/\\.doc$/i.test(local.name)) {
+      if (/\.doc$/i.test(local.name)) {
         return new Response("<!doctype html><html lang='he' dir='rtl'><meta charset='utf-8'><body style='font:16px Arial;padding:24px;text-align:center'>תצוגה מקדימה לקובצי ‎.doc‎ ישנים אינה זמינה. הורד את הקובץ ופתח אותו ב-Word.</body></html>", { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
       }
       const mammoth = await import("mammoth");

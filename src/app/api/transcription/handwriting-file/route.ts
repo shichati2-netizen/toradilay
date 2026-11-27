@@ -52,7 +52,7 @@ export async function GET(req: Request) {
       const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
       if (!local) return Response.json({ error: "הקובץ המקומי אינו נמצא בתיקיית כתב היד של התלמיד." }, { status: 404 });
       const buffer = await getFileBuffer(fileId);
-      const details = getDownloadDetails({ name: local.name, mimeType: /\\.pdf$/i.test(local.name) ? "application/pdf" : /\\.doc$/i.test(local.name) ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
+      const details = getDownloadDetails({ name: local.name, mimeType: /\.pdf$/i.test(local.name) ? "application/pdf" : /\.doc$/i.test(local.name) ? "application/msword" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document" });
       const safeName = details.name.replace(/[\\\\/:*?"<>|\\r\\n]/g, "_");
       const inline = details.isPdf && url.searchParams.get("download") !== "1";
       return new Response(new Uint8Array(buffer), {
