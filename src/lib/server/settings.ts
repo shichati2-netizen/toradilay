@@ -107,6 +107,7 @@ async function mergeStoredFields(patch: Record<string, unknown>): Promise<void> 
     transcriptionAppsScriptUrl: "",
     transcriptionAppsScriptToken: "",
     transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
+    transcriptionHandwritingDriveServiceAccountJson: "",
     ...(patch as Partial<StoredConfig>),
   };
   await mergeLocalSettings(
@@ -132,6 +133,10 @@ export async function getStoredConfig(): Promise<StoredConfig> {
         typeof raw.googleServiceAccountJson === "string" && raw.googleServiceAccountJson.trim()
           ? raw.googleServiceAccountJson
           : null,
+      transcriptionHandwritingDriveServiceAccountJson:
+        typeof raw.transcriptionHandwritingDriveServiceAccountJson === "string"
+          ? raw.transcriptionHandwritingDriveServiceAccountJson.slice(0, 100_000)
+          : "",
       transcriptionEnabled: raw.transcriptionEnabled === true,
       transcriptionAllowedStudentIds: Array.isArray(raw.transcriptionAllowedStudentIds)
         ? [...new Set(raw.transcriptionAllowedStudentIds
@@ -195,6 +200,7 @@ export async function getStoredConfig(): Promise<StoredConfig> {
       transcriptionAppsScriptUrl: "",
       transcriptionAppsScriptToken: "",
       transcriptionHandwritingRootFolderId: DEFAULT_TRANSCRIPTION_HANDWRITING_FOLDER_ID,
+      transcriptionHandwritingDriveServiceAccountJson: "",
     };
   }
 }
@@ -220,6 +226,7 @@ export async function getPublicConfig(): Promise<KioskConfig> {
     transcriptionAppsScriptUrl: _transcriptionAppsScriptUrl,
     transcriptionAppsScriptToken: _transcriptionAppsScriptToken,
     transcriptionHandwritingRootFolderId: _transcriptionHandwritingRootFolderId,
+    transcriptionHandwritingDriveServiceAccountJson: _transcriptionHandwritingDriveServiceAccountJson,
     ...config
   } = await getStoredConfig();
   void _pin;
@@ -240,6 +247,7 @@ export async function getPublicConfig(): Promise<KioskConfig> {
   void _transcriptionAppsScriptUrl;
   void _transcriptionAppsScriptToken;
   void _transcriptionHandwritingRootFolderId;
+  void _transcriptionHandwritingDriveServiceAccountJson;
   return config;
 }
 
@@ -359,7 +367,24 @@ export async function getTranscriptionSettings(): Promise<TranscriptionSettings>
     appsScriptUrl: stored.transcriptionAppsScriptUrl,
     appsScriptTokenConfigured: Boolean(stored.transcriptionAppsScriptToken),
     handwritingRootFolderId: stored.transcriptionHandwritingRootFolderId,
+    handwritingDriveAccountConfigured: Boolean(stored.transcriptionHandwritingDriveServiceAccountJson),
+    handwritingDriveAccountEmail: (() => {
+      try {
+        const parsed = JSON.parse(stored.transcriptionHandwritingDriveServiceAccountJson || "{}") as { client_email?: unknown };
+        return typeof parsed.client_email === "string" ? parsed.client_email : "";
+      } catch {
+        return "";
+      }
+    })(),
   };
+}
+
+export async function getTranscriptionHandwritingDriveServiceAccountJson(): Promise<string> {
+  return (await getStoredConfig()).transcriptionHandwritingDriveServiceAccountJson;
+}
+
+export async function saveTranscriptionHandwritingDriveServiceAccountJson(json: string | null): Promise<void> {
+  await mergeStoredFields({ transcriptionHandwritingDriveServiceAccountJson: json ?? "" });
 }
 
 function validEmail(value: unknown): string {
