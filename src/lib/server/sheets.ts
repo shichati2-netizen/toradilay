@@ -520,7 +520,7 @@ export async function saveRegistrationNameById(
   idNumber: string,
   firstNameInput: string,
   lastNameInput: string,
-): Promise<{ studentName: string; updatedRange?: string; alreadyComplete?: boolean }> {
+): Promise<{ studentName: string; firstName: string; lastName: string; updatedRange?: string; alreadyComplete?: boolean }> {
   if (t.method === "webhook") {
     throw new Error("עדכון שם דורש חיבור Google Sheets ישיר.");
   }
@@ -562,7 +562,7 @@ export async function saveRegistrationNameById(
       throw new Error("תעודת הזהות כבר משויכת לשם משפחה אחר. לא שינינו את הרשומה.");
     }
     if (oldFirst && oldLast) {
-      return { studentName: (oldFirst + " " + oldLast).trim(), alreadyComplete: true };
+      return { studentName: (oldFirst + " " + oldLast).trim(), firstName: oldFirst, lastName: oldLast, alreadyComplete: true };
     }
 
     const rowNumber = matchIndex + 1;
@@ -582,6 +582,8 @@ export async function saveRegistrationNameById(
     }
     return {
       studentName: (oldFirst || firstName) + " " + (oldLast || lastName),
+      firstName: oldFirst || firstName,
+      lastName: oldLast || lastName,
       updatedRange: location.title + "!" + columnLabel(firstColumn) + rowNumber + ":" + columnLabel(lastColumn) + rowNumber,
     };
   }
@@ -603,6 +605,8 @@ export async function saveRegistrationNameById(
   );
   return {
     studentName: firstName + " " + lastName,
+    firstName,
+    lastName,
     updatedRange: result.updates?.updatedRange,
   };
 }
