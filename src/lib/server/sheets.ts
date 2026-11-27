@@ -524,10 +524,10 @@ export async function saveRegistrationNameById(
   if (t.method === "webhook") {
     throw new Error("עדכון שם דורש חיבור Google Sheets ישיר.");
   }
-  const cleanId = String(idNumber).replace(/\\D/g, "");
-  const firstName = String(firstNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
-  const lastName = String(lastNameInput).trim().replace(/[\\r\\n]+/g, " ").slice(0, 60);
-  if (!/^\\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
+  const cleanId = String(idNumber).replace(/\D/g, "");
+  const firstName = String(firstNameInput).trim().replace(/[\r\n]+/g, " ").slice(0, 60);
+  const lastName = String(lastNameInput).trim().replace(/[\r\n]+/g, " ").slice(0, 60);
+  if (!/^\d{5,9}$/.test(cleanId) || firstName.length < 2 || lastName.length < 2) {
     throw new Error("פרטי תעודת הזהות או השם אינם תקינים.");
   }
 
