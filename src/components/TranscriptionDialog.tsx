@@ -227,8 +227,6 @@ export function TranscriptionDialog({
           </div>
         </div>
       </div>
-
-}
     </div>
   );
 }
