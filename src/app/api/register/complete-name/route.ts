@@ -28,34 +28,47 @@ export async function POST(req: Request) {
   }
 
   try {
+    let savedName = firstName + " " + lastName;
+    let savedFirstName = firstName;
+    let savedLastName = lastName;
+    let alreadyComplete = false;
+    let backupWarning: string | undefined;
+
     const target = await resolveTarget({ webhookUrl: "" });
-    if (!target || target.method === "webhook" || !/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
-      return Response.json(
-        { success: false, error: "חיבור ישיר ל-Google Sheets אינו מוגדר. יש לפנות למנהל המערכת." },
-        { status: 503 },
-      );
+    if (target && target.method !== "webhook" && /^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
+      try {
+        const saved = await saveRegistrationNameById(target, idNumber, firstName, lastName);
+        savedName = saved.studentName;
+        savedFirstName = saved.firstName;
+        savedLastName = saved.lastName;
+        alreadyComplete = saved.alreadyComplete === true;
+      } catch (error) {
+        backupWarning = "השם לא סונכרן ל-Google Sheets: " +
+          (error instanceof Error ? error.message : "שגיאת חיבור");
+      }
+    } else {
+      backupWarning = "לא הוגדר חיבור Google Sheets; השם נשמר בקובץ המקומי של עמדה זו בלבד.";
     }
 
-    const saved = await saveRegistrationNameById(target, idNumber, firstName, lastName);
-    let backupWarning: string | undefined;
     try {
-      upsertLocalRegistrationName(idNumber, saved.firstName, saved.lastName);
+      upsertLocalRegistrationName(idNumber, savedFirstName, savedLastName);
     } catch (error) {
-      backupWarning = error instanceof Error ? error.message : "גיבוי השם המקומי לא נשמר.";
-      console.warn("[register/complete-name] local backup failed:", backupWarning);
+      const localError = error instanceof Error ? error.message : "גיבוי השם המקומי לא נשמר.";
+      backupWarning = [backupWarning, localError].filter(Boolean).join(" ");
+      console.warn("[register/complete-name] local backup failed:", localError);
     }
 
     await logActivity({
       type: "register",
       studentId: idNumber,
-      fileName: saved.studentName,
-      detail: saved.alreadyComplete ? "שם כבר היה מעודכן" : "הושלם שם לפי תעודת זהות",
+      fileName: savedName,
+      detail: alreadyComplete ? "שם כבר היה מעודכן" : "הושלם שם לפי תעודת זהות",
     });
 
     return Response.json({
       success: true,
-      studentName: saved.studentName,
-      alreadyComplete: saved.alreadyComplete === true,
+      studentName: savedName,
+      alreadyComplete,
       warning: backupWarning,
     });
   } catch (error) {
@@ -63,7 +76,7 @@ export async function POST(req: Request) {
     await logActivity({
       type: "register",
       studentId: idNumber,
-      fileName: firstName + " " + lastName,
+      fileName: savedName,
       success: false,
       detail: message,
     });
