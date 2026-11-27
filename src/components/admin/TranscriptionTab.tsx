@@ -300,7 +300,13 @@ export function TranscriptionTab({ pin }: { pin: string }) {
                     </div>
                     <p className="mt-1">
                       נמצאו {handwritingDriveTest.folderCount ?? 0} תיקיות ו-{handwritingDriveTest.fileCount ?? 0} קבצים.
-                      {handwritingDriveTest.dedicatedAccount ? " נעשה שימוש בחשבון הייעודי." : " נעשה שימוש בחיבור Google הכללי."}
+                      {handwritingDriveTest.authMode === "service-account" && handwritingDriveTest.dedicatedAccount
+                        ? " הגישה אומתה באמצעות החשבון הייעודי."
+                        : handwritingDriveTest.authMode === "service-account"
+                          ? " הגישה אומתה באמצעות חשבון השירות הכללי."
+                          : handwritingDriveTest.authMode === "oauth"
+                            ? " הגישה אומתה באמצעות חשבון Google הכללי."
+                            : " התיקייה נגישה באמצעות קישור ציבורי."}
                     </p>
                     {handwritingDriveTest.accountEmail && <p className="mt-1 font-mono" dir="ltr">{handwritingDriveTest.accountEmail}</p>}
                     {handwritingDriveTest.sample?.length ? <p className="mt-1">דוגמאות: {handwritingDriveTest.sample.join(", ")}</p> : null}
