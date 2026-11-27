@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-windows:
     runs-on: windows-latest
@@ -26,6 +30,11 @@ jobs:
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps
+
+      - name: Run lint and TypeScript checks
+        run: |
+          npm run lint
+          npm run typecheck
 
       - name: Set a unique application version for this build
         shell: pwsh
@@ -75,7 +84,7 @@ jobs:
           retention-days: 30
 
       - name: Publish immutable versioned Windows release
-        if: github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, 'release:')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: windows-v1.0.${{ github.run_number }}-${{ github.run_attempt }}
