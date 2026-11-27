@@ -402,6 +402,11 @@ export function matchStudentFolder(
 /* קבצים מקומיים (מוגדרים רק דרך חיפוש מקומי — מונע גישה לנתיבים זרים) */
 /* ------------------------------------------------------------------ */
 
+/** מחזיר רק רשומה שנרשמה בתהליך החיפוש המקומי הנוכחי. */
+export function getRegisteredLocalFile(fileId: string): { path: string; name: string } | undefined {
+  return state.localFiles.get(fileId);
+}
+
 export function registerLocalFile(filePath: string, name: string): string {
   const token = "local:" + crypto.randomBytes(9).toString("hex");
   state.localFiles.set(token, { path: filePath, name });
