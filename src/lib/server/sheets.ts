@@ -438,6 +438,40 @@ export interface ExistingRegistration {
   rowNumber?: number;
 }
 
+/** איתור תלמיד לפי שם מלא. מחזיר מזהה פנימי רק כאשר נמצאה התאמה יחידה. */
+export async function findRegistrationByName(
+  t: SheetsTarget,
+  firstNameInput: string,
+  lastNameInput: string,
+): Promise<{ found: boolean; studentId?: string; studentName?: string; ambiguous?: boolean }> {
+  const normalize = (value: unknown) => normalizePersonName(value).replace(/\\s+/g, "");
+  const firstName = normalize(firstNameInput);
+  const lastName = normalize(lastNameInput);
+  if (firstName.length < 2 || lastName.length < 2) return { found: false };
+  if (t.method === "webhook") {
+    const d = await webhookCall<{ found?: boolean; studentId?: string; studentName?: string; ambiguous?: boolean }>(
+      t.webhookUrl,
+      { action: "lookupByName", spreadsheetId: t.spreadsheetId, firstName: firstNameInput.trim(), lastName: lastNameInput.trim() },
+    );
+    return { found: Boolean(d.found), studentId: d.studentId, studentName: d.studentName, ambiguous: Boolean(d.ambiguous) };
+  }
+  const location = await findSheetHeaderLocation(t, "registration");
+  const data = await sheetsRequest<{ values?: unknown[][] }>(
+    t,
+    "/values/" + encodeURIComponent(sheetRange(location.title, "A1:ZZ10000")),
+  );
+  const matches: Array<{ studentId: string; studentName: string }> = [];
+  for (let i = location.headerRowIndex + 1; i < (data.values ?? []).length; i++) {
+    const row = data.values![i] ?? [];
+    if (normalize(row[location.firstNameColumn!]) !== firstName || normalize(row[location.lastNameColumn!]) !== lastName) continue;
+    const studentId = cleanIdCell(row[location.idColumn!]);
+    if (!/^\\d{5,9}$/.test(studentId)) continue;
+    matches.push({ studentId, studentName: `${String(row[location.firstNameColumn!] ?? "").trim()} ${String(row[location.lastNameColumn!] ?? "").trim()}`.trim() });
+  }
+  if (matches.length > 1) return { found: false, ambiguous: true };
+  return matches.length === 1 ? { found: true, ...matches[0] } : { found: false };
+}
+
 /** בודק אם ת.ז. כבר רשומה: עמודה C (או B כגיבוי) */
 export async function checkExistingRegistration(
   t: SheetsTarget,
