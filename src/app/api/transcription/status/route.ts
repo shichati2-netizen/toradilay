@@ -62,9 +62,6 @@ export async function GET(req: Request) {
   if (studentId.length !== 9) return Response.json({ items: [] });
 
   const config = await getStoredConfig();
-  if (!config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
-    return Response.json({ items: [] });
-  }
 
   await syncReturnedStatuses(
     config.transcriptionAppsScriptUrl,

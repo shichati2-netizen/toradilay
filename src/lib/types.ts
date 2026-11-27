@@ -84,6 +84,14 @@ export interface GoogleOAuthClientConfig {
 export type TranscriptionKind = "audio" | "handwriting";
 export type TranscriptionModel = "model1" | "model2";
 
+export interface TranscriptionDriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  size?: number;
+  modifiedTime?: string;
+}
+
 export interface TranscriptionSettings {
   enabled: boolean;
   allowedStudentIds: string[];

@@ -610,3 +610,38 @@ export async function getPreviewHtml(
     fallback: usedFallback,
   };
 }
+
+
+/** הורדה של קובץ בינארי מדרייב (למשל PDF סרוק), עם חשבון השירות הייעודי לפי הצורך. */
+export async function getRawDriveFileBuffer(
+  fileId: string,
+  serviceAccountJson?: string,
+): Promise<Buffer> {
+  if (!/^[A-Za-z0-9_-]{5,120}$/.test(fileId)) {
+    throw new Error("מזהה קובץ לא תקין.");
+  }
+  const auth = await resolveDriveAuth(serviceAccountJson);
+  if (!auth) {
+    throw new Error("לא הוגדר חיבור Google לקריאת קובצי כתב היד.");
+  }
+  const url = getDriveApiBase() + "/files/" + encodeURIComponent(fileId) + "?alt=media&supportsAllDrives=true";
+  const response = await fetch(url, {
+    headers: { Authorization: "Bearer " + auth.token },
+    signal: AbortSignal.timeout(30000),
+  });
+  if (!response.ok) {
+    let message = "HTTP " + response.status;
+    try {
+      const data = await response.json() as { error?: { message?: string } };
+      message = data.error?.message || message;
+    } catch {
+      // Keep the HTTP status.
+    }
+    throw new Error("הורדת הקובץ מ-Google Drive נכשלה: " + message);
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (!buffer.length || looksLikeHtml(buffer)) {
+    throw new Error("Google Drive לא החזיר קובץ תקין.");
+  }
+  return buffer;
+}

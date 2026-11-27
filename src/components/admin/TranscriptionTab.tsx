@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, FileUp, Loader2, Mail, Mic, PenLine, PlugZap, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import { Check, CheckCircle2, FileUp, Loader2, Mail, PenLine, PlugZap, Save, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import type { TranscriptionSettings, TranscriptionSettingsInput } from "@/lib/types";
 import {
   fetchTranscriptionSettingsApi,
@@ -9,10 +9,10 @@ import {
   saveTranscriptionHandwritingDriveAccountApi,
   testTranscriptionHandwritingDriveAccessApi,
 } from "@/lib/client/api";
-import { Field, SectionCard, ToggleRow, inputClass } from "./ui";
+import { Field, SectionCard, inputClass } from "./ui";
 
 const EMPTY: TranscriptionSettings = {
-  enabled: false,
+  enabled: true,
   allowedStudentIds: [],
   audioModelOneEmail: "",
   audioModelTwoEmail: "",
@@ -31,7 +31,6 @@ const EMPTY: TranscriptionSettings = {
 
 export function TranscriptionTab({ pin }: { pin: string }) {
   const [settings, setSettings] = useState<TranscriptionSettings>(EMPTY);
-  const [allowedIdsText, setAllowedIdsText] = useState("");
   const [appsScriptToken, setAppsScriptToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -52,7 +51,6 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       if (cancelled) return;
       if (result.settings) {
         setSettings(result.settings);
-        setAllowedIdsText(result.settings.allowedStudentIds.join("\n"));
       } else {
         setError(result.error || "לא ניתן לטעון את הגדרות התמלול.");
       }
@@ -72,8 +70,8 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     setError(null);
     setSaved(false);
     const input: TranscriptionSettingsInput = {
-      enabled: settings.enabled,
-      allowedStudentIds: allowedIdsText.split(/[\s,;]+/).map((value) => value.replace(/\D/g, "")).filter((value) => value.length === 9),
+      enabled: true,
+      allowedStudentIds: [],
       audioModelOneEmail: settings.audioModelOneEmail,
       audioModelTwoEmail: settings.audioModelTwoEmail,
       handwritingModelOneEmail: settings.handwritingModelOneEmail,
@@ -93,7 +91,6 @@ export function TranscriptionTab({ pin }: { pin: string }) {
       return;
     }
     setSettings(result.settings);
-    setAllowedIdsText(result.settings.allowedStudentIds.join("\n"));
     setAppsScriptToken("");
     setSaved(true);
     setError(result.settings.saveWarning || null);
@@ -143,38 +140,9 @@ export function TranscriptionTab({ pin }: { pin: string }) {
   return (
     <div className="space-y-4">
       <SectionCard
-        title="הפעלת תפריט התמלול"
-        icon={<Mic className="h-4 w-4 text-gold-400" />}
-        hint="כאשר האפשרות מופעלת, הכפתורים יופיעו רק לאחר הזנת תעודת זהות שנמצאת ברשימת המורשים."
-      >
-        <ToggleRow
-          title="הפעלת תמלול קולי וגישה לכתבי יד"
-          description="אפשר לכבות בכל עת. כשהאפשרות כבויה, מסך הקבצים נשאר ללא שינוי."
-          checked={settings.enabled}
-          onChange={(value) => update({ enabled: value })}
-        />
-      </SectionCard>
-
-      <SectionCard
-        title="חשבונות מורשים"
-        icon={<ShieldCheck className="h-4 w-4 text-emerald-300" />}
-        hint="הזן תעודות זהות, אחת בכל שורה. רק חשבונות אלה יראו את כפתורי התמלול."
-      >
-        <textarea
-          value={allowedIdsText}
-          onChange={(event) => { setAllowedIdsText(event.target.value); setSaved(false); }}
-          rows={5}
-          dir="ltr"
-          placeholder={"123456789\n987654321"}
-          className={inputClass + " h-auto min-h-28 resize-y py-3 font-mono"}
-        />
-        <p className="mt-2 text-[11px] text-slate-500">המספרים נשמרים בהגדרות המנהל ואינם נשלחים למסך הציבורי.</p>
-      </SectionCard>
-
-      <SectionCard
         title="תיקיית תמלולי כתב יד ב-Google Drive"
         icon={<PenLine className="h-4 w-4 text-rose-300" />}
-        hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. את הרשאת הגישה אפשר להגדיר בנפרד בחלק הבא."
+        hint="הכנס את מזהה תיקיית האב שבה נמצאות תיקיות התלמידים. המערכת תציג את קובצי ה-PDF מתיקיית התלמיד בתוך מסך הקבצים."
       >
         <Field label="מזהה תיקיית האב של תמלולי כתב היד">
           <input

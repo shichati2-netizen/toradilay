@@ -66,9 +66,6 @@ export async function POST(req: Request) {
     }
 
     const config = await getStoredConfig();
-    if (!config.transcriptionEnabled || !config.transcriptionAllowedStudentIds.includes(studentId)) {
-      return Response.json({ error: "החשבון אינו מורשה להשתמש בתמלול." }, { status: 403 });
-    }
     if (!config.transcriptionAppsScriptUrl || !config.transcriptionAppsScriptToken) {
       return Response.json({ error: "יש להגדיר כתובת Google Apps Script ומפתח חיבור בהגדרות התמלול." }, { status: 400 });
     }

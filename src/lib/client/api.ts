@@ -6,6 +6,7 @@ import type {
   RegistrationStatus,
   RemovableDrive,
   SearchResponse,
+  TranscriptionDriveFile,
   SheetsMethod,
   StatsResponse,
 } from "@/lib/types";
@@ -482,7 +483,8 @@ export async function fetchTranscriptionAccess(studentId: string): Promise<Trans
 export interface HandwritingFolderLookup {
   needsAssociation: boolean;
   studentName?: string;
-  folderUrl?: string;
+  folderId?: string;
+  files?: TranscriptionDriveFile[];
   folderMissing?: boolean;
   message?: string;
   error?: string;
@@ -493,26 +495,41 @@ export async function fetchHandwritingFolderApi(studentId: string): Promise<Hand
       cache: "no-store",
     });
     const data = await json<HandwritingFolderLookup>(res);
-    if (!res.ok) return { needsAssociation: false, error: data.error || "לא ניתן לפתוח את תיקיית כתב היד." };
+    if (!res.ok) return { needsAssociation: false, error: data.error || "לא ניתן לטעון את תיקיית כתב היד." };
     return data;
   } catch {
-    return { needsAssociation: false, error: "שגיאת תקשורת בפתיחת תיקיית כתב היד." };
+    return { needsAssociation: false, error: "שגיאת תקשורת בטעינת תיקיית כתב היד." };
   }
 }
 export async function saveHandwritingAssociationApi(
   studentId: string,
   fullName: string,
-): Promise<{ ok: boolean; folderUrl?: string; folderMissing?: boolean; message?: string; error?: string }> {
+): Promise<{
+  ok: boolean;
+  folderId?: string;
+  files?: TranscriptionDriveFile[];
+  folderMissing?: boolean;
+  message?: string;
+  error?: string;
+}> {
   try {
     const res = await fetch("/api/transcription/handwriting-folder", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ studentId, fullName }),
     });
-    const data = await json<{ ok?: boolean; folderUrl?: string; folderMissing?: boolean; message?: string; error?: string }>(res);
+    const data = await json<{
+      ok?: boolean;
+      folderId?: string;
+      files?: TranscriptionDriveFile[];
+      folderMissing?: boolean;
+      message?: string;
+      error?: string;
+    }>(res);
     return {
       ok: res.ok && data.ok === true,
-      folderUrl: data.folderUrl,
+      folderId: data.folderId,
+      files: data.files ?? [],
       folderMissing: data.folderMissing,
       message: data.message,
       error: data.error,
