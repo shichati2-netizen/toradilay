@@ -156,7 +156,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [folder, setFolder] = useState<KioskFolder | null>(null);
   const [files, setFiles] = useState<KioskFile[]>([]);
   const [source, setSource] = useState<"drive" | "local" | undefined>();
-  const [studentId, setStudentId] = useState("");
+  const [studentId, setStudentId] = useState("");\n  const [studentName, setStudentName] = useState("");
   const [pendingTranscriptions, setPendingTranscriptions] = useState(0);
   const [transcriptionKind, setTranscriptionKind] = useState<"audio" | null>(null);
   const [handwritingAssociationOpen, setHandwritingAssociationOpen] = useState(false);
@@ -240,7 +240,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setHandwritingError(null);
         setHandwritingLoading(canOpenHandwriting);
         setTranscriptionKind(null);
-        setStudentId(id);
+        setStudentId(id);\n        setStudentName(lookup.studentName || fullName.trim());
         setFolder(res.folder);
         setFiles(res.files ?? []);
         setSource(res.source);
