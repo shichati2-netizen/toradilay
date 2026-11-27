@@ -17,6 +17,7 @@ import {
   logClientActivity,
   searchStudent,
   fetchTranscriptionStatus,
+  fetchTranscriptionAccess,
   fetchHandwritingFolderApi,
 } from "@/lib/client/api";
 import { Background } from "./Background";
@@ -160,6 +161,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [transcriptionKind, setTranscriptionKind] = useState<"audio" | null>(null);
   const [handwritingAssociationOpen, setHandwritingAssociationOpen] = useState(false);
   const [handwritingFiles, setHandwritingFiles] = useState<TranscriptionDriveFile[]>([]);
+  const [handwritingAccessAllowed, setHandwritingAccessAllowed] = useState(true);
   const [handwritingLoading, setHandwritingLoading] = useState(false);
   const [handwritingError, setHandwritingError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -215,11 +217,13 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           );
           return false;
         }
-        const requests = await fetchTranscriptionStatus(id);
+        const [requests, access] = await Promise.all([fetchTranscriptionStatus(id), fetchTranscriptionAccess(id)]);
+        const canOpenHandwriting = access.handwritingAllowed === true;
+        setHandwritingAccessAllowed(canOpenHandwriting);
         setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
         setHandwritingFiles([]);
         setHandwritingError(null);
-        setHandwritingLoading(true);
+        setHandwritingLoading(canOpenHandwriting);
         setTranscriptionKind(null);
         setStudentId(id);
         setFolder(res.folder);
@@ -228,9 +232,8 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setCopiedIds(new Set());
         setPrintedIds(new Set());
         setView("student-files");
-        // טען מראש את מספר קובצי כתב היד כדי שיופיע כבר בכרטיס התיקייה החיצוני.
-        // שיוך שם חסר נשאר לטיפול רק כשהמשתמש פותח את תיקיית כתב היד.
-        void fetchHandwritingFolderApi(id)
+        // טען קובצי כתב יד רק לחשבונות שקיבלו הרשאה. חשבונות אחרים נכנסים ישירות לקולי.
+        if (canOpenHandwriting) void fetchHandwritingFolderApi(id)
           .then((handwriting) => {
             if (handwriting.needsAssociation) return;
             if (handwriting.error) {
@@ -624,6 +627,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     files={files}
                     source={source}
                     handwritingFiles={handwritingFiles}
+                    handwritingAccessAllowed={handwritingAccessAllowed}
                     handwritingLoading={handwritingLoading}
                     handwritingError={handwritingError}
                     pendingTranscriptions={pendingTranscriptions}
