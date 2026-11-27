@@ -97,6 +97,8 @@ export interface TranscriptionSettings {
   handwritingModelTwoReplyEmail: string;
   appsScriptUrl: string;
   appsScriptTokenConfigured: boolean;
+  /** תיקיית האב בדרייב שבה נשמרים תמלולי כתב היד לפי שם מלא */
+  handwritingRootFolderId: string;
   /** אזהרה נקודתית בעת שמירה מוצלחת של שאר ההגדרות. */
   saveWarning?: string;
 }
@@ -115,6 +117,7 @@ export interface TranscriptionSettingsInput {
   appsScriptUrl: string;
   appsScriptToken?: string;
   clearAppsScriptToken?: boolean;
+  handwritingRootFolderId: string;
 }
 
 export interface StoredGoogleAccount {
@@ -152,6 +155,7 @@ export interface StoredConfig extends KioskConfig {
   transcriptionHandwritingModelTwoReplyEmail: string;
   transcriptionAppsScriptUrl: string;
   transcriptionAppsScriptToken: string;
+  transcriptionHandwritingRootFolderId: string;
 }
 
 export interface GoogleAuthStatus {
