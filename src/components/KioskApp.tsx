@@ -211,67 +211,116 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
   /* ------------------------------ חיפוש ------------------------------ */
 
-  const openStudentFolder = useCallback(
-    async (id: string, displayName = ""): Promise<boolean> => {
+  const openStudentWorkspace = useCallback(
+    async (id: string): Promise<boolean> => {
       setIsLoading(true);
       setErrorMessage(null);
-      try {
-        const res = await searchStudent(id);
-        if (!res.found || !res.folder) {
-          setErrorMessage(
-            res.message ||
-              `לא נמצאה תיקייה עבור תעודת זהות "${id}". ודא שהתיקייה קיימת.`,
-          );
-          return false;
-        }
+      setNameUpdateError(null);
 
-        const [requests, access] = await Promise.all([
+      try {
+        const [audioResult, requests, access] = await Promise.all([
+          searchStudent(id),
           fetchTranscriptionStatus(id),
           fetchTranscriptionAccess(id),
         ]);
+
         const canOpenHandwriting = access.handwritingAllowed === true;
+        let handwritingResult = canOpenHandwriting
+          ? await fetchHandwritingFolderApi(id)
+          : null;
+        let registration: Awaited<ReturnType<typeof checkRegistration>> | null = null;
+
+        // If the handwriting mapping is missing, first reuse an existing name
+        // from the registration sheet/CSV. Ask the student only when neither exists.
+        if (canOpenHandwriting && handwritingResult?.needsAssociation) {
+          registration = await checkRegistration(id);
+          const firstName = registration.firstName?.trim() || "";
+          const lastName = registration.lastName?.trim() || "";
+          if (firstName && lastName) {
+            // The folder endpoint now also resolves the registration record directly.
+            // Refresh it once so the dedicated handwriting mapping can be created.
+            handwritingResult = await fetchHandwritingFolderApi(id);
+          }
+        }
+
+        const audioFolderExists = Boolean(audioResult.found && audioResult.folder);
+        const audioFiles = audioFolderExists ? audioResult.files ?? [] : [];
+        const audioDocumentCount = audioFiles.filter((file) =>
+          file.isWordDoc ||
+          file.mimeType === "application/pdf" ||
+          /\\.pdf$/i.test(file.name),
+        ).length;
+        const handwritingFiles = handwritingResult?.files ?? [];
+        const handwritingHasFiles = handwritingFiles.length > 0;
+        const needsNameUpdate =
+          canOpenHandwriting && handwritingResult?.needsAssociation === true;
+
+        // If no documents exist in either folder, there is nothing to open.
+        // A missing name is the exception: the name is needed to locate handwriting.
+        if (!audioDocumentCount && !handwritingHasFiles && !needsNameUpdate) {
+          setHandwritingFiles([]);
+          setHandwritingLoading(false);
+          if (handwritingResult?.error) {
+            setErrorMessage("לא ניתן לבדוק את תיקיית כתב היד: " + handwritingResult.error);
+          } else {
+            setErrorMessage(
+              audioResult.message ||
+              `לא נמצאו מסמכים לתעודת זהות "${id}" בתמלול הקולי או בכתב היד.`,
+            );
+          }
+          return false;
+        }
+
+        const displayName =
+          registration?.studentName ||
+          handwritingResult?.studentName ||
+          [registration?.firstName, registration?.lastName].filter(Boolean).join(" ") ||
+          audioResult.folder?.name ||
+          id;
+
+        const folderForScreen = audioResult.folder ?? {
+          id: "student:" + id,
+          name: displayName,
+        };
+
         setHandwritingAccessAllowed(canOpenHandwriting);
         setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
-        setHandwritingFiles([]);
-        setHandwritingError(null);
-        setHandwritingLoading(canOpenHandwriting);
+        setHandwritingFiles(handwritingFiles);
+        setHandwritingError(
+          handwritingResult?.error ||
+          (handwritingResult?.folderMissing
+            ? handwritingResult.message || "תיקיית כתב היד עדיין לא נמצאה."
+            : null),
+        );
+        setHandwritingLoading(false);
         setTranscriptionKind(null);
         setStudentId(id);
-        setStudentName(displayName.trim() || res.folder.name);
-        setFolder(res.folder);
-        setFiles(res.files ?? []);
-        setSource(res.source);
+        setStudentName(displayName);
+        setFolder(folderForScreen);
+        setFiles(audioFiles);
+        setSource(audioResult.source);
         setCopiedIds(new Set());
         setPrintedIds(new Set());
         setView("student-files");
 
-        if (canOpenHandwriting) {
-          void fetchHandwritingFolderApi(id)
-            .then((handwriting) => {
-              if (handwriting.needsAssociation) return;
-              if (handwriting.error) {
-                setHandwritingError(handwriting.error);
-                return;
-              }
-              setHandwritingFiles(handwriting.files ?? []);
-              setHandwritingError(
-                handwriting.folderMissing
-                  ? handwriting.message || "תיקיית כתב היד עדיין לא נמצאה."
-                  : null,
-              );
-            })
-            .catch((error) => {
-              setHandwritingError(
-                error instanceof Error ? error.message : "לא ניתן לטעון את קובצי כתב היד.",
-              );
-            })
-            .finally(() => setHandwritingLoading(false));
+        if (needsNameUpdate) {
+          setPendingNameUpdate({
+            studentId: id,
+            firstName: registration?.firstName || "",
+            lastName: registration?.lastName || "",
+          });
+        } else {
+          setPendingNameUpdate(null);
         }
 
         playSound("found");
         return true;
-      } catch {
-        setErrorMessage("שגיאה במהלך החיפוש בדרייב. אנא נסה שוב.");
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error
+            ? "שגיאה במהלך בדיקת תיקיות התמלול: " + error.message
+            : "שגיאה במהלך בדיקת תיקיות התמלול. אנא נסה שוב.",
+        );
         return false;
       } finally {
         setIsLoading(false);
@@ -286,38 +335,10 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
     async (id: string): Promise<boolean> => {
       setErrorMessage(null);
       setNameUpdateError(null);
-
-      // First verify that the ID resolves to a real student folder.
-      // Only then ask for the name if the registration record is incomplete.
-      const opened = await openStudentFolder(id);
-      if (!opened) return false;
-
-      try {
-        const registration = await checkRegistration(id);
-        if (
-          !registration.error &&
-          (!registration.exists ||
-            !registration.firstName?.trim() ||
-            !registration.lastName?.trim())
-        ) {
-          setPendingNameUpdate({
-            studentId: id,
-            firstName: registration.firstName || "",
-            lastName: registration.lastName || "",
-          });
-          return true;
-        }
-
-        const displayName =
-          registration.studentName ||
-          [registration.firstName, registration.lastName].filter(Boolean).join(" ");
-        if (displayName.trim()) setStudentName(displayName.trim());
-      } catch {
-        // Keep ID-based access working if the registration service is temporarily unavailable.
-      }
-      return true;
+      setPendingNameUpdate(null);
+      return await openStudentWorkspace(id);
     },
-    [openStudentFolder],
+    [openStudentWorkspace],
   );
 
   const handleCompleteStudentName = useCallback(
@@ -327,35 +348,68 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
       setNameUpdateSaving(true);
       setNameUpdateError(null);
       try {
-        const result = await completeStudentName(pending.studentId, firstName, lastName);
-        if (!result.success) {
-          throw new Error(result.error || "לא ניתן לשמור את השם. נסה שוב.");
+        const saved = await completeStudentName(pending.studentId, firstName, lastName);
+        if (!saved.success) {
+          throw new Error(saved.error || "לא ניתן לשמור את השם. נסה שוב.");
         }
+
+        // Re-query handwriting only after the registration name has been saved.
+        // The server resolves the name through Sheets first and the local CSV second.
+        const handwriting = await fetchHandwritingFolderApi(pending.studentId);
+        if (handwriting.needsAssociation) {
+          throw new Error("השם נשמר, אך עדיין לא הצלחנו לשייך את תיקיית כתב היד. בדוק שהשם תואם לשם התיקייה.");
+        }
+        if (handwriting.error) {
+          throw new Error(handwriting.error);
+        }
+
+        const nextHandwritingFiles = handwriting.files ?? [];
+        const audioDocumentCount = files.filter((file) =>
+          file.isWordDoc ||
+          file.mimeType === "application/pdf" ||
+          /\\.pdf$/i.test(file.name),
+        ).length;
+
+        if (!audioDocumentCount && !nextHandwritingFiles.length) {
+          setPendingNameUpdate(null);
+          setHandwritingFiles([]);
+          setHandwritingLoading(false);
+          setFolder(null);
+          setFiles([]);
+          setStudentId("");
+          setStudentName("");
+          setView("id-entry");
+          setErrorMessage(
+            handwriting.message ||
+            "השם נשמר, אך לא נמצאו מסמכים בתיקיית התמלול הקולי או בתיקיית כתב היד.",
+          );
+          return;
+        }
+
         setPendingNameUpdate(null);
-        setStudentName(result.studentName || firstName + " " + lastName);
+        setHandwritingAccessAllowed(true);
+        setHandwritingFiles(nextHandwritingFiles);
+        setHandwritingError(
+          handwriting.folderMissing
+            ? handwriting.message || "תיקיית כתב היד עדיין לא נמצאה."
+            : null,
+        );
+        setStudentName(saved.studentName || handwriting.studentName || firstName + " " + lastName);
         addToast({
-          type: result.warning ? "info" : "success",
+          type: saved.warning ? "info" : "success",
           title: "השם נשמר",
-          message: result.warning || "השם נשמר בהצלחה, ממשיכים לכניסה לתיקייה.",
+          message: saved.warning || "השם נשמר בהצלחה ותיקיית כתב היד נבדקה.",
         });
       } catch (error) {
         setNameUpdateError(
-          error instanceof Error ? error.message : "שמירת השם נכשלה. נסה שוב.",
+          error instanceof Error ? error.message : "שמירת השם או איתור התיקייה נכשלו. נסה שוב.",
         );
       } finally {
         setNameUpdateSaving(false);
       }
     },
-    [addToast, nameUpdateSaving, pendingNameUpdate],
+    [addToast, files, nameUpdateSaving, pendingNameUpdate],
   );
-
-  const handleSkipNameUpdate = useCallback(() => {
-    const pending = pendingNameUpdate;
-    if (!pending || nameUpdateSaving) return;
-    setPendingNameUpdate(null);
-    const existingName = [pending.firstName, pending.lastName].filter(Boolean).join(" ").trim();
-    if (existingName) setStudentName(existingName);
-  }, [nameUpdateSaving, pendingNameUpdate]);
 
   // Poll Gmail/Apps Script while this student has outstanding transcription requests.
   useEffect(() => {
@@ -831,7 +885,6 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           saving={nameUpdateSaving}
           error={nameUpdateError}
           onSubmit={handleCompleteStudentName}
-          onSkip={handleSkipNameUpdate}
         />
 
         {folder && transcriptionKind === "audio" && (
