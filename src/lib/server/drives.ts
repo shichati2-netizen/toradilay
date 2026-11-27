@@ -244,8 +244,7 @@ export function searchLocalHandwritingFolder(
   }
   const expected = normalizeFolderName(fullName);
   const folders = fs.readdirSync(root, { withFileTypes: true }).filter((entry) => entry.isDirectory());
-  const folder = folders.find((entry) => normalizeFolderName(entry.name) === expected)
-    || folders.find((entry) => normalizeFolderName(entry.name).includes(expected));
+  const folder = folders.find((entry) => normalizeFolderName(entry.name) === expected);
   if (!folder) return [];
   const folderPath = path.join(root, folder.name);
   return fs.readdirSync(folderPath, { withFileTypes: true })
