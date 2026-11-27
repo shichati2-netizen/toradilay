@@ -1,4 +1,4 @@
-import { getStoredConfig } from "@/lib/server/settings";
+import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
 import {
   getHandwritingNameForStudent,
   saveHandwritingNameForStudent,
@@ -31,6 +31,9 @@ async function getFolderSettings(studentId: string) {
     };
   }
   const config = await getStoredConfig();
+  if (!isHandwritingAccessAllowed(studentId, config)) {
+    return { ok: false as const, response: Response.json({ error: "הגישה לתמלול כתב יד מוגבלת לחשבונות מורשים בלבד." }, { status: 403 }) };
+  }
   if (config.localHandwritingSearchEnabled && !config.localHandwritingSearchPath) {
     return {
       ok: false as const,
