@@ -494,14 +494,23 @@ function saveTranscriptionReplySenders_(input) {
     handwritingModel2: normalizeEmail_(input.handwritingModel2)
   };
 
-  const keys = Object.keys(senders);
-  const invalid = keys.filter(function(key) {
+  // כתובות התמלול הקולי נדרשות. כתובות כתב היד הן אופציונליות,
+  // משום שתמלולי כתב היד נשמרים כעת ישירות בתיקיות Google Drive.
+  const requiredKeys = ['audioModel1', 'audioModel2'];
+  const invalidRequired = requiredKeys.filter(function(key) {
     const address = senders[key];
     return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ||
       address.indexOf('@example.com') !== -1;
   });
-  if (invalid.length > 0) {
-    throw new Error('יש להגדיר בתוכנת ToraDelia את כל ארבע כתובות הדואר האמיתיות של המודלים לפני שליחת תמלול.');
+  const invalidOptional = ['handwritingModel1', 'handwritingModel2'].filter(function(key) {
+    const address = senders[key];
+    return address && (
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(address) ||
+      address.indexOf('@example.com') !== -1
+    );
+  });
+  if (invalidRequired.length > 0 || invalidOptional.length > 0) {
+    throw new Error('יש להגדיר שתי כתובות שולח תקינות לתמלול הקולי. כתובות כתב היד אינן נדרשות יותר.');
   }
 
   PropertiesService.getScriptProperties().setProperty(
@@ -1083,13 +1092,18 @@ function normalizeRecipientEmail_(value) {
   return emailMatch ? emailMatch[0] : '';
 }
 function validateTranscriptionConfig_() {
-  const senders = getTranscriptionReplySenders_();
-  if (senders.length !== 4 || senders.some(function(sender) {
-    return sender.indexOf('@example.com') !== -1 ||
-      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
-  })) {
+  const senders = getTranscriptionReplySenderMap_();
+  if (!senders ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senders.audioModel1) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senders.audioModel2) ||
+      [senders.audioModel1, senders.audioModel2, senders.handwritingModel1, senders.handwritingModel2]
+        .filter(Boolean)
+        .some(function(sender) {
+          return sender.indexOf('@example.com') !== -1 ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sender);
+        })) {
     throw new Error(
-      'כתובות המודלים עדיין לא התקבלו מ-ToraDelia. שלח תחילה בקשת תמלול מהגרסה המעודכנת של התוכנה.'
+      'כתובות השולח של תמלול קולי עדיין לא התקבלו מ-ToraDelia. שמור את הגדרות התמלול ושלח בקשת תמלול קולי אחת.'
     );
   }
 }
@@ -1121,5 +1135,5 @@ function installTranscriptionReplyTrigger() {
 
 function testTranscriptionConfiguration() {
   validateTranscriptionConfig_();
-  Logger.log('ארבע כתובות השולח התקבלו ונשמרו אוטומטית מ-ToraDelia.');
+  Logger.log('שתי כתובות השולח של התמלול הקולי התקבלו ונשמרו מ-ToraDelia.');
 }
