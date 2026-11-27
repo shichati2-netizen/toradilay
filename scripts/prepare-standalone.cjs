@@ -18,4 +18,16 @@ if (fs.existsSync(staticSource)) {
 }
 const publicSource = path.join(root, "public");
 if (fs.existsSync(publicSource)) fs.cpSync(publicSource, path.join(target, "public"), { recursive: true });
+// PDF.js loads its worker dynamically at runtime. Ensure the worker is present
+// in the Portable standalone package even when Next's file tracer omits it.
+const pdfWorkerRelative = path.join("node_modules", "pdfjs-dist", "legacy", "build", "pdf.worker.mjs");
+const pdfWorkerSource = path.join(root, pdfWorkerRelative);
+const pdfWorkerTarget = path.join(target, pdfWorkerRelative);
+if (fs.existsSync(pdfWorkerSource)) {
+  fs.mkdirSync(path.dirname(pdfWorkerTarget), { recursive: true });
+  fs.copyFileSync(pdfWorkerSource, pdfWorkerTarget);
+  console.log("Included PDF.js worker at", pdfWorkerTarget);
+} else {
+  console.warn("PDF.js worker was not found at", pdfWorkerSource);
+}
 console.log("Prepared Next.js standalone app at", target);
