@@ -17,6 +17,7 @@ import {
   searchStudent,
   fetchTranscriptionAccess,
   fetchTranscriptionStatus,
+  fetchHandwritingFolderApi,
 } from "@/lib/client/api";
 import { Background } from "./Background";
 import { ExitModal } from "./ExitModal";
@@ -27,6 +28,7 @@ import { PathLabel } from "./PathLabel";
 import { RegistrationModal } from "./RegistrationModal";
 import { StudentFilesScreen } from "./StudentFilesScreen";
 import { TranscriptionDialog } from "./TranscriptionDialog";
+import { HandwritingAssociationDialog } from "./HandwritingAssociationDialog";
 import { TorahLogo } from "./TorahLogo";
 import { Toasts, type ToastItem } from "./Toasts";
 import { AdminPanel } from "./admin/AdminPanel";
@@ -157,6 +159,9 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [transcriptionAllowed, setTranscriptionAllowed] = useState(false);
   const [pendingTranscriptions, setPendingTranscriptions] = useState(0);
   const [transcriptionKind, setTranscriptionKind] = useState<TranscriptionKind | null>(null);
+  const [handwritingAssociationOpen, setHandwritingAssociationOpen] = useState(false);
+  const [handwritingOpening, setHandwritingOpening] = useState(false);
+  const [handwritingFolderUrl, setHandwritingFolderUrl] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -267,6 +272,40 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
       window.clearInterval(timer);
     };
   }, [view, studentId, transcriptionAllowed, pendingTranscriptions]);
+
+
+  const handleTranscription = useCallback(async (kind: "audio" | "handwriting") => {
+    if (kind === "audio") {
+      setTranscriptionKind("audio");
+      return;
+    }
+
+    // פותחים חלון ריק במסגרת לחיצת המשתמש, כדי שפתיחת Google Drive
+    // לא תיחסם על ידי מנגנון חסימת החלונות הקופצים.
+    const popup = window.open("about:blank", "_blank");
+    setHandwritingOpening(true);
+    const result = await fetchHandwritingFolderApi(studentId);
+    setHandwritingOpening(false);
+
+    if (result.needsAssociation) {
+      popup?.close();
+      setHandwritingAssociationOpen(true);
+      return;
+    }
+    if (result.folderUrl) {
+      if (popup) popup.location.href = result.folderUrl;
+      else setHandwritingFolderUrl(result.folderUrl);
+      return;
+    }
+
+    popup?.close();
+    addToast({
+      type: "error",
+      title: "לא ניתן לפתוח את תיקיית כתב היד",
+      message: result.error || result.message || "בדוק את הגדרות התיקייה ואת הרשאות חשבון השירות.",
+      actionType: "print",
+    });
+  }, [studentId, addToast]);
 
   const handleBack = useCallback(() => {
     setView("id-entry");
@@ -444,7 +483,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const glassRadius = 5 + (effects.glassShape / 100) * 19;
   const gel = effects.glassGel / 100;
   const busy =
-    printingId !== null || copyingId !== null || isCopyingAll || adminOpen || transcriptionKind !== null;
+    printingId !== null || copyingId !== null || isCopyingAll || adminOpen || transcriptionKind !== null || handwritingAssociationOpen || handwritingOpening;
 
   return (
     <FxProvider effects={effects}>
@@ -520,7 +559,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
                     source={source}
                     transcriptionAllowed={transcriptionAllowed}
                     pendingTranscriptions={pendingTranscriptions}
-                    onTranscription={setTranscriptionKind}
+                    onTranscription={handleTranscription}
                     autoLogoutSeconds={active.autoLogoutSeconds}
                     targetPath={targetPath}
                     targetDriveLetter={active.targetDriveLetter}
@@ -578,7 +617,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           onClose={closeRegistration}
         />
 
-        {folder && transcriptionKind && (
+        {folder && transcriptionKind === "audio" && (
           <TranscriptionDialog
             open={true}
             kind={transcriptionKind}
@@ -592,6 +631,28 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
               });
             }}
           />
+        )}
+
+
+        <HandwritingAssociationDialog
+          open={handwritingAssociationOpen}
+          studentId={studentId}
+          onClose={() => setHandwritingAssociationOpen(false)}
+        />
+
+        {handwritingFolderUrl && (
+          <div className="fixed inset-0 z-[84] flex items-center justify-center bg-navy-950/80 p-4 backdrop-blur-sm">
+            <div className="panel-solid w-full max-w-md space-y-4 p-5 text-center">
+              <h3 className="text-lg font-black text-white">תיקיית תמלול כתב היד מוכנה</h3>
+              <p className="text-sm text-slate-300">הדפדפן חסם פתיחה אוטומטית. לחץ כאן כדי לפתוח את התיקייה.</p>
+              <a href={handwritingFolderUrl} target="_blank" rel="noreferrer" className="block rounded-xl bg-gold-400 px-4 py-3 text-sm font-black text-navy-950">
+                פתיחת תיקיית תמלול כתב יד
+              </a>
+              <button type="button" onClick={() => setHandwritingFolderUrl("")} className="rounded-xl border border-white/10 px-4 py-2 text-sm text-slate-300">
+                סגירה
+              </button>
+            </div>
+          </div>
         )}
 
         <Toasts toasts={toasts} onDismiss={removeToast} />
