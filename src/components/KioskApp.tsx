@@ -12,6 +12,7 @@ import { applyLiquidGlassRefraction } from "@/lib/client/liquid-glass";
 import { printHtmlDocument } from "@/lib/client/print";
 import {
   copyFile,
+  copyHandwritingFile,
   fetchPreview,
   logClientActivity,
   searchStudent,
