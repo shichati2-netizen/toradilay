@@ -436,6 +436,50 @@ export async function fetchTranscriptionAccess(studentId: string): Promise<Trans
     return await json<TranscriptionAccess>(res);
   } catch { return { enabled: false, allowed: false }; }
 }
+
+export interface HandwritingFolderLookup {
+  needsAssociation: boolean;
+  studentName?: string;
+  folderUrl?: string;
+  folderMissing?: boolean;
+  message?: string;
+  error?: string;
+}
+export async function fetchHandwritingFolderApi(studentId: string): Promise<HandwritingFolderLookup> {
+  try {
+    const res = await fetch("/api/transcription/handwriting-folder?studentId=" + encodeURIComponent(studentId), {
+      cache: "no-store",
+    });
+    const data = await json<HandwritingFolderLookup>(res);
+    if (!res.ok) return { needsAssociation: false, error: data.error || "לא ניתן לפתוח את תיקיית כתב היד." };
+    return data;
+  } catch {
+    return { needsAssociation: false, error: "שגיאת תקשורת בפתיחת תיקיית כתב היד." };
+  }
+}
+export async function saveHandwritingAssociationApi(
+  studentId: string,
+  fullName: string,
+): Promise<{ ok: boolean; folderUrl?: string; folderMissing?: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/transcription/handwriting-folder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentId, fullName }),
+    });
+    const data = await json<{ ok?: boolean; folderUrl?: string; folderMissing?: boolean; message?: string; error?: string }>(res);
+    return {
+      ok: res.ok && data.ok === true,
+      folderUrl: data.folderUrl,
+      folderMissing: data.folderMissing,
+      message: data.message,
+      error: data.error,
+    };
+  } catch {
+    return { ok: false, error: "שגיאת תקשורת בשמירת השיוך." };
+  }
+}
+
 export async function fetchTranscriptionStatus(studentId: string): Promise<TranscriptionStatusItem[]> {
   try {
     const res = await fetch("/api/transcription/status?studentId=" + encodeURIComponent(studentId), { cache: "no-store" });
