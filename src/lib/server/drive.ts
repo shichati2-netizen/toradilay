@@ -583,6 +583,47 @@ function makeThumbHtml(html: string): string {
   return noImages.slice(0, at);
 }
 
+function isPdfBuffer(buffer: Buffer): boolean {
+  return buffer.subarray(0, 5).toString("ascii") === "%PDF-";
+}
+
+async function convertPdfToHtml(buffer: Buffer, mode: "thumb" | "full"): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const loadingTask = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    isEvalSupported: false,
+    disableFontFace: true,
+  });
+  const pdf = await loadingTask.promise;
+  const pageLimit = mode === "thumb" ? 1 : Math.min(pdf.numPages, 30);
+  const pages: string[] = [];
+
+  try {
+    for (let pageNumber = 1; pageNumber <= pageLimit; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const textContent = await page.getTextContent();
+      const lines: Array<{ y: number; text: string }> = [];
+      for (const item of textContent.items) {
+        if (!("str" in item) || !item.str.trim()) continue;
+        const y = Math.round(item.transform[5]);
+        const existing = lines.find((line) => Math.abs(line.y - y) <= 3);
+        if (existing) existing.text += " " + item.str;
+        else lines.push({ y, text: item.str });
+      }
+      lines.sort((a, b) => b.y - a.y);
+      const body = lines.map((line) => "<p>" + escapeHtml(line.text) + "</p>").join("");
+      pages.push('<section class="pdf-text-page" dir="auto">' + (body || "<p>לא נמצא טקסט בעמוד זה</p>") + "</section>");
+      page.cleanup();
+    }
+  } finally {
+    await pdf.destroy();
+  }
+
+  return pages.join("");
+}
+
+/** תצוגה מקדימה למסמכי Word ול-PDF. קובצי PDF מפוענחים כנתונים בינאריים ולא כנתיב קובץ. */
 export async function getPreviewHtml(
   fileId: string,
   mode: "thumb" | "full",
@@ -590,25 +631,28 @@ export async function getPreviewHtml(
   const buffer = await getFileBuffer(fileId);
   const entry = state.fileCache.get(fileId);
   const name = getKnownFileName(fileId) ?? "מסמך";
+  const pdf = isPdfBuffer(buffer);
 
   let full = entry?.fullHtml;
   let usedFallback = false;
 
   if (!full) {
     try {
-      const mammoth = await import("mammoth");
-      const result = await mammoth.convertToHtml({ buffer });
-      if (result.value && result.value.trim().length > 0) {
-        full = result.value;
+      if (pdf) {
+        full = await convertPdfToHtml(buffer, mode);
+      } else {
+        const mammoth = await import("mammoth");
+        const result = await mammoth.convertToHtml({ buffer });
+        if (result.value && result.value.trim().length > 0) full = result.value;
       }
     } catch (err) {
-      console.warn("[drive] mammoth conversion failed:", err);
+      console.warn("[drive] document preview conversion failed:", err);
     }
     if (!full) {
       full = fallbackHtml(name);
       usedFallback = true;
     }
-    if (entry) entry.fullHtml = full;
+    if (entry && mode === "full") entry.fullHtml = full;
   }
 
   return {
