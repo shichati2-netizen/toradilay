@@ -219,6 +219,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setPendingTranscriptions(requests.filter((item) => item.status === "pending").length);
         setHandwritingFiles([]);
         setHandwritingError(null);
+        setHandwritingLoading(true);
         setTranscriptionKind(null);
         setStudentId(id);
         setFolder(res.folder);
@@ -227,6 +228,22 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setCopiedIds(new Set());
         setPrintedIds(new Set());
         setView("student-files");
+        // טען מראש את מספר קובצי כתב היד כדי שיופיע כבר בכרטיס התיקייה החיצוני.
+        // שיוך שם חסר נשאר לטיפול רק כשהמשתמש פותח את תיקיית כתב היד.
+        void fetchHandwritingFolderApi(id)
+          .then((handwriting) => {
+            if (handwriting.needsAssociation) return;
+            if (handwriting.error) {
+              setHandwritingError(handwriting.error);
+              return;
+            }
+            setHandwritingFiles(handwriting.files ?? []);
+            setHandwritingError(handwriting.folderMissing ? (handwriting.message || "תיקיית כתב היד עדיין לא נמצאה.") : null);
+          })
+          .catch((error) => {
+            setHandwritingError(error instanceof Error ? error.message : "לא ניתן לטעון את מספר קובצי כתב היד.");
+          })
+          .finally(() => setHandwritingLoading(false));
         playSound("found");
         return true;
       } catch {
