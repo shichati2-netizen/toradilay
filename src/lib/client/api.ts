@@ -207,6 +207,23 @@ export async function checkRegistration(idNumber: string): Promise<{
   }
 }
 
+export async function completeStudentName(
+  idNumber: string,
+  firstName: string,
+  lastName: string,
+): Promise<{ success: boolean; studentName?: string; warning?: string; error?: string }> {
+  try {
+    const res = await fetch("/api/register/complete-name", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idNumber, firstName, lastName }),
+    });
+    return await json(res);
+  } catch {
+    return { success: false, error: "שגיאת תקשורת בעת שמירת השם." };
+  }
+}
+
 export async function registerStudentApi(
   payload: RegistrationPayload,
 ): Promise<{ success: boolean; duplicate?: boolean; studentName?: string; firstName?: string; lastName?: string; message?: string; error?: string; code?: string }> {
