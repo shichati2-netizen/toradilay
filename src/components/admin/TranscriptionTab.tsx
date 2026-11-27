@@ -76,7 +76,7 @@ export function TranscriptionTab({ pin }: { pin: string }) {
     const input: TranscriptionSettingsInput = {
       enabled: true,
       handwritingAccessRestricted: settings.handwritingAccessRestricted,
-      handwritingAllowedStudentIds: handwritingAllowedIdsText.split(/[\\s,;]+/).map((value) => value.replace(/\\D/g, "")).filter((value) => value.length === 9),
+      handwritingAllowedStudentIds: handwritingAllowedIdsText.split(/[\s,;]+/).map((value) => value.replace(/\D/g, "")).filter((value) => value.length === 9),
       allowedStudentIds: [],
       audioModelOneEmail: settings.audioModelOneEmail,
       audioModelTwoEmail: settings.audioModelTwoEmail,
