@@ -3,7 +3,6 @@ import { getHandwritingNameForStudent } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
   getFileBuffer,
-  getPreviewHtml,
   normalizeFolderName,
   scrapeFolder,
 } from "@/lib/server/drive";
@@ -20,6 +19,85 @@ function escapeHtml(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
+function plainTextHtml(value: string): string {
+  const paragraphs = value
+    .replace(/\r/g, "")
+    .split(/\n+/)
+    .map((line) => line.replace(/[\t ]+/g, " ").trim())
+    .filter(Boolean);
+  const content = paragraphs.length
+    ? paragraphs.map((line) => "<p>" + escapeHtml(line) + "</p>").join("")
+    : "<p>לא נמצא טקסט להצגה בקובץ.</p>";
+  return "<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#fff;color:#111}body{box-sizing:border-box;padding:10px 12px;font-family:Arial,sans-serif;font-size:15px;line-height:1.55;text-align:right;direction:rtl;overflow:hidden}main{margin:0;padding:0;overflow:hidden}p{margin:0 0 9px;font:inherit;white-space:pre-wrap;overflow-wrap:anywhere}</style></head><body><main>" + content + "</main></body></html>";
+}
+
+async function extractPdfText(buffer: Buffer): Promise<string> {
+  const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
+  const task = pdfjs.getDocument({
+    data: new Uint8Array(buffer),
+    useSystemFonts: true,
+    disableFontFace: true,
+  });
+  const pdf = await task.promise;
+  try {
+    const pages: string[] = [];
+    const maxPages = Math.min(pdf.numPages, 40);
+    for (let pageNumber = 1; pageNumber <= maxPages; pageNumber++) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      const pageText = content.items
+        .map((item) => ("str" in item ? item.str : ""))
+        .filter(Boolean)
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (pageText) pages.push(pageText);
+    }
+    return pages.join("\n");
+  } finally {
+    await pdf.destroy();
+  }
+}
+
+async function getFileInfo(fileId: string, studentId: string) {
+  const config = await getStoredConfig();
+  const fullName = await getHandwritingNameForStudent(studentId);
+  if (!fullName) throw new Error("לא נמצא שיוך שם עבור התלמיד.");
+
+  if (config.localHandwritingSearchEnabled) {
+    const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
+    if (!local) throw new Error("הקובץ אינו נמצא בתיקיית כתב היד של התלמיד.");
+    return { name: local.name, buffer: await getFileBuffer(fileId) };
+  }
+
+  const rootFolderId = config.transcriptionHandwritingRootFolderId;
+  if (!/^[A-Za-z0-9_-]{10,120}$/.test(rootFolderId || "")) {
+    throw new Error("לא נמצאה תיקיית כתב היד של התלמיד.");
+  }
+  const root = await scrapeFolder(rootFolderId, { fresh: true });
+  if (!root.ok) throw new Error(root.authError || "אין גישה לתיקיית האב.");
+  const folder = root.folders.find(
+    (item) => normalizeFolderName(item.name) === normalizeFolderName(fullName),
+  );
+  if (!folder) throw new Error("תיקיית כתב היד לא נמצאה.");
+  const contents = await scrapeFolder(folder.id, { fresh: true });
+  if (!contents.ok) throw new Error(contents.authError || "אין גישה לתיקיית כתב היד.");
+  const file = contents.files.find((item) => item.id === fileId);
+  if (!file || !(
+    file.mimeType === "application/pdf" ||
+    file.mimeType === "application/msword" ||
+    file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    file.mimeType === "application/vnd.google-apps.document" ||
+    /\.(pdf|docx?)$/i.test(file.name)
+  )) {
+    throw new Error("הקובץ אינו נמצא בתיקיית כתב היד או שסוגו אינו נתמך.");
+  }
+  return {
+    name: file.name,
+    buffer: await getRawDriveFileBuffer(fileId, undefined, file.mimeType),
+  };
+}
+
 export async function GET(req: Request) {
   try {
     const url = new URL(req.url);
@@ -29,71 +107,31 @@ export async function GET(req: Request) {
       return new Response("פרטי הקובץ אינם תקינים.", { status: 400 });
     }
 
-    const config = await getStoredConfig();
-    const fullName = await getHandwritingNameForStudent(studentId);
-    if (!fullName) return new Response("לא נמצא שיוך שם עבור התלמיד.", { status: 404 });
-
-    if (config.localHandwritingSearchEnabled) {
-      const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
-      if (!local || !/\.(docx?)$/i.test(local.name)) return new Response("קובץ Word מקומי זה אינו נמצא בתיקיית כתב היד.", { status: 404 });
-      const buffer = await getFileBuffer(fileId);
-      if (/\.doc$/i.test(local.name)) {
-        return new Response("<!doctype html><html lang='he' dir='rtl'><meta charset='utf-8'><body style='font:16px Arial;padding:24px;text-align:center'>תצוגה מקדימה לקובצי ‎.doc‎ ישנים אינה זמינה. הורד את הקובץ ופתח אותו ב-Word.</body></html>", { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" } });
+    const file = await getFileInfo(fileId, studentId);
+    let text: string;
+    if (/\.pdf$/i.test(file.name)) {
+      text = await extractPdfText(file.buffer);
+      if (!text.trim()) {
+        text = "לא נמצא טקסט קריא בקובץ PDF. ייתכן שמדובר בסריקה כתמונה.";
       }
+    } else if (/\.docx$/i.test(file.name)) {
       const mammoth = await import("mammoth");
-      const result = await mammoth.convertToHtml({ buffer });
-      const body = result.value?.trim() || "<p>לא נמצאה תצוגה מקדימה למסמך.</p>";
-      const html = "<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\"><style>html,body{margin:0;background:#f1f5f9;color:#172033;font-family:Arial,sans-serif}body{padding:14px}.paper{min-height:340px;background:white;padding:28px;box-shadow:0 1px 5px #0002;direction:rtl;text-align:right;overflow-wrap:anywhere}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #cbd5e1;padding:5px}img{max-width:100%;height:auto}</style></head><body><main class='paper'>" + body + "</main></body></html>";
-      return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store", "Content-Security-Policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'", "X-Content-Type-Options": "nosniff" } });
+      const result = await mammoth.extractRawText({ buffer: file.buffer });
+      text = result.value || "";
+    } else {
+      text = "תצוגת טקסט אוטומטית לקובצי Word ישנים מסוג ‎.doc‎ אינה זמינה. אפשר להוריד את הקובץ ולפתוח אותו ב-Word.";
     }
 
-    const rootFolderId = config.transcriptionHandwritingRootFolderId;
-    if (!/^[A-Za-z0-9_-]{10,120}$/.test(rootFolderId || "")) {
-      return new Response("לא נמצאה תיקיית כתב היד של התלמיד.", { status: 404 });
-    }
-
-    const root = await scrapeFolder(rootFolderId, { fresh: true });
-    if (!root.ok) throw new Error(root.authError || "אין גישה לתיקיית האב.");
-
-    const folder = root.folders.find(
-      (item) => normalizeFolderName(item.name) === normalizeFolderName(fullName),
-    );
-    if (!folder) return new Response("תיקיית כתב היד לא נמצאה.", { status: 404 });
-
-    const contents = await scrapeFolder(folder.id, { fresh: true });
-    if (!contents.ok) throw new Error(contents.authError || "אין גישה לתיקיית כתב היד.");
-
-    const file = contents.files.find((item) => item.id === fileId);
-    if (!file || !(
-      file.mimeType === "application/msword" ||
-      file.mimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
-      file.mimeType === "application/vnd.google-apps.document" ||
-      /\.(docx?)$/i.test(file.name)
-    )) {
-      return new Response("קובץ Word זה אינו נמצא בתיקיית כתב היד.", { status: 404 });
-    }
-
-    if (/\.doc$/i.test(file.name) || file.mimeType === "application/msword") {
-      return new Response("<!doctype html><html lang='he' dir='rtl'><meta charset='utf-8'><body style='font:16px Arial;padding:24px;text-align:center'>תצוגה מקדימה לקובצי ‎.doc‎ ישנים אינה זמינה. הורד את הקובץ ופתח אותו ב-Word.</body></html>", {
-        headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "private, no-store" },
-      });
-    }
-
-    const buffer = await getRawDriveFileBuffer(fileId, undefined, file.mimeType);
-    const mammoth = await import("mammoth");
-    const result = await mammoth.convertToHtml({ buffer });
-    const body = result.value?.trim() || "<p>לא נמצאה תצוגה מקדימה למסמך.</p>";
-    const html = "<!doctype html><html lang='he' dir='rtl'><head><meta charset='utf-8'><meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; img-src data:; style-src 'unsafe-inline'\"><style>html,body{margin:0;background:#f1f5f9;color:#172033;font-family:Arial,sans-serif}body{padding:14px}.paper{min-height:340px;background:white;padding:28px;box-shadow:0 1px 5px #0002;direction:rtl;text-align:right;overflow-wrap:anywhere}table{border-collapse:collapse;max-width:100%}td,th{border:1px solid #cbd5e1;padding:5px}img{max-width:100%;height:auto}</style></head><body><main class='paper'>" + body + "</main></body></html>";
-    return new Response(html, {
+    return new Response(plainTextHtml(text), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
         "Cache-Control": "private, no-store",
-        "Content-Security-Policy": "default-src 'none'; img-src data:; style-src 'unsafe-inline'",
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
         "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "לא ניתן ליצור תצוגה מקדימה למסמך Word.";
+    const message = error instanceof Error ? error.message : "לא ניתן ליצור תצוגת טקסט לקובץ.";
     console.error("[transcription/handwriting-preview] failed:", message);
     return new Response(escapeHtml(message), {
       status: 502,
