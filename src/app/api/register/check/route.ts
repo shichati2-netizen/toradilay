@@ -17,7 +17,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "מספר תעודת זהות לא תקין", code: "INVALID_ID" }, { status: 400 });
   }
 
-  let localMatch = { exists: false as boolean, studentName: undefined as string | undefined, firstName: undefined as string | undefined, lastName: undefined as string | undefined, rowNumber: undefined as number | undefined };
+  let localMatch: ReturnType<typeof findLocalRegistration> = { exists: false };
   try {
     localMatch = findLocalRegistration(idNumber);
   } catch (err) {
