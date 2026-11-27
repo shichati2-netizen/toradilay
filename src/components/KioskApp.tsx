@@ -180,7 +180,10 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
   const [copyingId, setCopyingId] = useState<string | null>(null);
   const [copiedIds, setCopiedIds] = useState<Set<string>>(new Set());
   const [printedIds, setPrintedIds] = useState<Set<string>>(new Set());
-  const [isCopyingAll, setIsCopyingAll] = useState(false);\n  const [handwritingPrintingId, setHandwritingPrintingId] = useState<string | null>(null);\n  const [handwritingCopyingId, setHandwritingCopyingId] = useState<string | null>(null);\n  const [handwritingCopiedIds, setHandwritingCopiedIds] = useState<Set<string>>(new Set());
+  const [isCopyingAll, setIsCopyingAll] = useState(false);
+  const [handwritingPrintingId, setHandwritingPrintingId] = useState<string | null>(null);
+  const [handwritingCopyingId, setHandwritingCopyingId] = useState<string | null>(null);
+  const [handwritingCopiedIds, setHandwritingCopiedIds] = useState<Set<string>>(new Set());
 
   const celebrate = useCallback(() => {
     if (effects.master && effects.confetti) fireConfetti();
