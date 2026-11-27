@@ -50,6 +50,7 @@ export function StudentFilesScreen({
   files,
   source,
   handwritingFiles,
+  handwritingAccessAllowed,
   handwritingLoading,
   handwritingError,
   pendingTranscriptions,
@@ -79,6 +80,7 @@ export function StudentFilesScreen({
   files: KioskFile[];
   source?: "drive" | "local";
   handwritingFiles: TranscriptionDriveFile[];
+  handwritingAccessAllowed: boolean;
   handwritingLoading: boolean;
   handwritingError: string | null;
   pendingTranscriptions: number;
@@ -104,7 +106,10 @@ export function StudentFilesScreen({
   handwritingCopiedIds: Set<string>;
 }) {
   const [timeLeft, setTimeLeft] = useState(autoLogoutSeconds);
-  const [activeFolder, setActiveFolder] = useState<"folders" | "audio" | "handwriting">("folders");
+  const [activeFolder, setActiveFolder] = useState<"folders" | "audio" | "handwriting">(handwritingAccessAllowed ? "folders" : "audio");
+  useEffect(() => {
+    setActiveFolder(handwritingAccessAllowed ? "folders" : "audio");
+  }, [studentId, handwritingAccessAllowed]);
   const deadline = useRef(0);
   const busyRef = useRef(busy);
   const backRef = useRef(onBack);
@@ -177,7 +182,7 @@ export function StudentFilesScreen({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {activeFolder !== "folders" && (
+          {handwritingAccessAllowed && activeFolder !== "folders" && (
             <FxButton variant="ghost" onClick={() => setActiveFolder("folders")} className="h-11 px-4 text-sm">
               <ArrowLeft className="h-4 w-4" /><span>חזרה לתיקיות</span>
             </FxButton>
@@ -209,7 +214,7 @@ export function StudentFilesScreen({
             <ArrowLeft className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:-translate-x-1 group-hover:text-sky-200" />
           </button>
 
-          <button type="button" onClick={openHandwriting} className="panel group flex min-h-48 items-center gap-5 rounded-3xl p-6 text-right transition hover:-translate-y-1 hover:border-rose-300/40 hover:bg-rose-300/[0.06]">
+          {handwritingAccessAllowed && <button type="button" onClick={openHandwriting} className="panel group flex min-h-48 items-center gap-5 rounded-3xl p-6 text-right transition hover:-translate-y-1 hover:border-rose-300/40 hover:bg-rose-300/[0.06]">
             <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl border border-rose-300/20 bg-rose-400/10 text-rose-300"><Folder className="h-10 w-10 transition group-hover:scale-110" /></div>
             <div className="min-w-0 flex-1">
               <h3 className="text-xl font-black text-white">תמלול כתבי יד</h3>
@@ -217,7 +222,7 @@ export function StudentFilesScreen({
               <p className="mt-3 text-xs font-bold text-rose-200">{handwritingLoading ? "טוען..." : handwritingFiles.length + " קבצים"}</p>
             </div>
             {handwritingLoading ? <Loader2 className="h-5 w-5 animate-spin text-rose-200" /> : <ArrowLeft className="h-5 w-5 shrink-0 text-slate-500 transition group-hover:-translate-x-1 group-hover:text-rose-200" />}
-          </button>
+          </button>}
         </div>
       ) : activeFolder === "audio" ? (
         documentFiles.length > 0 ? (
