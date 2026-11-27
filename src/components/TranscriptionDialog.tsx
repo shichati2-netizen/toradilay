@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Check, FileAudio, FileText, Folder, HardDrive, Loader2, Mail, Mic, PenLine, Send, X } from "lucide-react";
-import type { KioskFolder, TranscriptionKind, TranscriptionModel } from "@/lib/types";
+import { ArrowLeft, Check, FileAudio, FileText, Folder, HardDrive, Loader2, Mic, PenLine, Send, X } from "lucide-react";
+import type { KioskFolder, TranscriptionKind } from "@/lib/types";
 import { browseTranscriptionFiles, sendTranscriptionFiles, type TranscriptionBrowseResult } from "@/lib/client/api";
 
 interface SelectedFile {
@@ -41,8 +41,6 @@ export function TranscriptionDialog({
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [chooseModel, setChooseModel] = useState(false);
-  const [model, setModel] = useState<TranscriptionModel>("model1");
 
   const load = useCallback(async (nextDrive = drive, nextPath = relativePath) => {
     setLoading(true);
@@ -65,7 +63,6 @@ export function TranscriptionDialog({
     setBrowse(null);
     setSelected([]);
     setError(null);
-    setChooseModel(false);
     setLoading(true);
     void browseTranscriptionFiles(studentId, kind).then((result) => {
       if (!cancelled) setBrowse(result);
@@ -117,13 +114,11 @@ export function TranscriptionDialog({
       folderName: folder.name,
       source,
       kind,
-      model,
       fileTokens: selected.map((item) => item.token),
     });
     setSending(false);
     if (!result.ok) {
       setError(result.error || "שליחת הקבצים נכשלה.");
-      setChooseModel(false);
       return;
     }
     onSubmitted();
@@ -225,42 +220,15 @@ export function TranscriptionDialog({
           <div className="text-xs text-slate-400">{selected.length} / 20 קבצים נבחרו</div>
           <div className="flex gap-2">
             <button type="button" onClick={onClose} className="h-10 rounded-xl px-4 text-sm text-slate-300 hover:bg-white/10">ביטול</button>
-            <button type="button" onClick={() => setChooseModel(true)} disabled={!selected.length || sending} className="flex h-10 items-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-5 text-sm font-black text-navy-950 disabled:opacity-40">
-              <Send className="h-4 w-4" /> שלח לתמלול
+            <button type="button" onClick={() => void submit()} disabled={!selected.length || sending} className="flex h-10 items-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-5 text-sm font-black text-navy-950 disabled:opacity-40">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {sending ? "שולח לתמלול..." : "שלח לתמלול"}
             </button>
           </div>
         </div>
       </div>
 
-      {chooseModel && (
-        <div className="fixed inset-0 z-[85] flex items-center justify-center bg-black/65 p-4">
-          <div className="panel-solid w-full max-w-sm p-5 shadow-2xl">
-            <div className="mb-4 flex items-center justify-between">
-              <h4 className="text-base font-black text-white">בחירת מודל תמלול</h4>
-              <button type="button" onClick={() => setChooseModel(false)} className="rounded-lg p-1.5 text-slate-300 hover:bg-white/10"><X className="h-4 w-4" /></button>
-            </div>
-            <p className="mb-3 text-xs text-slate-400">בחר לאיזה מנוע לשלוח את הקבצים שנבחרו.</p>
-            <div className="space-y-2">
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                <input type="radio" checked={model === "model1"} onChange={() => setModel("model1")} />
-                <span><span className="block text-sm font-bold text-white">מודל 1</span><span className="text-xs text-slate-400">כתובת היעד הראשונה שהוגדרה</span></span>
-              </label>
-              <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
-                <input type="radio" checked={model === "model2"} onChange={() => setModel("model2")} />
-                <span><span className="block text-sm font-bold text-white">מודל 2</span><span className="text-xs text-slate-400">כתובת היעד השנייה שהוגדרה</span></span>
-              </label>
-            </div>
-            {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
-            <div className="mt-5 flex justify-end gap-2">
-              <button type="button" onClick={() => setChooseModel(false)} className="rounded-xl px-4 py-2 text-sm text-slate-300 hover:bg-white/10">חזרה</button>
-              <button type="button" onClick={() => void submit()} disabled={sending} className="flex items-center gap-2 rounded-xl bg-gradient-to-b from-gold-300 to-gold-500 px-4 py-2 text-sm font-black text-navy-950 disabled:opacity-50">
-                {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
-                {sending ? "שולח..." : "אישור ושליחה"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+}
     </div>
   );
 }
