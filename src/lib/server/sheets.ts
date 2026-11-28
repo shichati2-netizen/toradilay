@@ -562,7 +562,7 @@ export async function lookupExistingRegistrationById(studentId: string): Promise
 
   if (!targets.length) {
     if (errors.length) throw new Error(errors.join(" · "));
-    return { exists: false };
+    throw new Error("לא הוגדר חיבור תקין ל-Google Sheets או ל-Webhook של הרישום.");
   }
   let positiveWithoutName: RegistrationLookupResult | null = null;
   for (const target of targets) {
