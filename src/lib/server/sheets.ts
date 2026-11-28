@@ -479,18 +479,18 @@ export async function checkExistingRegistration(
 ): Promise<ExistingRegistration> {
   const cleanId = String(idNumber).replace(/\D/g, "");
   if (t.method === "webhook") {
-    const d = await webhookCall<ExistingRegistration>(t.webhookUrl, {
+    const d = await webhookCall<ExistingRegistration & { found?: boolean; fullName?: string; name?: string }>(t.webhookUrl, {
       action: "check",
       spreadsheetId: t.spreadsheetId,
       idNumber: cleanId,
     });
     const firstName = String(d.firstName || "").trim() || undefined;
     const lastName = String(d.lastName || "").trim() || undefined;
-    const studentName = String(d.studentName || "").replace(/\s+/g, " ").trim() || undefined;
+    const studentName = String(d.studentName || d.fullName || d.name || "").replace(/\s+/g, " ").trim() || undefined;
     return {
-      // Some existing Apps Script endpoints return a name but omit exists=true.
-      // A returned name is positive evidence of an existing registration.
-      exists: Boolean(d.exists || firstName || lastName || studentName),
+      // Webhook deployments differ slightly: some return exists, others found,
+      // and older versions return only the full student name.
+      exists: Boolean(d.exists || d.found || firstName || lastName || studentName),
       studentName,
       firstName,
       lastName,
