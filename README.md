@@ -2,11 +2,11 @@
 
 ## Windows Portable release notes
 
-- PDF documents are downloaded as data and their text is extracted inside the application with the bundled PDF.js worker.
-- PDF card previews display extracted text in the same in-app preview surface used for Word documents. They do not open the browser's native PDF viewer.
-- Printing a PDF uses the extracted text and the same HTML printing flow as Word documents.
-- Electron kiosk printing is enabled to avoid opening Chromium's print preview.
-- Handwriting PDF retrieval can fall back to the local student registration record when the dedicated Google Sheets name mapping is unavailable.
-- The Windows build runs ESLint and TypeScript checks, builds the Next.js standalone app and Electron portable app, validates the ZIP contents, and uploads a separate immutable versioned package.
+- Student ID lookup checks the configured direct Google Sheets connection and the Apps Script registration webhook.
+- A full name returned by the registration source is recognized even when the webhook does not return separate first-name and last-name fields.
+- A temporary registration lookup failure is not treated as a missing name or an unregistered student.
+- If an ID is registered but its audio or handwriting folder is missing, the application reports a folder/connection problem instead of claiming that no account exists.
+- Voice folder lookup can use the full name from central registration when the local CSV is not available.
+- Numeric Google Sheets ID cells are normalized to nine digits before comparison, preserving leading zeroes.
 
-Extract the ZIP while preserving its folder structure, then launch `ToraDelia-Kiosk.exe`.
+Extract the portable ZIP while preserving its folder structure, then launch `ToraDelia-Kiosk.exe`.
