@@ -540,10 +540,17 @@ export async function lookupExistingRegistrationById(studentId: string): Promise
 
   const config = await getStoredConfig();
   const targets: SheetsTarget[] = [];
-  const directTarget = await resolveTarget({ webhookUrl: "" });
-  if (directTarget && /^[A-Za-z0-9_-]{10,}$/.test(directTarget.spreadsheetId)) {
-    targets.push(directTarget);
+  const errors: string[] = [];
+
+  try {
+    const directTarget = await resolveTarget({ webhookUrl: "" });
+    if (directTarget && /^[A-Za-z0-9_-]{10,}$/.test(directTarget.spreadsheetId)) {
+      targets.push(directTarget);
+    }
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : "חיבור Google הישיר אינו זמין");
   }
+
   if (config.sheetsWebhookUrl && /^[A-Za-z0-9_-]{10,}$/.test(config.spreadsheetId)) {
     targets.push({
       method: "webhook",
@@ -553,9 +560,10 @@ export async function lookupExistingRegistrationById(studentId: string): Promise
     });
   }
 
-  if (!targets.length) return { exists: false };
-
-  const errors: string[] = [];
+  if (!targets.length) {
+    if (errors.length) throw new Error(errors.join(" · "));
+    return { exists: false };
+  }
   let positiveWithoutName: RegistrationLookupResult | null = null;
   for (const target of targets) {
     try {
