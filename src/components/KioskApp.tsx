@@ -233,13 +233,31 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
         // If the handwriting mapping is missing, first reuse an existing name
         // from the registration sheet/CSV. Ask the student only when neither exists.
+        let registrationLookupError: string | undefined;
         if (canOpenHandwriting && handwritingResult?.needsAssociation) {
           registration = await checkRegistration(id);
+          if (registration.error) {
+            registrationLookupError = registration.error;
+          }
+
+          // A webhook may return only studentName (instead of separate columns).
+          // Derive the two fields so an existing full name never triggers another prompt.
+          const returnedName = String(registration.studentName || "").replace(/\\s+/g, " ").trim();
+          if (returnedName) {
+            const parts = returnedName.split(" ").filter(Boolean);
+            if (parts.length >= 2) {
+              registration = {
+                ...registration,
+                firstName: registration.firstName?.trim() || parts[0],
+                lastName: registration.lastName?.trim() || parts.slice(1).join(" "),
+              };
+            }
+          }
+
           const firstName = registration.firstName?.trim() || "";
           const lastName = registration.lastName?.trim() || "";
-          if (firstName && lastName) {
-            // The folder endpoint now also resolves the registration record directly.
-            // Refresh it once so the dedicated handwriting mapping can be created.
+          if (firstName && lastName && !registrationLookupError) {
+            // Refresh after resolving the full registration name.
             handwritingResult = await fetchHandwritingFolderApi(id);
           }
         }
@@ -254,15 +272,29 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         const handwritingFiles = handwritingResult?.files ?? [];
         const handwritingHasFiles = handwritingFiles.length > 0;
         const needsNameUpdate =
-          canOpenHandwriting && handwritingResult?.needsAssociation === true;
+          canOpenHandwriting &&
+          handwritingResult?.needsAssociation === true &&
+          !registrationLookupError;
 
-        // If no documents exist in either folder, there is nothing to open.
-        // A missing name is the exception: the name is needed to locate handwriting.
+        // A temporary Sheets lookup failure must never be treated as a missing name.
+        if (registrationLookupError && !audioDocumentCount && !handwritingHasFiles) {
+          setHandwritingFiles([]);
+          setHandwritingLoading(false);
+          setErrorMessage("לא ניתן לאמת את השם מול Google Sheets ולכן לא נבקש לעדכן אותו כעת. " + registrationLookupError);
+          return false;
+        }
+
+        // If no documents exist in either folder, report the folder state separately
+        // from registration: an existing registration is not a missing account.
         if (!audioDocumentCount && !handwritingHasFiles && !needsNameUpdate) {
           setHandwritingFiles([]);
           setHandwritingLoading(false);
           if (handwritingResult?.error) {
             setErrorMessage("לא ניתן לבדוק את תיקיית כתב היד: " + handwritingResult.error);
+          } else if (registration?.exists) {
+            setErrorMessage(
+              "תעודת הזהות קיימת ברישום, אך לא נמצאו מסמכים בתיקיית התמלול הקולי או בכתב היד. יש לבדוק את שמות התיקיות ואת הגדרות הנתיבים.",
+            );
           } else {
             setErrorMessage(
               audioResult.message ||
