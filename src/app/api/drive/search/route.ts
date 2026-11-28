@@ -1,6 +1,6 @@
 import { getStoredConfig } from "@/lib/server/settings";
 import { findLocalRegistration } from "@/lib/server/registrations";
-import { getRegisteredStudentNameById } from "@/lib/server/sheets";
+import { getRegisteredStudentNameById, hasConfiguredRegistrationLookupSource } from "@/lib/server/sheets";
 import {
   matchStudentFolder,
   scrapeFolder,
@@ -31,22 +31,28 @@ export async function POST(req: Request) {
 
   const cfg = await getStoredConfig();
 
-  // המספר שהוקלד משמש לשליפת השם בקובץ הרישומים המקומי.
-  // אם אין רישום מקומי, החיפוש לפי ת.ז. ממשיך לעבוד כרגיל.
+  // כאשר הוגדר רישום מרכזי, Google Sheets הוא מקור האמת לשם התלמיד.
+  // CSV מקומי משמש רק בעמדות שאין בהן כלל חיבור רישום מרכזי.
   let studentName: string | undefined;
+  let centralRegistrationConfigured = true;
   try {
-    studentName = findLocalRegistration(studentId).studentName;
+    centralRegistrationConfigured = await hasConfiguredRegistrationLookupSource();
   } catch (err) {
-    console.warn("[search] local registration lookup failed:", err);
+    // במקרה של ספק לא נשתמש ב-CSV ישן שעלול להחזיר שם שגוי.
+    console.warn("[search] could not determine central registration configuration:", err);
   }
 
-  if (!studentName) {
+  if (centralRegistrationConfigured) {
     try {
-      // A student's voice folder may be named by their full registration name,
-      // even when the local CSV is absent on this PC.
       studentName = await getRegisteredStudentNameById(studentId) || undefined;
     } catch (err) {
-      console.warn("[search] central registration name lookup failed; continuing by ID:", err);
+      console.warn("[search] central registration name lookup failed; continuing by ID only:", err);
+    }
+  } else {
+    try {
+      studentName = findLocalRegistration(studentId).studentName;
+    } catch (err) {
+      console.warn("[search] local registration lookup failed:", err);
     }
   }
 
