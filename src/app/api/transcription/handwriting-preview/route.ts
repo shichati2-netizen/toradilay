@@ -1,5 +1,5 @@
 import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
-import { getHandwritingNameForStudent } from "@/lib/server/sheets";
+import { getHandwritingNameForStudent, getRegisteredStudentNameById } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
   getFileBuffer,
@@ -7,6 +7,7 @@ import {
   scrapeFolder,
 } from "@/lib/server/drive";
 import { getLocalHandwritingFile } from "@/lib/server/drives";
+import { findLocalRegistration } from "@/lib/server/registrations";
 
 
 export const dynamic = "force-dynamic";
@@ -34,8 +35,27 @@ function plainTextHtml(value: string): string {
 
 async function getFileInfo(fileId: string, studentId: string) {
   const config = await getStoredConfig();
-  const fullName = await getHandwritingNameForStudent(studentId);
-  if (!fullName) throw new Error("לא נמצא שיוך שם עבור התלמיד.");
+  let fullName: string | null = null;
+  try {
+    fullName = await getHandwritingNameForStudent(studentId);
+  } catch (error) {
+    console.warn("[transcription/handwriting-preview] handwriting mapping lookup unavailable:", error);
+  }
+  if (!fullName) {
+    try {
+      fullName = await getRegisteredStudentNameById(studentId);
+    } catch (error) {
+      console.warn("[transcription/handwriting-preview] central registration lookup unavailable:", error);
+    }
+  }
+  if (!fullName) {
+    try {
+      fullName = findLocalRegistration(studentId).studentName || null;
+    } catch (error) {
+      console.warn("[transcription/handwriting-preview] local registration lookup unavailable:", error);
+    }
+  }
+  if (!fullName) throw new Error("לא נמצא שם משויך לתלמיד ברישום המרכזי או המקומי.");
 
   if (config.localHandwritingSearchEnabled) {
     const local = getLocalHandwritingFile(fileId, config.localHandwritingSearchPath, fullName);
