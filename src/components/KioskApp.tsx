@@ -271,6 +271,14 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         ).length;
         const handwritingFiles = handwritingResult?.files ?? [];
         const handwritingHasFiles = handwritingFiles.length > 0;
+
+        // When neither location contains documents, still verify registration so
+        // the UI can distinguish an existing student from a missing folder.
+        if (!audioDocumentCount && !handwritingHasFiles && !registration) {
+          registration = await checkRegistration(id);
+          if (registration.error) registrationLookupError = registration.error;
+        }
+
         const needsNameUpdate =
           canOpenHandwriting &&
           handwritingResult?.needsAssociation === true &&
@@ -321,9 +329,11 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
         setHandwritingFiles(handwritingFiles);
         setHandwritingError(
           handwritingResult?.error ||
-          (handwritingResult?.folderMissing
-            ? handwritingResult.message || "תיקיית כתב היד עדיין לא נמצאה."
-            : null),
+          (registrationLookupError
+            ? "לא ניתן לאמת את השם מול Google Sheets כרגע: " + registrationLookupError
+            : handwritingResult?.folderMissing
+              ? handwritingResult.message || "תיקיית כתב היד עדיין לא נמצאה."
+              : null),
         );
         setHandwritingLoading(false);
         setTranscriptionKind(null);
