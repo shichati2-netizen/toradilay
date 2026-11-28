@@ -465,7 +465,7 @@ export async function findRegistrationByName(
     const row = data.values![i] ?? [];
     if (normalize(row[location.firstNameColumn!]) !== firstName || normalize(row[location.lastNameColumn!]) !== lastName) continue;
     const studentId = cleanIdCell(row[location.idColumn!]);
-    if (!/^\\d{5,9}$/.test(studentId)) continue;
+    if (!/^\d{5,9}$/.test(studentId)) continue;
     matches.push({ studentId, studentName: `${String(row[location.firstNameColumn!] ?? "").trim()} ${String(row[location.lastNameColumn!] ?? "").trim()}`.trim() });
   }
   if (matches.length > 1) return { found: false, ambiguous: true };
