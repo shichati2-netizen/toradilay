@@ -242,7 +242,7 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
 
           // A webhook may return only studentName (instead of separate columns).
           // Derive the two fields so an existing full name never triggers another prompt.
-          const returnedName = String(registration.studentName || "").replace(/\\s+/g, " ").trim();
+          const returnedName = String(registration.studentName || "").replace(/\s+/g, " ").trim();
           if (returnedName) {
             const parts = returnedName.split(" ").filter(Boolean);
             if (parts.length >= 2) {
