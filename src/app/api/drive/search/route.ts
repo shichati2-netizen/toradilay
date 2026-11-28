@@ -1,5 +1,6 @@
 import { getStoredConfig } from "@/lib/server/settings";
 import { findLocalRegistration } from "@/lib/server/registrations";
+import { getRegisteredStudentNameById } from "@/lib/server/sheets";
 import {
   matchStudentFolder,
   scrapeFolder,
@@ -37,6 +38,16 @@ export async function POST(req: Request) {
     studentName = findLocalRegistration(studentId).studentName;
   } catch (err) {
     console.warn("[search] local registration lookup failed:", err);
+  }
+
+  if (!studentName) {
+    try {
+      // A student's voice folder may be named by their full registration name,
+      // even when the local CSV is absent on this PC.
+      studentName = await getRegisteredStudentNameById(studentId) || undefined;
+    } catch (err) {
+      console.warn("[search] central registration name lookup failed; continuing by ID:", err);
+    }
   }
 
   // מצב מקומי: חיפוש בלעדי בתיקייה שנבחרה בהגדרות, ללא גישה ל-Google Drive.
