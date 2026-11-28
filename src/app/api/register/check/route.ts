@@ -49,7 +49,7 @@ export async function POST(req: Request) {
         firstName,
         lastName,
         studentName,
-        source: sheetMatch.source === "webhook" ? "sheets-webhook" : "sheets",
+        source: "sheets",
       });
     }
 
