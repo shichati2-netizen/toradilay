@@ -1,8 +1,7 @@
 import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
 import {
-  checkExistingRegistration,
   getHandwritingNameForStudent,
-  resolveTarget,
+  getRegisteredStudentNameById,
   saveHandwritingNameForStudent,
 } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
@@ -123,26 +122,34 @@ export async function GET(req: Request) {
       console.warn("[transcription/handwriting-folder] mapping lookup unavailable:", error);
     }
 
+    let registrationLookupError: string | undefined;
     if (!fullName) {
       try {
-        const target = await resolveTarget({ webhookUrl: "" });
-        if (target) {
-          const registration = await checkExistingRegistration(target, studentId);
-          if (registration.firstName?.trim() && registration.lastName?.trim()) {
-            fullName = usableStudentName(registration.firstName.trim() + " " + registration.lastName.trim());
-          }
-        }
+        // Include Apps Script webhook as well as direct Sheets connections.
+        fullName = usableStudentName(await getRegisteredStudentNameById(studentId));
       } catch (error) {
-        console.warn("[transcription/handwriting-folder] registration lookup unavailable:", error);
+        registrationLookupError = error instanceof Error ? error.message : "שגיאה בקריאת הרישום המרכזי.";
+        console.warn("[transcription/handwriting-folder] registration lookup unavailable:", registrationLookupError);
       }
     }
 
+    let localRegistrationName: string | null = null;
     if (!fullName) {
       try {
-        fullName = usableStudentName(findLocalRegistration(studentId).studentName);
+        localRegistrationName = usableStudentName(findLocalRegistration(studentId).studentName);
+        fullName = localRegistrationName;
       } catch (error) {
         console.warn("[transcription/handwriting-folder] local registration lookup unavailable:", error);
       }
+    }
+
+    // Never ask the student to update a name when the central lookup failed.
+    // A lookup failure is not evidence that the registration/name is missing.
+    if (!fullName && registrationLookupError) {
+      return Response.json(
+        { error: "לא הצלחנו לבדוק את השם ברישום המרכזי ולכן לא נבקש לעדכן אותו כעת. " + registrationLookupError },
+        { status: 502 },
+      );
     }
 
     if (fullName) {
