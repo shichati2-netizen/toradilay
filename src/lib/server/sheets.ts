@@ -427,7 +427,10 @@ function columnLabel(index: number): string {
 }
 
 function cleanIdCell(value: unknown): string {
-  return String(value ?? "").trim().replace(/^'/, "").replace(/\D/g, "");
+  const digits = String(value ?? "").trim().replace(/^'/, "").replace(/\D/g, "");
+  // Google Sheets numeric cells may drop leading zeroes from Israeli ID numbers.
+  // All kiosk IDs use 9 digits, so pad shorter stored values before comparing.
+  return digits.length > 0 && digits.length < 9 ? digits.padStart(9, "0") : digits;
 }
 
 export interface ExistingRegistration {
