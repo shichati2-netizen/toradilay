@@ -525,14 +525,65 @@ export async function checkExistingRegistration(
  * the administrator configured (service account, OAuth, or Apps Script webhook).
  * This is separate from the optional handwriting-name mapping tab.
  */
-export async function getRegisteredStudentNameById(studentId: string): Promise<string | null> {
+export interface RegistrationLookupResult extends ExistingRegistration {
+  source?: "service-account" | "oauth" | "webhook";
+}
+
+/**
+ * Looks in every configured registration connection. A service account may be
+ * configured for Drive but lack access to the registration sheet, while the
+ * Apps Script webhook still has access; a failed first method must not hide it.
+ */
+export async function lookupExistingRegistrationById(studentId: string): Promise<RegistrationLookupResult> {
   const cleanId = String(studentId ?? "").replace(/\D/g, "");
-  if (!/^\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+  if (!/^\d{5,9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
 
-  const target = await resolveTarget();
-  if (!target) return null;
+  const config = await getStoredConfig();
+  const targets: SheetsTarget[] = [];
+  const directTarget = await resolveTarget({ webhookUrl: "" });
+  if (directTarget && /^[A-Za-z0-9_-]{10,}$/.test(directTarget.spreadsheetId)) {
+    targets.push(directTarget);
+  }
+  if (config.sheetsWebhookUrl && /^[A-Za-z0-9_-]{10,}$/.test(config.spreadsheetId)) {
+    targets.push({
+      method: "webhook",
+      spreadsheetId: config.spreadsheetId,
+      sa: null,
+      webhookUrl: config.sheetsWebhookUrl,
+    });
+  }
 
-  const registration = await checkExistingRegistration(target, cleanId);
+  if (!targets.length) return { exists: false };
+
+  const errors: string[] = [];
+  let positiveWithoutName: RegistrationLookupResult | null = null;
+  for (const target of targets) {
+    try {
+      const result = await checkExistingRegistration(target, cleanId);
+      if (!result.exists) continue;
+      const withSource: RegistrationLookupResult = { ...result, source: target.method };
+      const hasFullName = Boolean(
+        (result.firstName?.trim() && result.lastName?.trim()) ||
+        String(result.studentName || "").trim().split(/\s+/).filter(Boolean).length >= 2,
+      );
+      if (hasFullName) return withSource;
+      positiveWithoutName ??= withSource;
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : "שגיאה לא ידועה בקריאת הרישום");
+    }
+  }
+
+  if (positiveWithoutName) return positiveWithoutName;
+  if (errors.length) {
+    throw new Error("לא הצלחנו לאמת את תעודת הזהות מול כל מקורות הרישום: " + errors.join(" · "));
+  }
+  return { exists: false };
+}
+
+export async function getRegisteredStudentNameById(studentId: string): Promise<string | null> {
+  const registration = await lookupExistingRegistrationById(studentId);
+  if (!registration.exists) return null;
+
   const firstName = String(registration.firstName || "").replace(/\s+/g, " ").trim();
   const lastName = String(registration.lastName || "").replace(/\s+/g, " ").trim();
   let fullName = (firstName + " " + lastName).trim();
