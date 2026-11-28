@@ -1,5 +1,5 @@
 import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settings";
-import { getHandwritingNameForStudent } from "@/lib/server/sheets";
+import { getHandwritingNameForStudent, getRegisteredStudentNameById } from "@/lib/server/sheets";
 import {
   getRawDriveFileBuffer,
   getFileBuffer,
@@ -54,6 +54,13 @@ export async function GET(req: Request) {
       fullName = await getHandwritingNameForStudent(studentId);
     } catch (error) {
       console.warn("[transcription/handwriting-file] mapping lookup unavailable:", error);
+    }
+    if (!fullName) {
+      try {
+        fullName = await getRegisteredStudentNameById(studentId);
+      } catch (error) {
+        console.warn("[transcription/handwriting-file] central registration lookup unavailable:", error);
+      }
     }
     if (!fullName) {
       try {
