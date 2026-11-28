@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     if (sheetMatch.exists) {
       let firstName = sheetMatch.firstName || localMatch.firstName;
       let lastName = sheetMatch.lastName || localMatch.lastName;
-      const returnedName = String(sheetMatch.studentName || "").replace(/\\s+/g, " ").trim();
+      const returnedName = String(sheetMatch.studentName || "").replace(/\s+/g, " ").trim();
       if ((!firstName || !lastName) && returnedName) {
         const parts = returnedName.split(" ").filter(Boolean);
         if (parts.length >= 2) {
