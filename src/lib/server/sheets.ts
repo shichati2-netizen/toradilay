@@ -484,11 +484,16 @@ export async function checkExistingRegistration(
       spreadsheetId: t.spreadsheetId,
       idNumber: cleanId,
     });
+    const firstName = String(d.firstName || "").trim() || undefined;
+    const lastName = String(d.lastName || "").trim() || undefined;
+    const studentName = String(d.studentName || "").replace(/\\s+/g, " ").trim() || undefined;
     return {
-      exists: Boolean(d.exists),
-      studentName: d.studentName || undefined,
-      firstName: d.firstName || undefined,
-      lastName: d.lastName || undefined,
+      // Some existing Apps Script endpoints return a name but omit exists=true.
+      // A returned name is positive evidence of an existing registration.
+      exists: Boolean(d.exists || firstName || lastName || studentName),
+      studentName,
+      firstName,
+      lastName,
       rowNumber: typeof d.rowNumber === "number" ? d.rowNumber : undefined,
     };
   }
@@ -513,6 +518,30 @@ export async function checkExistingRegistration(
     };
   }
   return { exists: false };
+}
+
+/**
+ * Reads the canonical registration name by ID using whichever Sheets connection
+ * the administrator configured (service account, OAuth, or Apps Script webhook).
+ * This is separate from the optional handwriting-name mapping tab.
+ */
+export async function getRegisteredStudentNameById(studentId: string): Promise<string | null> {
+  const cleanId = String(studentId ?? "").replace(/\\D/g, "");
+  if (!/^\\d{9}$/.test(cleanId)) throw new Error("מספר תעודת הזהות אינו תקין.");
+
+  const target = await resolveTarget();
+  if (!target) return null;
+
+  const registration = await checkExistingRegistration(target, cleanId);
+  const firstName = String(registration.firstName || "").replace(/\\s+/g, " ").trim();
+  const lastName = String(registration.lastName || "").replace(/\\s+/g, " ").trim();
+  let fullName = (firstName + " " + lastName).trim();
+
+  if (!fullName) {
+    fullName = String(registration.studentName || "").replace(/\\s+/g, " ").trim();
+  }
+  const parts = fullName.split(" ").filter((part) => part.length >= 2);
+  return parts.length >= 2 && /[\\p{L}]{2}/u.test(fullName) ? fullName : null;
 }
 
 export async function saveRegistrationNameById(
