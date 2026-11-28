@@ -279,10 +279,14 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           if (registration.error) registrationLookupError = registration.error;
         }
 
+        const registrationHasFullName = Boolean(
+          registration?.firstName?.trim() && registration?.lastName?.trim(),
+        );
         const needsNameUpdate =
           canOpenHandwriting &&
           handwritingResult?.needsAssociation === true &&
-          !registrationLookupError;
+          !registrationLookupError &&
+          !registrationHasFullName;
 
         // A temporary Sheets lookup failure must never be treated as a missing name.
         if (registrationLookupError && !audioDocumentCount && !handwritingHasFiles) {
@@ -331,9 +335,11 @@ export function KioskApp({ initialConfig }: { initialConfig: KioskConfig }) {
           handwritingResult?.error ||
           (registrationLookupError
             ? "לא ניתן לאמת את השם מול Google Sheets כרגע: " + registrationLookupError
-            : handwritingResult?.folderMissing
-              ? handwritingResult.message || "תיקיית כתב היד עדיין לא נמצאה."
-              : null),
+            : registrationHasFullName && handwritingResult?.needsAssociation
+              ? "השם המלא כבר קיים ברישום, אך לא הצלחנו לקשר את תיקיית כתב היד. בדוק ששם התיקייה תואם לשם בגיליון."
+              : handwritingResult?.folderMissing
+                ? handwritingResult.message || "תיקיית כתב היד עדיין לא נמצאה."
+                : null),
         );
         setHandwritingLoading(false);
         setTranscriptionKind(null);
