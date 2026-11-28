@@ -581,10 +581,12 @@ export async function lookupExistingRegistrationById(studentId: string): Promise
     }
   }
 
-  if (positiveWithoutName) return positiveWithoutName;
   if (errors.length) {
-    throw new Error("לא הצלחנו לאמת את תעודת הזהות מול כל מקורות הרישום: " + errors.join(" · "));
+    // A positive ID match without a name is not enough to ask for an update
+    // while another configured source could still contain the existing name.
+    throw new Error("לא הצלחנו לאמת את השם מול כל מקורות הרישום: " + errors.join(" · "));
   }
+  if (positiveWithoutName) return positiveWithoutName;
   return { exists: false };
 }
 
