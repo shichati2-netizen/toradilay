@@ -368,7 +368,7 @@ export function normalizeFolderName(value: string): string {
   return value.normalize("NFKC").toLocaleLowerCase("he-IL").replace(/[^\p{L}\p{N}]/gu, "");
 }
 
-/** חיפוש תיקיית תלמיד: קודם תעודת זהות, אחר כך השם שנשמר בקובץ הרישומים המקומי. */
+/** חיפוש תיקיית תלמיד: קודם תעודת זהות, אחר כך השם הקנוני שהוחזר ממקור הרישום. */
 export function matchStudentFolder(
   folders: KioskFolder[],
   cleanId: string,
