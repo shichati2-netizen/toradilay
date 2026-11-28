@@ -593,6 +593,16 @@ export async function lookupExistingRegistrationById(studentId: string): Promise
   return { exists: false };
 }
 
+/** האם הוגדר מקור רישום מרכזי שאמור להיות מקור האמת לשמות תלמידים. */
+export async function hasConfiguredRegistrationLookupSource(): Promise<boolean> {
+  const config = await getStoredConfig();
+  const validSpreadsheetId = /^[A-Za-z0-9_-]{10,}$/;
+  if (!validSpreadsheetId.test(String(config.spreadsheetId || ""))) return false;
+  if (String(config.sheetsWebhookUrl || "").trim()) return true;
+  const directTarget = await resolveTarget({ webhookUrl: "" });
+  return Boolean(directTarget && validSpreadsheetId.test(directTarget.spreadsheetId));
+}
+
 export async function getRegisteredStudentNameById(studentId: string): Promise<string | null> {
   const registration = await lookupExistingRegistrationById(studentId);
   if (!registration.exists) return null;
