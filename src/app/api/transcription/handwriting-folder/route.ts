@@ -2,6 +2,7 @@ import { getStoredConfig, isHandwritingAccessAllowed } from "@/lib/server/settin
 import {
   getHandwritingNameForStudent,
   getRegisteredStudentNameById,
+  hasConfiguredRegistrationLookupSource,
   saveHandwritingNameForStudent,
 } from "@/lib/server/sheets";
 import { normalizeFolderName, scrapeFolder } from "@/lib/server/drive";
@@ -123,7 +124,15 @@ export async function GET(req: Request) {
     }
 
     let registrationLookupError: string | undefined;
-    if (!fullName) {
+    let centralRegistrationConfigured = true;
+    try {
+      centralRegistrationConfigured = await hasConfiguredRegistrationLookupSource();
+    } catch (error) {
+      // A configuration read failure must not make a stale local CSV authoritative.
+      console.warn("[transcription/handwriting-folder] could not determine central registration configuration:", error);
+    }
+
+    if (!fullName && centralRegistrationConfigured) {
       try {
         // Include Apps Script webhook as well as direct Sheets connections.
         fullName = usableStudentName(await getRegisteredStudentNameById(studentId));
@@ -133,11 +142,9 @@ export async function GET(req: Request) {
       }
     }
 
-    let localRegistrationName: string | null = null;
-    if (!fullName) {
+    if (!fullName && !centralRegistrationConfigured) {
       try {
-        localRegistrationName = usableStudentName(findLocalRegistration(studentId).studentName);
-        fullName = localRegistrationName;
+        fullName = usableStudentName(findLocalRegistration(studentId).studentName);
       } catch (error) {
         console.warn("[transcription/handwriting-folder] local registration lookup unavailable:", error);
       }
