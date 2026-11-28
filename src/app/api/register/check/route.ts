@@ -1,5 +1,5 @@
 import { findLocalRegistration } from "@/lib/server/registrations";
-import { checkExistingRegistration, resolveTarget } from "@/lib/server/sheets";
+import { lookupExistingRegistrationById } from "@/lib/server/sheets";
 
 export const dynamic = "force-dynamic";
 
@@ -25,26 +25,10 @@ export async function POST(req: Request) {
   }
 
   try {
-    // Use the administrator's configured connection, including Apps Script webhook.
-    // Passing webhookUrl:"" here used to disable that connection and silently check
-    // only the local CSV, even when the ID and name were present in Google Sheets.
-    const target = await resolveTarget();
-    if (!target) {
-      if (localMatch.exists) return Response.json({ ...localMatch, source: "local-csv" });
-      return Response.json(
-        { exists: false, error: "לא הוגדר חיבור פעיל ל-Google Sheets ולכן לא ניתן לאמת את הרישום.", code: "SHEETS_NOT_CONFIGURED" },
-        { status: 503 },
-      );
-    }
-    if (!/^[A-Za-z0-9_-]{10,}$/.test(target.spreadsheetId)) {
-      if (localMatch.exists) return Response.json({ ...localMatch, source: "local-csv" });
-      return Response.json(
-        { exists: false, error: "מזהה Google Sheets אינו מוגדר או אינו תקין.", code: "SHEETS_ID_REQUIRED" },
-        { status: 503 },
-      );
-    }
-
-    const sheetMatch = await checkExistingRegistration(target, idNumber);
+    // Search the direct Sheets connection and the configured Apps Script webhook.
+    // The webhook is not just a fallback for transcription; it can be the canonical
+    // registration lookup source when the kiosk's service account lacks sheet access.
+    const sheetMatch = await lookupExistingRegistrationById(idNumber);
     if (sheetMatch.exists) {
       let firstName = sheetMatch.firstName || localMatch.firstName;
       let lastName = sheetMatch.lastName || localMatch.lastName;
@@ -65,7 +49,7 @@ export async function POST(req: Request) {
         firstName,
         lastName,
         studentName,
-        source: target.method === "webhook" ? "sheets-webhook" : "sheets",
+        source: sheetMatch.source === "webhook" ? "sheets-webhook" : "sheets",
       });
     }
 
